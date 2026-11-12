@@ -370,13 +370,24 @@ pub fn items(app: &SolveApp, target: &Target) -> Vec<Item> {
         Target::Timeline { feature } => crate::timeline::feature_items(app, *feature),
         Target::Workspace => {
             let rendering = crate::render_workspace::active(app);
+            let multiphysics = crate::multiphysics_workspace::active(app);
             let mut v = vec![
-                act("ui.workspace.design", "Design", "ws_design").with(json!({"workspace":"design"})).key(if rendering { "" } else { "current" }),
+                act("ui.workspace.design", "Design", "ws_design").with(json!({"workspace":"design"})).key(if rendering || multiphysics {
+                    ""
+                } else {
+                    "current"
+                }),
                 act("ui.workspace.render", "Render", "ws_render")
                     .with(json!({"workspace":"render"}))
                     .key(if rendering { "current" } else { "" })
                     .on(app.session.active_sketch.is_none() && app.tool.is_none() && app.dialog.is_none() && !app.file_load.busy()),
             ];
+            v.push(
+                act("ui.workspace.multiphysics", solidcraft_ui_text::tr("multiphysics.workspace"), "params")
+                    .with(json!({"workspace":"multiphysics"}))
+                    .key(if multiphysics { "current" } else { "" })
+                    .on(crate::multiphysics_workspace::can_enter(app)),
+            );
             for (w, icon) in [("Animation", "ws_animate"), ("Simulation", ""), ("Manufacture", ""), ("Drawing", "ws_drawing")] {
                 v.push(act("ui.workspace", w, icon).key("coming later").on(false));
             }
@@ -1844,9 +1855,9 @@ pub fn run_item(app: &mut SolveApp, item: &Item, at: Pos2) {
             }
         }
         "ui.historyShowHidden" => app.tree.history_show_hidden = p["show"].as_bool().unwrap_or(false),
-        "ui.workspace" | "ui.workspace.design" | "ui.workspace.render" => {
+        "ui.workspace" | "ui.workspace.design" | "ui.workspace.render" | "ui.workspace.multiphysics" => {
             if let Some(workspace) = p.get("workspace").and_then(Value::as_str)
-                && let Err(e) = crate::render_workspace::enter(app, workspace == "render")
+                && let Err(e) = crate::multiphysics_workspace::switch(app, workspace)
             {
                 app.set_status(e, true);
             }
@@ -2894,6 +2905,14 @@ fn workspace_style(item: &Item) -> Option<crate::ui_kit::WorkspaceStyle> {
     use crate::ui_kit::WorkspaceStyle;
     use solidcraft_theme::AccentRamp;
     let planned = |slug, description| WorkspaceStyle { slug, description, tabs: None, ramp: None };
+    if item.id == "ui.workspace.multiphysics" {
+        return Some(WorkspaceStyle {
+            slug: "multiphysics",
+            description: "multiphysics.workspace_description",
+            tabs: Some("multiphysics.workspace_stages"),
+            ramp: None,
+        });
+    }
     Some(match item.label.as_str() {
         "Design" => {
             WorkspaceStyle { slug: "design", description: "ui.workspace_design_description", tabs: Some("ui.workspace_design_tabs"), ramp: None }
@@ -3537,7 +3556,7 @@ mod workspace_menu_tests {
         assert!(rows.windows(2).all(|pair| pair[0].bottom() <= pair[1].top()));
         assert!(rows[0].top() > opener.bottom());
         assert_eq!(rows[0].width(), 450.0);
-        assert!(items(&h.app, &Target::Workspace).iter().skip(2).all(|item| !item.enabled));
+        assert!(items(&h.app, &Target::Workspace).iter().filter(|item| item.id == "ui.workspace").all(|item| !item.enabled));
         h.step(&json!({"click":{"handle":"workspace:menu:animation"}})).unwrap();
         assert!(!crate::render_workspace::active(&h.app));
         assert!(h.app.viewport.context_menu.is_some());

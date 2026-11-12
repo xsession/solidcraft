@@ -219,6 +219,7 @@ fn write_container(
     budget: usize,
 ) -> Result<Vec<u8>> {
     doc.render.validate().map_err(invalid)?;
+    doc.multiphysics.validate().map_err(invalid)?;
     let mut writer = PackageWriter::new();
     let mut features = Vec::with_capacity(doc.features.len());
     for feature in &doc.features {

@@ -126,6 +126,7 @@ fn same_geometry_inputs(a: &Document, b: &Document) -> bool {
     let Document {
         newer_file: _,
         render,
+        multiphysics: _,
         format,
         format_pending,
         name,

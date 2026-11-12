@@ -52,6 +52,7 @@ pub const TAB_ACCENTS: TabTable = TabTable::new(&[
     tab_style("INSPECT", AccentRamp::Main, None),
     tab_style("MANAGE", AccentRamp::Main, None),
     tab_style("VIEW", AccentRamp::Main, None),
+    tab_style("MULTIPHYSICS", AccentRamp::Main, None),
     tab_style("RENDER", AccentRamp::Render, None),
     tab_style("RENDER APPEARANCE", AccentRamp::Render, None),
     tab_style("RENDER SCENE", AccentRamp::Render, None),
@@ -725,7 +726,7 @@ pub fn set_tab_shown(app: &mut crate::SolveApp, tab: &str, shown: bool) {
 
 /// Every design tab stays hidden until the person chooses to show it again.
 pub fn visible_tabs(app: &crate::SolveApp) -> Vec<&'static str> {
-    if crate::render_workspace::active(app) {
+    if crate::render_workspace::active(app) || crate::multiphysics_workspace::active(app) {
         return Vec::new();
     }
     let mut tabs: Vec<_> = TABS.iter().copied().filter(|tab| tab_turned_on(app, tab)).collect();
@@ -762,7 +763,7 @@ pub fn starts_a_sketch(app: &crate::SolveApp, id: &str) -> bool {
 /// other tabs to remain usable for the rest of that context. Sketch takes precedence over sheet
 /// metal, and sheet metal over weldments.
 pub fn sync_context(app: &mut crate::SolveApp) {
-    if crate::render_workspace::active(app) {
+    if crate::render_workspace::active(app) || crate::multiphysics_workspace::active(app) {
         return;
     }
     let context = app
@@ -876,7 +877,7 @@ mod tests {
         type Slots = fn(&Tokens) -> [egui::Color32; 3];
         let main: Slots = |t| [t.accent, t.selected_ink, t.accent_soft];
         let render: Slots = |t| [t.render_fill, t.render_ink, t.render_soft];
-        let tabs: [(&str, Slots, Option<&str>); 16] = [
+        let tabs: [(&str, Slots, Option<&str>); 17] = [
             ("MODEL", main, None),
             ("SKETCH", |t| [t.sketch_accent, t.sketch_ink, t.sketch_soft], Some("sketch")),
             ("SURFACE", |t| [t.surface_fill, t.surface_ink, t.surface_soft], Some("surface")),
@@ -889,6 +890,7 @@ mod tests {
             ("INSPECT", main, None),
             ("MANAGE", main, None),
             ("VIEW", main, None),
+            ("MULTIPHYSICS", main, None),
             ("RENDER", render, None),
             ("RENDER APPEARANCE", render, None),
             ("RENDER SCENE", render, None),

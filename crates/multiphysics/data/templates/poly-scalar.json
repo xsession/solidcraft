@@ -1,0 +1,10 @@
+{
+  "solver": "poly_scalar_transport3d",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 1.0, "y": 0.6, "z": 0.1}, "xy_shear": 0.2},
+  "config": {"dt": 0.005, "diffusivity": 0.02, "temporal_scheme": "backward_bdf2"},
+  "output": {"steps": 20, "output_interval": 5},
+  "initial": 0.5,
+  "velocity": {"x": 0.1, "y": 0.0, "z": 0.0},
+  "source": 0.01,
+  "boundaries": [{"patch": "left", "kind": "fixed_value", "value": 1.0}, {"patch": "right", "kind": "fixed_value", "value": 0.0}]
+}

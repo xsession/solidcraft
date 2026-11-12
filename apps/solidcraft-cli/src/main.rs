@@ -318,7 +318,10 @@ fn load_checked(path: &str, check: solidcraft_engine::schema::ParamCheck) -> Res
 /// `load_checked`, the features computed under `validation` (`diagnostics.validation`), which
 /// the session keeps.
 fn load_with(path: &str, check: solidcraft_engine::schema::ParamCheck, validation: solidcraft_engine::kernel::Validation) -> Result<Session, String> {
-    let s = read_session(path, check, validation)?;
+    let mut s = read_session(path, check, validation)?;
+    if !s.multiphysics_host_available() {
+        s.set_multiphysics_host(solidcraft_multiphysics_host::configured_host());
+    }
     // A newer SolidCraft's file opens all the same; stderr says so, stdout stays the caller's.
     for warning in s.doc.newer_file.iter().flat_map(|file| file.warnings()) {
         eprintln!("{path}: warning: {warning}");
@@ -332,6 +335,7 @@ fn read_session(
     validation: solidcraft_engine::kernel::Validation,
 ) -> Result<Session, String> {
     let mut s = Session::default();
+    s.set_multiphysics_host(solidcraft_multiphysics_host::configured_host());
     s.param_check = check;
     s.set_validation(validation);
     if solidcraft_engine::io::is_step_path(path) || solidcraft_engine::io::is_mesh_path(path) || solidcraft_engine::io::is_point_cloud_path(path) {
@@ -888,6 +892,7 @@ fn cmd_mcp(args: &[String]) -> Result<(), String> {
                 return serve_mcp(Box::new(remote), scope, options);
             }
             let mut headless = solidcraft_mcp::Headless::default();
+            headless.session.set_multiphysics_host(solidcraft_multiphysics_host::configured_host());
             headless.session.param_check = param_check;
             if render_gpu {
                 headless.session.register_render_job_host(solidcraft_gpu::path::host().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;

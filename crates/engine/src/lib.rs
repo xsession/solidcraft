@@ -21,6 +21,7 @@ pub mod frames;
 pub mod fuzz;
 pub mod licences;
 mod mesh_lines;
+pub mod multiphysics_jobs;
 pub mod occurrences;
 pub mod panels;
 pub mod params;
@@ -60,6 +61,7 @@ pub use solidcraft_geom as geom;
 pub use solidcraft_geom::note;
 pub use solidcraft_io as io;
 pub use solidcraft_kernel as kernel;
+pub use solidcraft_multiphysics as multiphysics;
 pub use solidcraft_profile as profile;
 pub use solidcraft_render as render;
 pub use solidcraft_sketch as sketch;
@@ -623,6 +625,7 @@ pub struct Session {
     /// Host-owned viewport metadata, never saved or included in history.
     render_viewport: Option<Arc<render::ExecutorDescriptor>>,
     render_jobs: render_jobs::Jobs,
+    multiphysics_jobs: multiphysics_jobs::Jobs,
     /// The visibility the design file holds (what `is_dirty` compares with).
     saved_visibility: Visibility,
     /// States to go back to (`edit.checkpoint`, `edit.restore_checkpoint`): how batches of
@@ -876,6 +879,7 @@ impl Session {
             camera: None,
             render_viewport: None,
             render_jobs: Default::default(),
+            multiphysics_jobs: Default::default(),
             evaluations: 0,
             motion_traces: Default::default(),
             command_check: None,
@@ -903,6 +907,7 @@ impl Session {
         let easyprint_upload = self.easyprint_upload.take();
         let render_viewport = self.render_viewport.clone();
         let render_jobs = self.render_jobs.scratch();
+        let multiphysics_jobs = self.multiphysics_jobs.scratch();
         let checkpoints = std::mem::take(&mut self.checkpoints);
         let next_checkpoint = self.next_checkpoint;
         // The design on screen stays journaled for crash reports at once, not from the app's
@@ -923,6 +928,7 @@ impl Session {
         self.easyprint_upload = easyprint_upload;
         self.render_viewport = render_viewport;
         self.render_jobs = render_jobs;
+        self.multiphysics_jobs = multiphysics_jobs;
         self.checkpoints = checkpoints;
         self.next_checkpoint = next_checkpoint;
         self.replacements = replacements;
@@ -1529,6 +1535,7 @@ impl Session {
         self.active_sketch == before.active_sketch
             && self.pending_moves == before.pending_moves
             && (self.doc.differs_only_in_render(&before.doc)
+                || self.doc.differs_only_in_multiphysics(&before.doc)
                 || self.doc.differs_only_in_part_properties(&before.doc)
                 || self.doc.differs_only_in_appearance(&before.doc)
                 || self.doc.differs_only_in_browser(&before.doc))
@@ -2019,6 +2026,7 @@ impl Session {
             camera: self.camera,
             render_viewport: self.render_viewport.clone(),
             render_jobs: self.render_jobs.scratch(),
+            multiphysics_jobs: self.multiphysics_jobs.scratch(),
             saved_visibility: self.saved_visibility.clone(),
             evaluations: 0,
             motion_traces: self.motion_traces.clone(),
@@ -2492,6 +2500,7 @@ fn same_but_features(a: &Document, b: &Document) -> bool {
     let Document {
         newer_file: _,
         render,
+        multiphysics,
         format,
         format_pending,
         name,
@@ -2529,6 +2538,7 @@ fn same_but_features(a: &Document, b: &Document) -> bool {
         next_component_color_index,
     } = a;
     *render == b.render
+        && *multiphysics == b.multiphysics
         && *format == b.format
         && *format_pending == b.format_pending
         && *name == b.name

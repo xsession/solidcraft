@@ -1,0 +1,9 @@
+{
+  "solver": "solid_heat3d",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 0.04, "y": 0.03, "z": 0.01}},
+  "config": {"dt": 0.01, "density": 8900.0, "heat_capacity": 385.0, "conductivity": 380.0, "temporal_scheme": "backward_bdf2"},
+  "output": {"steps": 20, "output_interval": 5},
+  "initial": 300.0,
+  "source": 10000000.0,
+  "boundaries": [{"patch": "left", "kind": "fixed_value", "value": 300.0}, {"patch": "right", "kind": "fixed_value", "value": 300.0}]
+}

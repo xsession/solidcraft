@@ -1,0 +1,1743 @@
+{
+  "kind": "design_source_catalog",
+  "version": "1.4",
+  "solver_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+  "solidcraft_revision": "9b97d8dc8f2f8039d4dcfbed1c129ea4cfbd9dd2",
+  "profiles": [
+    {
+      "id": "fvm-incompressible",
+      "lens": "Flow & heat",
+      "name": "Incompressible FVM",
+      "source_scope": "PolyMesh cell-centred SIMPLE/PISO/PIMPLE; transported RANS and thermal APIs separate",
+      "representation": "poly_volume",
+      "source_paths": [
+        "include/cfd/solvers/fvm/collocated_incompressible.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0150_fvm_temporal_pressure.cpp"
+      ],
+      "required_inputs": [
+        "Regions",
+        "velocity/pressure patches",
+        "density",
+        "viscosity",
+        "numerical controls"
+      ],
+      "outputs": [
+        "Velocity",
+        "pressure",
+        "face flux",
+        "continuity"
+      ],
+      "limitation": "General case loader and volume meshing absent; each RANS/thermal/backend combination needs its own adapter",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fvm/collocated_incompressible.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0150_fvm_temporal_pressure.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-fvm-adaptive-mesh",
+          "api-fvm-advanced-models",
+          "api-fvm-combustion",
+          "api-fvm-derived-fields",
+          "api-fvm-field",
+          "api-fvm-function-objects",
+          "api-fvm-fv-matrix",
+          "api-fvm-mesh-motion",
+          "api-fvm-operators",
+          "api-fvm-poly-mesh",
+          "api-fvm-pressure-velocity",
+          "api-fvm-radiation",
+          "api-fvm-radiation-network",
+          "api-fvm-reordering",
+          "api-fvm-resident-rans-sycl",
+          "api-fvm-resident-sycl",
+          "api-fvm-runtime-schemes",
+          "api-fvm-schemes",
+          "api-fvm-temporal",
+          "api-fvm-turbulence",
+          "api-solvers-fem-brinkman2d",
+          "api-solvers-fem-darcy2d",
+          "api-solvers-fem-mixed-stokes",
+          "api-solvers-fem-stokes2d",
+          "api-solvers-fvm-collocated-incompressible",
+          "api-solvers-fvm-diffusion2d",
+          "api-solvers-fvm-incompressible2d",
+          "api-solvers-fvm-projection2d",
+          "api-solvers-fvm-rans-transport",
+          "api-solvers-fvm-scalar-transport",
+          "api-solvers-fvm-thin-film"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "lbm-fluid",
+      "lens": "Flow & heat",
+      "name": "Lattice Boltzmann",
+      "source_scope": "D2Q9 and D3Q19/D3Q27 structured lattices with optional resident/distributed paths",
+      "representation": "voxel_lattice",
+      "source_paths": [
+        "include/cfd/solvers/lbm/esoteric_pull.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0141_lbm_les_qcriterion.cpp"
+      ],
+      "required_inputs": [
+        "Occupancy",
+        "lattice spacing",
+        "SI/lattice conversion",
+        "collision",
+        "boundaries"
+      ],
+      "outputs": [
+        "Velocity",
+        "density",
+        "lattice diagnostics"
+      ],
+      "limitation": "GPU/MPI source does not qualify installed hardware; arbitrary inlet/surface treatment is profile-specific",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/lbm/esoteric_pull.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0141_lbm_les_qcriterion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-solvers-lbm-advanced-d2q9",
+          "api-solvers-lbm-compressed-pull",
+          "api-solvers-lbm-d2q9",
+          "api-solvers-lbm-d2q9-sycl",
+          "api-solvers-lbm-descriptors",
+          "api-solvers-lbm-diagnostics",
+          "api-solvers-lbm-distributed-pull",
+          "api-solvers-lbm-distributed-sycl-pull",
+          "api-solvers-lbm-esoteric-pull",
+          "api-solvers-lbm-esoteric-pull-sycl",
+          "api-solvers-lbm-free-surface",
+          "api-solvers-lbm-one-step-pull",
+          "api-solvers-lbm-particles",
+          "api-solvers-lbm-passive-scalar",
+          "api-solvers-lbm-precision-pull",
+          "api-solvers-lbm-resident-multiphysics-sycl",
+          "api-solvers-lbm-visualization",
+          "api-solvers-lbm-voxelize",
+          "api-solvers-lbm-voxelize-sycl"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "fvm-compressible",
+      "lens": "Flow & heat",
+      "name": "Compressible flow",
+      "source_scope": "Characteristic WENO/SSPRK reference includes 1-D Euler",
+      "representation": "line_mesh",
+      "source_paths": [
+        "include/cfd/solvers/fvm/compressible1d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0154_compressible_weno.cpp"
+      ],
+      "required_inputs": [
+        "1-D state",
+        "gas model",
+        "shock/transport settings"
+      ],
+      "outputs": [
+        "Density",
+        "momentum",
+        "energy",
+        "shock diagnostics"
+      ],
+      "limitation": "Do not advertise arbitrary 3-D compressible aerodynamics from a 1-D reference",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fvm/compressible1d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0154_compressible_weno.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-solvers-fvm-compressible1d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "fvm-multiphase",
+      "lens": "Flow & heat",
+      "name": "Multiphase interfaces",
+      "source_scope": "VOF, compressible VOF and Euler-Euler modules; exact supported combinations vary",
+      "representation": "poly_volume",
+      "source_paths": [
+        "include/cfd/solvers/fvm/euler_euler.hpp"
+      ],
+      "test_paths": [
+        "tests/test_euler_euler.cpp"
+      ],
+      "required_inputs": [
+        "Phases",
+        "fractions",
+        "constitutive laws",
+        "BCs",
+        "interphase exchange"
+      ],
+      "outputs": [
+        "Phase fractions",
+        "phase quantities",
+        "conservation"
+      ],
+      "limitation": "No single all-physics arbitrary-CAD multiphase loader; application closure policies must be explicit",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fvm/euler_euler.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_euler_euler.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-solvers-fvm-compressible-vof",
+          "api-solvers-fvm-euler-euler",
+          "api-solvers-fvm-vof"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "fvm-spray",
+      "lens": "Flow & heat",
+      "name": "Sprays and dispersed phase",
+      "source_scope": "Particle, spray, film and dense rheology baselines",
+      "representation": "particles_plus_mesh",
+      "source_paths": [
+        "include/cfd/solvers/fvm/spray.hpp"
+      ],
+      "test_paths": [
+        "tests/test_spray.cpp"
+      ],
+      "required_inputs": [
+        "Injection",
+        "parcels",
+        "carrier fields",
+        "interaction/evaporation models"
+      ],
+      "outputs": [
+        "Tracks",
+        "parcel state",
+        "exchange budgets"
+      ],
+      "limitation": "Do not infer every reacting/thermal combination or production injector accuracy",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fvm/spray.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_spray.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-solvers-fvm-dense-particle-rheology",
+          "api-solvers-fvm-particle-interactions",
+          "api-solvers-fvm-particles",
+          "api-solvers-fvm-spray"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "thermal-fvm",
+      "lens": "Flow & heat",
+      "name": "Thermal finite volumes",
+      "source_scope": "Solid heat and fluid thermal-transport modules with specific coupling helpers",
+      "representation": "poly_volume",
+      "source_paths": [
+        "include/cfd/solvers/fvm/solid_heat.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0151_thermal_coupling.cpp"
+      ],
+      "required_inputs": [
+        "Conductivity",
+        "capacity",
+        "sources",
+        "supported thermal boundaries"
+      ],
+      "outputs": [
+        "Temperature",
+        "heat rates",
+        "restart diagnostics"
+      ],
+      "limitation": "General arbitrary 3-D conjugate interfaces need executable mapping and energy tests",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fvm/solid_heat.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0151_thermal_coupling.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-fvm-adaptive-mesh",
+          "api-fvm-advanced-models",
+          "api-fvm-combustion",
+          "api-fvm-derived-fields",
+          "api-fvm-field",
+          "api-fvm-function-objects",
+          "api-fvm-fv-matrix",
+          "api-fvm-mesh-motion",
+          "api-fvm-operators",
+          "api-fvm-poly-mesh",
+          "api-fvm-pressure-velocity",
+          "api-fvm-radiation",
+          "api-fvm-radiation-network",
+          "api-fvm-reordering",
+          "api-fvm-resident-rans-sycl",
+          "api-fvm-resident-sycl",
+          "api-fvm-runtime-schemes",
+          "api-fvm-schemes",
+          "api-fvm-temporal",
+          "api-fvm-turbulence",
+          "api-solvers-fvm-flame-models",
+          "api-solvers-fvm-premixed-flame1d",
+          "api-solvers-fvm-reacting",
+          "api-solvers-fvm-solid-heat",
+          "api-solvers-fvm-soot-radiation",
+          "api-solvers-fvm-species-transport",
+          "api-solvers-fvm-thermal-transport"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "fem-heat2d",
+      "lens": "Flow & heat",
+      "name": "FEM scalar and heat",
+      "source_scope": "Tri3 2-D heat/diffusion; additional Tet4 Poisson and Stokes/Darcy baselines",
+      "representation": "tri_surface",
+      "source_paths": [
+        "include/cfd/solvers/fem/heat2d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_main.cpp"
+      ],
+      "required_inputs": [
+        "2-D mesh",
+        "material",
+        "temperature/flux BC",
+        "initial state",
+        "time controls"
+      ],
+      "outputs": [
+        "Nodal scalar/temperature",
+        "residual and energy accounting"
+      ],
+      "limitation": "First recommended general study adapter is bounded 2-D heat, not all FEM physics",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fem/heat2d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_main.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "first",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-fem-adaptivity",
+          "api-fem-assembly",
+          "api-fem-material-laws",
+          "api-fem-mesh2d",
+          "api-fem-mesh3d",
+          "api-fem-nonlinear-geometry",
+          "api-fem-phase-change",
+          "api-fem-reference-element",
+          "api-solvers-fem-heat2d",
+          "api-solvers-fem-nonlinear-poisson2d",
+          "api-solvers-fem-poisson1d",
+          "api-solvers-fem-poisson2d",
+          "api-solvers-fem-poisson3d",
+          "api-solvers-fem-scalar-diffusion2d",
+          "api-solvers-fem-transport-stabilization"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "structural-fem",
+      "lens": "Structures & motion",
+      "name": "Elasticity and modal response",
+      "source_scope": "2-D/axisymmetric elasticity, bar dynamics/eigenmodes and selected continuum kernels",
+      "representation": "fem_elements",
+      "source_paths": [
+        "include/cfd/solvers/fem/elasticity2d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_main.cpp"
+      ],
+      "required_inputs": [
+        "Idealization",
+        "element family",
+        "material",
+        "constraints",
+        "loads",
+        "modes"
+      ],
+      "outputs": [
+        "Displacement",
+        "stress/reaction",
+        "mode quantities where supported"
+      ],
+      "limitation": "Element catalogue presence is not evidence every global 3-D structural formulation is available",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fem/elasticity2d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_main.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-fem-adaptivity",
+          "api-fem-assembly",
+          "api-fem-material-laws",
+          "api-fem-mesh2d",
+          "api-fem-mesh3d",
+          "api-fem-nonlinear-geometry",
+          "api-fem-phase-change",
+          "api-fem-reference-element",
+          "api-multiphysics-deformation-optics",
+          "api-solvers-fem-axisymmetric-elasticity",
+          "api-solvers-fem-dynamic-bar1d",
+          "api-solvers-fem-elasticity2d",
+          "api-solvers-fem-modal-bar1d",
+          "api-solvers-fem-piezoelectric-bar1d",
+          "api-solvers-fem-thermoelastic-block"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "nonlinear-mechanics",
+      "lens": "Structures & motion",
+      "name": "Nonlinear mechanics and plasticity",
+      "source_scope": "Finite-strain constitutive 3-D, Tri3/Tet4 plastic kernels and reduced fracture tests",
+      "representation": "fem_elements",
+      "source_paths": [
+        "include/cfd/mechanics/finite_strain_tet4_plastic.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Constitutive calibration",
+        "nonlinear steps",
+        "boundary/assembly policy"
+      ],
+      "outputs": [
+        "Constitutive stresses",
+        "tangent and balance diagnostics"
+      ],
+      "limitation": "Material/element benchmarks are not a general production nonlinear structural application",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/mechanics/finite_strain_tet4_plastic.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-mechanics-constitutive3d",
+          "api-mechanics-continuum-baselines",
+          "api-mechanics-finite-strain-j2",
+          "api-mechanics-finite-strain-j2-calibration",
+          "api-mechanics-finite-strain-tet4",
+          "api-mechanics-finite-strain-tet4-plastic",
+          "api-mechanics-finite-strain-tri3-plastic",
+          "api-mechanics-meshfree-neighbor-graph",
+          "api-mechanics-phase-field-fracture1d",
+          "api-mechanics-phase-field-fracture-operator1d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "multibody-dem",
+      "lens": "Structures & motion",
+      "name": "Multibody and granular dynamics",
+      "source_scope": "Rigid bodies, constraints, contact, DEM, resident/distributed and CFD-DEM APIs",
+      "representation": "body_particle_graph",
+      "source_paths": [
+        "include/cfd/multibody/system.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0167_cfd_dem_coupling.cpp"
+      ],
+      "required_inputs": [
+        "Occurrences",
+        "mass/inertia",
+        "joints",
+        "contact",
+        "particles",
+        "timestep"
+      ],
+      "outputs": [
+        "Transforms",
+        "velocities",
+        "joint/contact forces",
+        "exchange budgets"
+      ],
+      "limitation": "Real multi-rank GPU-aware MPI and physical-device qualification remain separate",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/multibody/system.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0167_cfd_dem_coupling.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-multibody-advanced-dynamics",
+          "api-multibody-cfd-dem-coupling",
+          "api-multibody-constraints",
+          "api-multibody-contact",
+          "api-multibody-distributed-dem",
+          "api-multibody-math",
+          "api-multibody-mpi-resident-dem-sycl",
+          "api-multibody-resident-cfd-dem-sycl",
+          "api-multibody-resident-dem-sycl",
+          "api-multibody-rigid-body",
+          "api-multibody-system"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "cosserat-rods",
+      "lens": "Structures & motion",
+      "name": "Flexible rods and cables",
+      "source_scope": "Stable Cosserat CPU reference with centerline/directors, anchors and loads",
+      "representation": "centerline_frames",
+      "source_paths": [
+        "include/cfd/mechanics/cosserat_rods.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0169_cosserat_rods.cpp"
+      ],
+      "required_inputs": [
+        "Centerline",
+        "frames",
+        "masses",
+        "stiffness/compliance",
+        "anchors",
+        "gravity"
+      ],
+      "outputs": [
+        "Node/director motion",
+        "stretch/shear and bend/twist error",
+        "energy"
+      ],
+      "limitation": "CPU reference; not a general 3-D continuum or qualified GPU cable-contact solver",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/mechanics/cosserat_rods.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0169_cosserat_rods.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-mechanics-cosserat-rods"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "peridynamics-fracture",
+      "lens": "Porous & advanced models",
+      "name": "Reduced damage and peridynamics",
+      "source_scope": "1-D peridynamic bar, phase-field fracture and meshfree-neighbor infrastructure",
+      "representation": "line_or_neighbor_graph",
+      "source_paths": [
+        "include/cfd/mechanics/continuum_baselines.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Bond/line topology",
+        "damage laws",
+        "loads",
+        "horizon/model assumptions"
+      ],
+      "outputs": [
+        "Displacement",
+        "damage",
+        "energy",
+        "balance"
+      ],
+      "limitation": "Keep explicit reduced dimension; neighbor graphs alone do not provide arbitrary continuum solving",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/mechanics/continuum_baselines.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-mechanics-constitutive3d",
+          "api-mechanics-continuum-baselines",
+          "api-mechanics-finite-strain-j2",
+          "api-mechanics-finite-strain-j2-calibration",
+          "api-mechanics-finite-strain-tet4",
+          "api-mechanics-finite-strain-tet4-plastic",
+          "api-mechanics-finite-strain-tri3-plastic",
+          "api-mechanics-meshfree-neighbor-graph",
+          "api-mechanics-phase-field-fracture1d",
+          "api-mechanics-phase-field-fracture-operator1d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "fdtd-em",
+      "lens": "EM & RF",
+      "name": "Time-domain electromagnetics",
+      "source_scope": "1-D/3-D Yee, cylindrical, ports/material and optional resident APIs with bounded combinations",
+      "representation": "staggered_grid",
+      "source_paths": [
+        "include/cfd/solvers/fdtd/maxwell3d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0157_gpu_fdtd_residency.cpp"
+      ],
+      "required_inputs": [
+        "Grid",
+        "materials",
+        "source",
+        "ports",
+        "boundaries",
+        "timestep",
+        "monitors"
+      ],
+      "outputs": [
+        "E/H",
+        "probe/DFT data",
+        "port quantities"
+      ],
+      "limitation": "General 3-D boundary/excitation combinations and distributed hardware are not universally qualified",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/fdtd/maxwell3d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0157_gpu_fdtd_residency.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-solvers-fdtd-cylindrical-multigrid",
+          "api-solvers-fdtd-cylindrical-tm",
+          "api-solvers-fdtd-emc-sources",
+          "api-solvers-fdtd-hdf5-xdmf",
+          "api-solvers-fdtd-maxwell1d",
+          "api-solvers-fdtd-maxwell3d",
+          "api-solvers-fdtd-monitor",
+          "api-solvers-fdtd-multiconductor-tline",
+          "api-solvers-fdtd-port",
+          "api-solvers-fdtd-postprocess",
+          "api-solvers-fdtd-resident-sycl",
+          "api-solvers-fdtd-vtk-io"
+        ],
+        "source_only_extension_paths": [
+          "include/cfd/solvers/fdtd/hdf5_xdmf.hpp"
+        ],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "rf-fem",
+      "lens": "EM & RF",
+      "name": "Frequency-domain EM",
+      "source_scope": "2-D/3-D edge-FEM Maxwell, ports, eigen/resonance and adaptivity baselines",
+      "representation": "edge_fem",
+      "source_paths": [
+        "include/cfd/em/edge_fem3d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_optical_full_wave.cpp"
+      ],
+      "required_inputs": [
+        "Complex materials",
+        "edge mesh",
+        "frequency",
+        "constraints",
+        "ports"
+      ],
+      "outputs": [
+        "Complex fields",
+        "S values",
+        "modes/Q where supported"
+      ],
+      "limitation": "Exact port/formulation/normalization and problem size must be matched; no blanket full-wave parity",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/em/edge_fem3d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_optical_full_wave.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-em-adaptivity3d",
+          "api-em-edge-fem2d",
+          "api-em-edge-fem3d",
+          "api-em-frequency-domain",
+          "api-em-metasurface-gstc",
+          "api-em-photonic-modes",
+          "api-em-system",
+          "api-em-wave-port",
+          "api-fem-adaptivity",
+          "api-fem-assembly",
+          "api-fem-material-laws",
+          "api-fem-mesh2d",
+          "api-fem-mesh3d",
+          "api-fem-nonlinear-geometry",
+          "api-fem-phase-change",
+          "api-fem-reference-element",
+          "api-solvers-fem-eddy-current2d",
+          "api-solvers-fem-electromagnetics2d",
+          "api-solvers-fem-magnetostatics2d"
+        ],
+        "source_only_extension_paths": [
+          "include/cfd/em/metasurface_gstc.hpp",
+          "include/cfd/em/photonic_modes.hpp"
+        ],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "rf-integral",
+      "lens": "EM & RF",
+      "name": "Antennas and integral methods",
+      "source_scope": "Thin-wire MoM, RWG/half-RWG surface baselines, PEEC and limited asymptotics",
+      "representation": "wire_surface",
+      "source_paths": [
+        "include/cfd/rf/surface_mom.hpp"
+      ],
+      "test_paths": [
+        "tests/test_rf_surface_mom.cpp"
+      ],
+      "required_inputs": [
+        "Wires/surfaces",
+        "feed/load",
+        "impedance",
+        "frequency",
+        "orientation"
+      ],
+      "outputs": [
+        "Currents",
+        "network/radiation reference quantities"
+      ],
+      "limitation": "Small dense patch/one-bounce tests do not establish NEC-grade accuracy, MLFMM scaling or general hybrid solvers",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/rf/surface_mom.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_rf_surface_mom.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-rf-antenna",
+          "api-rf-asymptotic",
+          "api-rf-conductor-models",
+          "api-rf-integral-equation-extensions",
+          "api-rf-peec",
+          "api-rf-surface-mom",
+          "api-rf-thin-wire-mom"
+        ],
+        "source_only_extension_paths": [
+          "include/cfd/rf/integral_equation_extensions.hpp",
+          "include/cfd/rf/surface_mom.hpp"
+        ],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "si-pi-emc",
+      "lens": "EM & RF",
+      "name": "Signal/power integrity and cables",
+      "source_scope": "Reduced network SI/PI/EMC, cable propagation and conductor extraction",
+      "representation": "network",
+      "source_paths": [
+        "include/cfd/em/system.hpp"
+      ],
+      "test_paths": [
+        "tests/test_em_spice_bridge.cpp"
+      ],
+      "required_inputs": [
+        "RLCG/stackup",
+        "terminations",
+        "signal",
+        "probes",
+        "reference planes"
+      ],
+      "outputs": [
+        "PDN impedance",
+        "IR drop",
+        "waveform/eye helper outputs"
+      ],
+      "limitation": "Network/reduced estimates must not be labelled general 3-D full-wave enclosure results",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/em/system.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_em_spice_bridge.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-circuit-analysis",
+          "api-circuit-external-spice-adapter",
+          "api-circuit-osdi-adapter",
+          "api-circuit-osdi-loader",
+          "api-circuit-raw",
+          "api-circuit-spice",
+          "api-circuit-spice-compat",
+          "api-em-cable",
+          "api-rf-antenna",
+          "api-rf-asymptotic",
+          "api-rf-conductor-models",
+          "api-rf-integral-equation-extensions",
+          "api-rf-modal-elements",
+          "api-rf-network",
+          "api-rf-nport",
+          "api-rf-peec",
+          "api-rf-surface-mom",
+          "api-rf-thin-wire-mom"
+        ],
+        "source_only_extension_paths": [
+          "include/cfd/rf/integral_equation_extensions.hpp",
+          "include/cfd/rf/surface_mom.hpp"
+        ],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "spice-circuit",
+      "lens": "Circuits & power",
+      "name": "SPICE and compact models",
+      "source_scope": "Native parser/MNA, analyses and OSDI loader boundaries",
+      "representation": "network",
+      "source_paths": [
+        "include/cfd/circuit/spice.hpp"
+      ],
+      "test_paths": [
+        "tests/test_spice_io.cpp"
+      ],
+      "required_inputs": [
+        "Netlist",
+        "reference node",
+        "devices",
+        "model libraries",
+        "analyses"
+      ],
+      "outputs": [
+        "Operating point",
+        "waveforms",
+        "RAW",
+        "AC/noise/PSS where supported"
+      ],
+      "limitation": "Model dialect/device and OSDI validation are specific; dynamic plugin availability is not guaranteed",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/circuit/spice.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_spice_io.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-circuit-analysis",
+          "api-circuit-external-spice-adapter",
+          "api-circuit-osdi-adapter",
+          "api-circuit-osdi-loader",
+          "api-circuit-raw",
+          "api-circuit-spice",
+          "api-circuit-spice-compat"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "power-network",
+      "lens": "Circuits & power",
+      "name": "Power networks and DAE",
+      "source_scope": "AC multibus, continuation/dispatch and reduced swing/hybrid DAE references",
+      "representation": "network",
+      "source_paths": [
+        "include/cfd/power/multibus_power.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Bus/line/generator graph",
+        "bases",
+        "constraints",
+        "events"
+      ],
+      "outputs": [
+        "Bus states",
+        "power flow",
+        "dispatch",
+        "reduced transients"
+      ],
+      "limitation": "Separate from SPICE and spatial EM; no broad utility-network certification",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/power/multibus_power.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-power-ac-power-flow",
+          "api-power-multibus-power"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "optical-rays",
+      "lens": "Optics & photonics",
+      "name": "Geometrical optics",
+      "source_scope": "Sequential plane/sphere/conic/asphere and nonsequential/analysis/optimization APIs",
+      "representation": "optical_prescription",
+      "source_paths": [
+        "include/cfd/solvers/optics/sequential.hpp"
+      ],
+      "test_paths": [
+        "tests/test_optics_interchange.cpp"
+      ],
+      "required_inputs": [
+        "Ordered surfaces",
+        "transforms",
+        "wavelengths",
+        "apertures",
+        "materials"
+      ],
+      "outputs": [
+        "Rays",
+        "spot/wavefront and supported analysis outputs"
+      ],
+      "limitation": "Arbitrary CAD surface binding and SYCL ray throughput need separate adapters/qualification",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/optics/sequential.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_optics_interchange.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-multiphysics-deformation-optics",
+          "api-optics-analysis",
+          "api-optics-birefringence",
+          "api-optics-freeform",
+          "api-optics-interchange",
+          "api-optics-nonsequential",
+          "api-optics-optimization",
+          "api-optics-serialization",
+          "api-optics-system-models",
+          "api-optics-transform",
+          "api-solvers-optics-gaussian-beam",
+          "api-solvers-optics-materials",
+          "api-solvers-optics-paraxial",
+          "api-solvers-optics-polarization",
+          "api-solvers-optics-ray",
+          "api-solvers-optics-sequential"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "optical-waves",
+      "lens": "Optics & photonics",
+      "name": "Wave optics and photonic modes",
+      "source_scope": "2-D Bloch/guided-mode, optical FEM, GSTC and nonlinear-polarization baselines",
+      "representation": "grid_or_edge_fem",
+      "source_paths": [
+        "include/cfd/em/photonic_modes.hpp"
+      ],
+      "test_paths": [
+        "tests/test_photonic_modes.cpp"
+      ],
+      "required_inputs": [
+        "Supported 2-D domain",
+        "dispersion",
+        "periodicity",
+        "frequencies",
+        "sources"
+      ],
+      "outputs": [
+        "Mode/dispersion",
+        "complex field",
+        "sheet/polarization diagnostics"
+      ],
+      "limitation": "Do not infer all-vector arbitrary 3-D photonics or full coupled nonlinear propagation",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/em/photonic_modes.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_photonic_modes.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-em-metasurface-gstc",
+          "api-em-photonic-modes",
+          "api-optics-analysis",
+          "api-optics-birefringence",
+          "api-optics-diffraction",
+          "api-optics-freeform",
+          "api-optics-interchange",
+          "api-optics-nonlinear-polarization",
+          "api-optics-nonsequential",
+          "api-optics-optimization",
+          "api-optics-serialization",
+          "api-optics-system-models",
+          "api-optics-transform",
+          "api-optics-wavefront",
+          "api-spectral-fft"
+        ],
+        "source_only_extension_paths": [
+          "include/cfd/em/metasurface_gstc.hpp",
+          "include/cfd/em/photonic_modes.hpp",
+          "include/cfd/optics/nonlinear_polarization.hpp"
+        ],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "acoustic-kspace2d",
+      "lens": "Acoustics",
+      "name": "Acoustics and ultrasound",
+      "source_scope": "Explicitly 2-D k-space/pseudospectral medium and source/sensor APIs",
+      "representation": "grid_2d",
+      "source_paths": [
+        "include/cfd/acoustics/kspace2d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0170_acoustics.cpp"
+      ],
+      "required_inputs": [
+        "Sound speed/density",
+        "absorption",
+        "source/array delay",
+        "PML",
+        "sensors"
+      ],
+      "outputs": [
+        "Pressure histories",
+        "spectra",
+        "reconstruction and heating helpers"
+      ],
+      "limitation": "Reject 3-D requests for this profile; sampling/grid and coupling restrictions stay visible",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/acoustics/kspace2d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0170_acoustics.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-acoustics-coupling",
+          "api-acoustics-kspace2d",
+          "api-acoustics-postprocess",
+          "api-spectral-fft"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "chemical-reactors",
+      "lens": "Chemistry & corrosion",
+      "name": "Chemistry and thermodynamics",
+      "source_scope": "Species/kinetics/thermo, equilibrium, implicit reactors and networks",
+      "representation": "reactor_network",
+      "source_paths": [
+        "include/cfd/chemistry/reactor_network.hpp"
+      ],
+      "test_paths": [
+        "tests/test_chemistry_database.cpp"
+      ],
+      "required_inputs": [
+        "Species",
+        "reactions",
+        "database revision",
+        "initial/flow state"
+      ],
+      "outputs": [
+        "Composition",
+        "temperature",
+        "equilibrium",
+        "reaction trajectories"
+      ],
+      "limitation": "Database and model applicability need evidence; not every reactive CFD combination is present",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/chemistry/reactor_network.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_chemistry_database.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-chemistry-advanced-thermo",
+          "api-chemistry-aqueous-equilibrium",
+          "api-chemistry-database-io",
+          "api-chemistry-equilibrium",
+          "api-chemistry-implicit-reactor",
+          "api-chemistry-kinetics",
+          "api-chemistry-reaction-path",
+          "api-chemistry-reactor-network",
+          "api-chemistry-speciation-block",
+          "api-chemistry-thermo",
+          "api-solvers-fvm-flame-models",
+          "api-solvers-fvm-premixed-flame1d",
+          "api-solvers-fvm-reacting",
+          "api-solvers-fvm-soot-radiation",
+          "api-solvers-fvm-species-transport"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "electrochem-corrosion",
+      "lens": "Chemistry & corrosion",
+      "name": "Electrochemistry and corrosion",
+      "source_scope": "1-D and PolyMesh transport/PNP, reactions and corrosion baselines",
+      "representation": "line_or_poly",
+      "source_paths": [
+        "include/cfd/solvers/electrochemistry/nernst_planck_poly.hpp"
+      ],
+      "test_paths": [
+        "tests/test_corrosion_advanced.cpp"
+      ],
+      "required_inputs": [
+        "Electrodes/electrolyte",
+        "species/charges",
+        "potentials/flux",
+        "reactions"
+      ],
+      "outputs": [
+        "Concentration",
+        "potential",
+        "current/recession",
+        "inventory"
+      ],
+      "limitation": "GPU electrochemical transport and general moving geometry coupling need additional implementation/evidence",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/solvers/electrochemistry/nernst_planck_poly.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_corrosion_advanced.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-electrochemistry-corrosion-models",
+          "api-electrochemistry-electrochemistry",
+          "api-electrochemistry-implicit-pnp",
+          "api-solvers-electrochemistry-corrosion1d",
+          "api-solvers-electrochemistry-mixed-potential",
+          "api-solvers-electrochemistry-nernst-planck1d",
+          "api-solvers-electrochemistry-nernst-planck-poly"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "pic-plasma",
+      "lens": "Particles & plasma",
+      "name": "PIC, plasma and wakefields",
+      "source_scope": "1-D/2-D/3-D PIC/EM transport, deposition and exchange baselines",
+      "representation": "grid_phase_space",
+      "source_paths": [
+        "include/cfd/particle/electromagnetic.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0107_distributed_step.cpp"
+      ],
+      "required_inputs": [
+        "Species",
+        "grid",
+        "pushers",
+        "deposition",
+        "collisions",
+        "field/particle BC"
+      ],
+      "outputs": [
+        "Particles",
+        "fields",
+        "charge/current and energy budgets"
+      ],
+      "limitation": "Real MPI envelope/accelerator qualification distinct from local exchange tests",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/particle/electromagnetic.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0107_distributed_step.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-particle-electromagnetic",
+          "api-particle-plasma",
+          "api-particle-wakefield"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "particle-transport",
+      "lens": "Particles & plasma",
+      "name": "Transport and Monte Carlo scoring",
+      "source_scope": "Clean-room through-matter track/process/scoring reference",
+      "representation": "transport_geometry",
+      "source_paths": [
+        "include/cfd/particle/transport.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0108_geant4_transport.cpp"
+      ],
+      "required_inputs": [
+        "Geometry/materials",
+        "source spectrum",
+        "cross sections",
+        "seed",
+        "scores"
+      ],
+      "outputs": [
+        "Tracks",
+        "tallies/dose",
+        "uncertainty and conservation"
+      ],
+      "limitation": "Not general Geant4 equivalence; cross-section/model range and statistical error required",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/particle/transport.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0108_geant4_transport.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-particle-cross-sections",
+          "api-particle-monte-carlo",
+          "api-particle-transport"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "bioheat-sar",
+      "lens": "Bioheat",
+      "name": "Bioelectromagnetic heat",
+      "source_scope": "Voxel SAR averaging/transfer and Pennes thermal baselines",
+      "representation": "voxel_tissue",
+      "source_paths": [
+        "include/cfd/multiphysics/bioheat.hpp"
+      ],
+      "test_paths": [
+        "tests/test_main.cpp"
+      ],
+      "required_inputs": [
+        "Tissue properties",
+        "perfusion",
+        "SAR/source map",
+        "thermal BC"
+      ],
+      "outputs": [
+        "SAR",
+        "averaged quantities",
+        "temperature"
+      ],
+      "limitation": "No clinical/safety qualification follows from a numerical API or a passing regression",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/multiphysics/bioheat.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_main.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-multiphysics-bioheat"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "tcad-devices",
+      "lens": "Semiconductors",
+      "name": "Semiconductor devices",
+      "source_scope": "1-D transport, reduced MOS/bipolar/power-device and compact extraction baselines",
+      "representation": "layer_line",
+      "source_paths": [
+        "include/cfd/tcad/semiconductor1d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0180_tcad.cpp"
+      ],
+      "required_inputs": [
+        "Layers",
+        "doping",
+        "contacts",
+        "mobility/recombination",
+        "bias/sweep"
+      ],
+      "outputs": [
+        "Carriers",
+        "potential",
+        "terminal I-V/C-V/AC",
+        "heating"
+      ],
+      "limitation": "Not full 3-D process/device TCAD; dimensional and device assumptions explicit",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/tcad/semiconductor1d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0180_tcad.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-tcad-advanced-devices",
+          "api-tcad-bipolar-power",
+          "api-tcad-mos",
+          "api-tcad-semiconductor1d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "battery-cell-pack",
+      "lens": "Batteries",
+      "name": "Battery cell and pack",
+      "source_scope": "SPM/SPMe/DFN-P2D, pack control and separate voxel thermal APIs",
+      "representation": "layer_particle_pack",
+      "source_paths": [
+        "include/cfd/battery/dfn.hpp"
+      ],
+      "test_paths": [
+        "tests/test_v0193_dfn.cpp"
+      ],
+      "required_inputs": [
+        "Electrodes",
+        "radial particles",
+        "parameters",
+        "initial SoC",
+        "current cycle",
+        "cutoffs"
+      ],
+      "outputs": [
+        "Voltage",
+        "inventories",
+        "capacity/energy",
+        "cell/thermal state"
+      ],
+      "limitation": "Through-cell/radial electrochemistry is distinct from 3-D pack thermal/cooling geometry",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/battery/dfn.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_v0193_dfn.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-battery-dfn",
+          "api-battery-lithium-ion",
+          "api-battery-pack",
+          "api-battery-thermal3d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "porous-thmc",
+      "lens": "Porous & advanced models",
+      "name": "Porous and fractured THMC",
+      "source_scope": "1-D and fractured graph finite-volume THMC baseline",
+      "representation": "line_or_network",
+      "source_paths": [
+        "include/cfd/porous/fractured_darcy_thmc.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Network",
+        "porosity/storage",
+        "pressure/heat/species",
+        "reaction coefficients"
+      ],
+      "outputs": [
+        "Pressure/saturation/temperature/species inventories",
+        "flux"
+      ],
+      "limitation": "Reduced reference; not a general 3-D fractured-geology workflow",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/porous/fractured_darcy_thmc.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-porous-fractured-darcy-thmc",
+          "api-porous-thmc1d",
+          "api-solvers-fem-brinkman2d",
+          "api-solvers-fem-darcy2d",
+          "api-solvers-fem-mixed-stokes",
+          "api-solvers-fem-stokes2d"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "phase-field",
+      "lens": "Porous & advanced models",
+      "name": "Phase field and microstructure",
+      "source_scope": "1-D Cahn-Hilliard/CALPHAD, Allen-Cahn and reduced fracture references",
+      "representation": "line_mesh",
+      "source_paths": [
+        "include/cfd/porous/cahn_hilliard_calphad.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Order parameter",
+        "free energy",
+        "mobility",
+        "grid",
+        "initial/boundary state"
+      ],
+      "outputs": [
+        "Phase/damage fields",
+        "conserved inventory/energy"
+      ],
+      "limitation": "Not general 3-D microstructure/fracture prediction",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/porous/cahn_hilliard_calphad.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-porous-cahn-hilliard-calphad"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "dg-high-order",
+      "lens": "Porous & advanced models",
+      "name": "DG and high-order methods",
+      "source_scope": "1-D advection/DG and high-order FEM differentiation/refinement references",
+      "representation": "polynomial_line",
+      "source_paths": [
+        "include/cfd/dg/advection1d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "Polynomial mesh/order",
+        "transport",
+        "flux",
+        "BC",
+        "time controls"
+      ],
+      "outputs": [
+        "Coefficients",
+        "conserved state",
+        "derivative/refinement errors"
+      ],
+      "limitation": "Method infrastructure is not a universal high-order 3-D PDE solver",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/dg/advection1d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-dg-advection1d",
+          "api-dg-high-order-fem"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "kinetic-vlasov",
+      "lens": "Porous & advanced models",
+      "name": "Kinetic phase space",
+      "source_scope": "Periodic Vlasov-Poisson 1D1V reference with positivity-preserving transport",
+      "representation": "phase_space_1d1v",
+      "source_paths": [
+        "include/cfd/kinetic/vlasov_poisson1d1v.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "x-v grid",
+        "distribution",
+        "velocity extent",
+        "charge background",
+        "timestep"
+      ],
+      "outputs": [
+        "Distribution",
+        "density",
+        "fields",
+        "mass/energy"
+      ],
+      "limitation": "One spatial and one velocity dimension only; no arbitrary plasma chamber mapping",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/kinetic/vlasov_poisson1d1v.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-kinetic-vlasov1d1v",
+          "api-kinetic-vlasov-poisson1d1v"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "atomistics-md",
+      "lens": "Porous & advanced models",
+      "name": "Atomistics references",
+      "source_scope": "1-D harmonic chain plus Lennard-Jones/neighbors/thermostat/barostat helpers",
+      "representation": "particle_line",
+      "source_paths": [
+        "include/cfd/atomistics/md1d.hpp"
+      ],
+      "test_paths": [
+        "tests/test_domain_expansion.cpp"
+      ],
+      "required_inputs": [
+        "1-D particles",
+        "masses",
+        "potential",
+        "periodic domain",
+        "timestep"
+      ],
+      "outputs": [
+        "Positions",
+        "velocities",
+        "energy",
+        "neighbor diagnostics"
+      ],
+      "limitation": "Not a general 3-D molecular force-field engine",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/atomistics/md1d.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_domain_expansion.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-atomistics-md1d",
+          "api-atomistics-neighbor-list"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    },
+    {
+      "id": "multiphysics-transfer",
+      "lens": "All lenses",
+      "name": "Typed multiphysics and campaigns",
+      "source_scope": "Field metadata, specific transfer/projection, partitioned/block and callback pipelines",
+      "representation": "typed_graph",
+      "source_paths": [
+        "include/cfd/multiphysics/transfer.hpp"
+      ],
+      "test_paths": [
+        "tests/test_main.cpp"
+      ],
+      "required_inputs": [
+        "Field/unit/topology identity",
+        "mapping",
+        "time policy",
+        "convergence",
+        "objective"
+      ],
+      "outputs": [
+        "Transfer balances",
+        "convergence",
+        "immutable case/campaign evidence"
+      ],
+      "limitation": "General arbitrary-mesh coupling, durable worker submission and artifact APIs need new bridges",
+      "source_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/include/cfd/multiphysics/transfer.hpp",
+      "test_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/tests/test_main.cpp",
+      "source_status": "inspected",
+      "solidcraft_adapter_status": "proposed",
+      "execution_in_this_design": "not_run",
+      "priority": "expand_after_first_slice",
+      "coverage_audit": {
+        "mapped_public_header_units": [
+          "api-multiphysics-bioheat",
+          "api-multiphysics-block-system",
+          "api-multiphysics-cht",
+          "api-multiphysics-deformation-optics",
+          "api-multiphysics-electro-thermal",
+          "api-multiphysics-electrochemical-heat",
+          "api-multiphysics-em-spice-bridge",
+          "api-multiphysics-field-registry",
+          "api-multiphysics-partitioned",
+          "api-multiphysics-pipeline",
+          "api-multiphysics-porous-electrothermal",
+          "api-multiphysics-projection",
+          "api-multiphysics-transfer",
+          "api-solvers-fem-thermoelastic-block",
+          "api-workflow-campaign",
+          "api-workflow-campaign-control",
+          "api-workflow-deploy",
+          "api-workflow-provenance",
+          "api-workflow-runner",
+          "api-workflow-schema",
+          "api-workflow-validation-catalog"
+        ],
+        "source_only_extension_paths": [],
+        "workspace_method_form": "not implemented as a complete solver method",
+        "native_case_adapter": "not implemented",
+        "numerical_qualification_in_this_audit": "not run"
+      }
+    }
+  ],
+  "coverage_audit": {
+    "revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+    "method_inventory": "capabilities/solver-method-inventory-v1.4.json",
+    "build_evidence": "capabilities/solver-build-evidence-v1.4.json",
+    "reference_cases": "capabilities/solver-reference-cases-v1.4.json",
+    "note": "Family-level design catalogue; mapped module count is inventory coverage, not method authoring, execution or qualification."
+  }
+}

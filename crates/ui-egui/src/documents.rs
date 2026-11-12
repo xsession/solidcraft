@@ -120,6 +120,7 @@ fn put_work(app: &mut SolveApp, mut work: DocWork, before: u64) {
 #[derive(Clone, Debug, Default)]
 struct DocView {
     render: crate::render_workspace::ViewState,
+    multiphysics: crate::multiphysics_workspace::ViewState,
     /// The runs and folders opened and folded in its History, and which part of the design it
     /// shows.
     history_folds: crate::history_folds::Folds,
@@ -335,6 +336,7 @@ pub fn follow_file_rename(app: &mut SolveApp, old_path: &str, new_path: &str) {
 fn take_view(app: &mut SolveApp) -> DocView {
     DocView {
         render: std::mem::take(&mut app.render_workspace.view),
+        multiphysics: std::mem::take(&mut app.multiphysics_workspace.view),
         history_folds: std::mem::take(&mut app.tree.history_folds),
         timeline_scope: std::mem::take(&mut app.tree.timeline_scope),
         timeline_followed: app.tree.timeline_followed.take(),
@@ -347,6 +349,7 @@ fn take_view(app: &mut SolveApp) -> DocView {
 
 fn put_view(app: &mut SolveApp, v: DocView) {
     app.render_workspace.view = v.render;
+    app.multiphysics_workspace.view = v.multiphysics;
     crate::render_workspace::invalidate_images(app);
     crate::render_workspace::invalidate_scene(app);
     crate::render_workspace::sync_backend(app);
@@ -612,7 +615,12 @@ pub fn open_tab(app: &mut SolveApp, session: Session) -> Result<(), String> {
 /// Is the active design an untouched new one (it can be replaced instead of opening a tab)?
 pub fn active_is_blank(app: &SolveApp) -> bool {
     let s = &app.session;
-    s.path.is_none() && s.doc.features.is_empty() && s.doc.params.is_empty() && s.doc.components.is_empty() && !s.is_dirty()
+    s.path.is_none()
+        && s.doc.features.is_empty()
+        && s.doc.params.is_empty()
+        && s.doc.components.is_empty()
+        && s.doc.multiphysics.is_empty()
+        && !s.is_dirty()
 }
 
 /// Show `session` (a design built or read elsewhere): in place of a blank active design,
@@ -633,6 +641,7 @@ pub fn adopt(app: &mut SolveApp, session: Session) -> bool {
         crate::history_folds::load(app);
         crate::timeline_scope::reset(app);
         crate::render_workspace::reset_document(app);
+        crate::multiphysics_workspace::reset_document(app);
         app.session.invalidate_view(rev);
         app.cam = Camera::default();
         app.fit_view();

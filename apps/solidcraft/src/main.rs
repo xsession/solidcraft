@@ -312,6 +312,16 @@ impl eframe::App for App {
         self.prefs_writer.written = Some(prefs);
     }
     fn on_exit(&mut self) {
+        self.solve.session.cancel_multiphysics_jobs();
+        solidcraft_ui_egui::multiphysics_workspace::close(&mut self.solve);
+        let numerical_stop = std::time::Instant::now();
+        while numerical_stop.elapsed() < std::time::Duration::from_secs(2) {
+            self.solve.session.poll_multiphysics_jobs();
+            if !self.solve.session.multiphysics_jobs().iter().any(|job| job.active()) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
         // The agent chat's agent and everything it started end with the app.
         solidcraft_ui_egui::agent_chat::shutdown(&mut self.solve);
         // A save still being written ends before the app does.
@@ -1241,6 +1251,7 @@ fn main() -> eframe::Result {
             #[cfg(target_os = "linux")]
             desktop_chooser::start(&cc.egui_ctx);
             let mut app = SolveApp::new(Session::default(), services(cc, &dialog_folder));
+            app.session.set_multiphysics_host(solidcraft_multiphysics_host::configured_host());
             app.apply_off_thread = Some(solidcraft_ui_egui::dialogs::APPLY_AT_ONCE);
             app.custom_titlebar = custom_titlebar;
             #[cfg(target_os = "windows")]

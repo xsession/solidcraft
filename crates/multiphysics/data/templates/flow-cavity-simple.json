@@ -1,0 +1,12 @@
+{
+  "solver": "collocated_flow3d",
+  "method": "simple",
+  "mesh": {"dimensions": [8, 8, 1], "lengths": {"x": 1.0, "y": 1.0, "z": 0.1}, "xy_shear": 0.15},
+  "config": {"dt": 0.01, "kinematic_viscosity": 0.02, "pressure_preconditioner": "jacobi"},
+  "output": {"steps": 20, "output_interval": 5},
+  "velocity_boundaries": [
+    {"patch": "left", "kind": "fixed_value"}, {"patch": "right", "kind": "fixed_value"},
+    {"patch": "bottom", "kind": "fixed_value"}, {"patch": "top", "kind": "fixed_value", "value": {"x": 0.1, "y": 0.0, "z": 0.0}},
+    {"patch": "front", "kind": "slip"}, {"patch": "back", "kind": "slip"}
+  ]
+}

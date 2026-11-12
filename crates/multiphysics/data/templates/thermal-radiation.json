@@ -1,0 +1,12 @@
+{
+  "solver": "thermal_transport3d",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 0.1, "y": 0.06, "z": 0.02}},
+  "config": {"dt": 0.0001, "density": 1.2, "default_heat_capacity": 1000.0, "default_conductivity": 0.1},
+  "output": {"steps": 20, "output_interval": 5},
+  "initial": 320.0,
+  "velocity": {"x": 0.03, "y": 0.0, "z": 0.0},
+  "source": 1000.0,
+  "absorption": 0.01,
+  "environment_temperature": 300.0,
+  "boundaries": [{"patch": "left", "kind": "fixed_value", "value": 300.0}]
+}

@@ -1,0 +1,1 @@
+{"solver":"rf_tem","line":{"characteristic_impedance":50.0,"phase_velocity":200000000.0,"attenuation_nepers_per_m":0.05,"length":0.03},"frequencies_hz":[1000000.0,10000000.0,100000000.0,500000000.0,1000000000.0,2000000000.0],"reference_impedance":50.0}

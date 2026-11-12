@@ -3250,6 +3250,9 @@ pub struct Document {
     /// Named image intent and immutable embedded HDR sources. Active jobs and device state are not saved.
     #[serde(default, skip_serializing_if = "crate::render_settings::RenderSettings::is_empty")]
     pub render: std::sync::Arc<crate::render_settings::RenderSettings>,
+    /// Independent numerical studies and portable retained evidence. No active process handles.
+    #[serde(default, skip_serializing_if = "solidcraft_multiphysics::Project::is_empty")]
+    pub multiphysics: std::sync::Arc<solidcraft_multiphysics::Project>,
     #[serde(default = "default_format")]
     pub format: String,
     /// The changes of `format` this design has while they are pending (no release has fixed
@@ -3610,6 +3613,7 @@ impl Document {
         Document {
             newer_file: None,
             render: Default::default(),
+            multiphysics: Default::default(),
             format: default_format(),
             format_pending: crate::format::pending_names(),
             name: name.into(),
@@ -3782,6 +3786,16 @@ impl Document {
         }
         let mut normalized = previous.clone();
         normalized.render = self.render.clone();
+        *self == normalized
+    }
+
+    /// Numerical study edits leave all exact model geometry, placements and material cards alone.
+    pub fn differs_only_in_multiphysics(&self, previous: &Document) -> bool {
+        if self.multiphysics == previous.multiphysics || self.multiphysics.validate().is_err() {
+            return false;
+        }
+        let mut normalized = previous.clone();
+        normalized.multiphysics = self.multiphysics.clone();
         *self == normalized
     }
 
@@ -4060,6 +4074,17 @@ impl Document {
             return Err(why);
         }
         let mut d = crate::format::read(s)?;
+        if let Err(why) = d.multiphysics.validate() {
+            let Some(newer) = d.newer_file.as_mut() else {
+                return Err(DocError::Invalid(why.to_string()));
+            };
+            // A newer producer can retain a familiar JSON shape with semantics this build
+            // does not understand. Keep that complete section out of active authoring.
+            let raw: serde_json::Value = serde_json::from_str(s).map_err(|error| DocError::Invalid(error.to_string()))?;
+            let section = raw.get("multiphysics").cloned().ok_or_else(|| DocError::Invalid(why.to_string()))?;
+            std::sync::Arc::make_mut(newer).keep_section("multiphysics", section, None, &why.to_string());
+            d.multiphysics = Default::default();
+        }
         if d.features.len() > MAX_FEATURES || d.params.len() > MAX_PARAMS {
             return Err(DocError::Invalid("document too large".into()));
         }

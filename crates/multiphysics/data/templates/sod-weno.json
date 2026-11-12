@@ -1,0 +1,1 @@
+{"solver":"euler1d","config":{"cells":160,"reconstruction":"characteristic_weno5","time_integrator":"ssprk3"},"duration":0.1,"left":{"density":1.0,"velocity":0.0,"pressure":1.0},"right":{"density":0.125,"velocity":0.0,"pressure":0.1},"interface_fraction":0.5}

@@ -85,6 +85,7 @@ mod measure_shape;
 mod mesh;
 mod metadata;
 pub(crate) mod motion;
+mod multiphysics;
 mod parts;
 mod point_cloud;
 mod script;
@@ -386,6 +387,7 @@ pub fn command_specs() -> Vec<&'static CommandSpec> {
     v.extend(diagnostics::COMMANDS.iter());
     v.extend(render::COMMANDS.iter());
     v.extend(render_ui::COMMANDS.iter());
+    v.extend(multiphysics::COMMANDS.iter());
     v
 }
 

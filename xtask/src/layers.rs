@@ -57,6 +57,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("step", Class::Layer(1)),
     ("kernel", Class::Layer(1)),
     ("render", Class::Layer(1)),
+    ("multiphysics", Class::Layer(1)),
     // multibody dynamics (rigid bodies, joints, forces, time integration; geom only)
     ("dynamics", Class::Layer(1)),
     ("doc", Class::Layer(2)),
@@ -91,6 +92,7 @@ pub const TABLE: &[(&str, Class)] = &[
     // apps and tooling
     ("solidcraft", Class::Exempt),
     ("cli", Class::Exempt),
+    ("multiphysics-host", Class::Exempt),
     ("web", Class::Exempt),
     ("xtask", Class::Exempt),
 ];

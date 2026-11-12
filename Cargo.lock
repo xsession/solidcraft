@@ -4275,6 +4275,7 @@ dependencies = [
  "solidcraft-control",
  "solidcraft-engine",
  "solidcraft-gpu",
+ "solidcraft-multiphysics-host",
  "solidcraft-space-mouse",
  "solidcraft-theme",
  "solidcraft-ui-egui",
@@ -4305,6 +4306,7 @@ dependencies = [
  "solidcraft-gpu",
  "solidcraft-kernel",
  "solidcraft-mcp",
+ "solidcraft-multiphysics-host",
  "solidcraft-viewport",
  "solidcraft-viewport-gpu",
 ]
@@ -4355,6 +4357,7 @@ dependencies = [
  "solidcraft-derive",
  "solidcraft-geom",
  "solidcraft-kernel",
+ "solidcraft-multiphysics",
  "solidcraft-profile",
  "solidcraft-render",
  "solidcraft-sketch",
@@ -4391,6 +4394,7 @@ dependencies = [
  "solidcraft-geom",
  "solidcraft-io",
  "solidcraft-kernel",
+ "solidcraft-multiphysics",
  "solidcraft-profile",
  "solidcraft-render",
  "solidcraft-sketch",
@@ -4460,6 +4464,7 @@ dependencies = [
  "solidcraft-doc",
  "solidcraft-geom",
  "solidcraft-kernel",
+ "solidcraft-multiphysics",
  "solidcraft-profile",
  "solidcraft-testkit",
  "thiserror 2.0.21",
@@ -4506,6 +4511,25 @@ name = "solidcraft-mcp-server"
 version = "0.40.0-rc.3"
 dependencies = [
  "serde_json",
+]
+
+[[package]]
+name = "solidcraft-multiphysics"
+version = "0.40.0-rc.3"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "solidcraft-multiphysics-host"
+version = "0.40.0-rc.3"
+dependencies = [
+ "serde_json",
+ "solidcraft-engine",
 ]
 
 [[package]]

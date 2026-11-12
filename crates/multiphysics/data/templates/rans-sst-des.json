@@ -1,0 +1,7 @@
+{
+  "solver": "rans_transport3d",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 1.0, "y": 0.6, "z": 0.1}},
+  "output": {"steps": 15, "output_interval": 5},
+  "velocity_gradient": [0.0, 0.3, 0.0, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "turbulence": {"model": "k_omega_sst", "k": 0.05, "omega": 0.2, "wall_distance": 10.0, "grid_scale": 0.01, "config": {"des_enabled": true, "des_zonal_filter": "f2", "transport": {"dt": 0.001}}}
+}

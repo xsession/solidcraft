@@ -64,11 +64,20 @@ const AHEAD_AREAS: &[&str] = &[
 ];
 
 /// Parameters that name a file or folder: a command given one runs here, as before.
-const NAMES_A_FILE: &[&str] = &["path", "paths", "file", "files", "dir", "folder", "url", "out"];
+const NAMES_A_FILE: &[&str] = &["path", "paths", "file", "files", "dir", "folder", "directory", "url", "out"];
 
 /// Commands that change nothing in the design and write a file: they run on a copy.
-const ANSWERED_ON_A_COPY: &[&str] =
-    &["file.export", "file.export_3mf", "file.export_obj", "file.export_step", "file.export_stl", "file.export_urdf", "file.save_mesh"];
+const ANSWERED_ON_A_COPY: &[&str] = &[
+    "file.export",
+    "file.export_3mf",
+    "file.export_obj",
+    "file.export_step",
+    "file.export_stl",
+    "file.export_urdf",
+    "file.save_mesh",
+    "multiphysics.case.export",
+    "multiphysics.result.export",
+];
 
 /// Commands that only read the design, which can take long on a large one (a measure of every
 /// body, an inspection that measures them, #4604; a clearance or interference check of every pair
@@ -399,7 +408,10 @@ impl SolveApp {
         {
             return self.answer_on_a_copy(req, id, params);
         }
-        if !self.preferences.agent_off_thread {
+        // Numerical artifact exports may write MiB of data. They are additive commands,
+        // so keep them off the window independently of the modelling compatibility preference.
+        let numerical_export = executed(&req.params).is_some_and(|(id, _)| matches!(id, "multiphysics.case.export" | "multiphysics.result.export"));
+        if !self.preferences.agent_off_thread && !numerical_export {
             return Some(req);
         }
         // An export: on a copy, answered from there.

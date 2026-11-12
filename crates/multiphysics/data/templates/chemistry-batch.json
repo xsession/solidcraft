@@ -1,0 +1,1 @@
+{"solver":"chemistry_batch","species":[{"name":"A","molar_mass":0.01,"charge":0},{"name":"B","molar_mass":0.01,"charge":0}],"reactions":[{"reactants":[{"species":0,"coefficient":1.0}],"products":[{"species":1,"coefficient":1.0}],"forward":{"pre_exponential":12.0,"temperature_exponent":0.0,"activation_energy":0.0}}],"concentrations":[1.0,0.0],"temperature":300.0,"duration":0.2}

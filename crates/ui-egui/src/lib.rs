@@ -202,6 +202,7 @@ mod file_load_ui_tests;
 #[cfg(test)]
 mod fillet_spline_handle_tests;
 pub mod mouse_gesture;
+pub mod multiphysics_workspace;
 use solidcraft_ui_kit::nav_bar;
 pub(crate) mod navigation;
 pub use solidcraft_ui_kit::navigation_bar;
@@ -616,6 +617,7 @@ pub struct SolveApp {
     saving: Option<save_job::Saving>,
     pub viewport: viewport::ViewportState,
     pub render_workspace: render_workspace::State,
+    pub multiphysics_workspace: multiphysics_workspace::State,
     pub tool: Option<tools::Tool>,
     pub dialog: Option<dialogs::Dialog>,
     /// The joint dialogs' picked and hovered snaps ([`dialogs_assembly::picked_snap`]).
@@ -916,6 +918,7 @@ impl SolveApp {
             saving: None,
             viewport: viewport::ViewportState::default(),
             render_workspace,
+            multiphysics_workspace: Default::default(),
             tool: None,
             dialog: None,
             snaps: Default::default(),
@@ -1678,6 +1681,7 @@ impl SolveApp {
                     documents::reset_chat(self);
                     self.edit_in_place.active = None;
                     render_workspace::reset_document(self);
+                    multiphysics_workspace::reset_document(self);
                     dim_view::cancel();
                     design_properties::close_object(self);
                     timeline::stop_playback(self);
@@ -1813,6 +1817,17 @@ impl SolveApp {
         // A tool can be started outside the frame's scope (a direct `start`, a shortcut in
         // `logic`): build its hint in the user's language, not the thread default.
         let _language = solidcraft_ui_text::scope(&self.preferences.language);
+        // Modelling shortcuts need Design's picking canvas and task dialogs. Retain the
+        // Multiphysics drafts when an explicit command leaves its numerical editor.
+        if multiphysics_workspace::active(self)
+            && !id.starts_with("multiphysics.")
+            && !id.starts_with("ui.")
+            && !matches!(id, "edit.undo" | "edit.redo" | "file.save" | "file.save_as" | "file.new" | "doc.open")
+            && let Err(error) = multiphysics_workspace::switch(self, "design")
+        {
+            self.set_status(error, true);
+            return;
+        }
         if solidcraft_engine::panels::commands::is_command(id) {
             if let Err(why) = self.run(id, json!({})) {
                 self.set_status(why, true);
@@ -3313,6 +3328,7 @@ impl SolveApp {
         easyprint_ui::tick(self, ctx);
         render_workspace::sync_backend(self);
         render_workspace::tick(self, ctx);
+        multiphysics_workspace::tick(self, ctx);
         file_load::tick(self, ctx);
         save_job::tick(self, false);
         edit_in_place::tick(self);
@@ -3571,6 +3587,14 @@ impl SolveApp {
                 browser::editors(self, ui);
                 return;
             }
+        }
+        if multiphysics_workspace::active(self) {
+            panel_runtime::hide_app_host(self);
+            multiphysics_workspace::show(self, ui);
+            context_menu::show(self, ui.ctx());
+            prefs::show(self, ui.ctx());
+            shortcut_box::show(self, ui.ctx());
+            return;
         }
         // The status bar first: it spans the window's width below History and the side panels.
         if self.universal_panel_host_enabled() {
