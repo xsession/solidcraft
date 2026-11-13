@@ -853,6 +853,8 @@ Original SolidCraft drawings, Open for owner review; no runtime assignments.
 | assets/icons/ui/design/svg/model/end_cap_inward.svg | SolidCraft contributors | original icon master (64 grid) | MIT OR Apache-2.0 |
 | assets/icons/ui/design/svg/model/end_cap_outward.svg | SolidCraft contributors | original icon master (64 grid) | MIT OR Apache-2.0 |
 | assets/locales/lv.json | SolidCraft contributors | Original Latvian translation of SolidCraft's English catalog; no commercial CAD text used | MIT OR Apache-2.0 |
+| crates/multiphysics/data/templates/*.json | László Iványi | CFD-Solvers-Rust-Port-v0.2.0 example cases; no numerical code linked | MIT |
+| crates/multiphysics/data/solver-catalog.json | László Iványi | Original SolidCraft-Multiphysics-Workspace-Design-v1.4 inventory; not executable qualification | MIT |
 
 ## Code adapted from sibling projects
 
