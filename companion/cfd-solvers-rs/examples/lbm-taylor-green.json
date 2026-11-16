@@ -1,0 +1,1 @@
+{"solver":"lbm_d2q9","config":{"nx":32,"ny":32,"tau":0.7},"steps":100,"initial":{"type":"taylor_green","amplitude":0.03}}

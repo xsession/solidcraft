@@ -1,0 +1,11 @@
+{
+  "en": {
+    "multiphysics.field_2d": "2D slice",
+    "multiphysics.field_3d": "3D slice",
+    "multiphysics.field_3d_fit": "Fit result",
+    "multiphysics.field_3d_glyphs": "Vector glyphs",
+    "multiphysics.field_3d_hint": "3D slice: standard pointer navigation, view-centre orbit and explicit Fit.",
+    "multiphysics.field_3d_invalid": "The result cannot be framed in the bounded 3D slice view.",
+    "multiphysics.field_3d_scale": "Arrows use a visual length scale; they are vector samples, not particle paths."
+  }
+}

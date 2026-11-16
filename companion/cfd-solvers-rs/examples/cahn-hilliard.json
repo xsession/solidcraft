@@ -1,0 +1,10 @@
+{
+ "solver": "cahn_hilliard1d",
+ "cells": 64,
+ "gradient_energy": 0.002,
+ "mean_composition": 0.5,
+ "perturbation": 0.05,
+ "dt": 2e-06,
+ "steps": 20000,
+ "snapshots": 8
+}

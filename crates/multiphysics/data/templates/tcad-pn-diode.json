@@ -1,0 +1,18 @@
+{
+  "solver": "tcad_diode1d",
+  "length_m": 2e-06,
+  "nodes": 101,
+  "area_m2": 1e-12,
+  "acceptor_m3": 1e+21,
+  "donor_m3": 1e+21,
+  "iv": {
+    "start_v": 0.0,
+    "stop_v": 0.5,
+    "points": 11
+  },
+  "cv": {
+    "start_v": -1.0,
+    "stop_v": 0.0,
+    "points": 6
+  }
+}

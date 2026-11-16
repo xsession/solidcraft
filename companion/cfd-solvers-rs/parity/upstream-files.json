@@ -1,0 +1,4125 @@
+{
+  "upstream": {
+    "repository": "https://github.com/xsession/cfd_solvers",
+    "revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+    "tree_sha": "7eac84f5d0babcc9ee89b94368859ba5e4f0365d"
+  },
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 2562,
+      "sha256": "55a90a0372a2831855e1fac02aca111098100ad547334619f38ee35422095431",
+      "git_blob_sha": "9fa7d8f4054efe3a42e7fe51b14d2eb53b8915aa"
+    },
+    {
+      "path": ".github/workflows/gpu-hardware-self-hosted.yml",
+      "bytes": 1563,
+      "sha256": "f146fda28676fc9eddb9102619cbbfe41731613d448402322e3a003cd3e47dca",
+      "git_blob_sha": "3d6ac0ba3932fda2d2f1dbb90fe9d711110eed72"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "bytes": 1263,
+      "sha256": "eb387c2a4747a33bd6586712058f8397eb1de5095912ab7815df80ac1b560b99",
+      "git_blob_sha": "a6fd5c8303b760f411b2e8d9bf8d79a0517dda63"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "bytes": 50747,
+      "sha256": "72b7b2dbf6280d916fc11ce0b0ca28d5ce718a4b22df7985a9a46d402d6f130e",
+      "git_blob_sha": "87e90e1bfc28f50f6fdb274277657013923449db"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1081,
+      "sha256": "4216d7e3d68e4ef0196e92c3560f9e8bd5dce13d64d0e10799afedd4273e9625",
+      "git_blob_sha": "c95758674f444ba03a3ba570964cf5cb94080d11"
+    },
+    {
+      "path": "README.md",
+      "bytes": 11666,
+      "sha256": "ef36c27a13eabe227ecef069c0cfd47e054655b7ace15d0432d8078c30a98100",
+      "git_blob_sha": "999a4193c140e0e1412a7b822547a423ee68e8b9"
+    },
+    {
+      "path": "apps/cfd-bench.cpp",
+      "bytes": 12434,
+      "sha256": "a2942d8df3e60187f7d068abb7be634ddba13d89a375d7c09bbbca86e53ee1b9",
+      "git_blob_sha": "7296fdf34ee7f1bbea355b2c55a3788c3ceade94"
+    },
+    {
+      "path": "apps/cfd-distributed.cpp",
+      "bytes": 12715,
+      "sha256": "2022acf127b4ff512fb3b568c4f4486b47f935959f225b6142a21d924067a6d1",
+      "git_blob_sha": "a04134da642cebdddc83c69747c0962b014a379e"
+    },
+    {
+      "path": "apps/cfd-halo-plan.cpp",
+      "bytes": 2834,
+      "sha256": "83f6008552552165c786e6b31bf2c4c613432fcf5ee5bce36bbd5b42262de2cd",
+      "git_blob_sha": "d4002c60310c81aea38701bec716a54d3b273049"
+    },
+    {
+      "path": "apps/cfd-mpi-sparse-performance-bench.cpp",
+      "bytes": 16667,
+      "sha256": "8a8e7977cc72eec0f13ad8748ae12bdf98eee8de57cbe8da2ecabb2a0f24eb53",
+      "git_blob_sha": "f7420112e6498fd65c9e764eb08d2e2282ae4b6d"
+    },
+    {
+      "path": "apps/cfd-performance-bench.cpp",
+      "bytes": 15964,
+      "sha256": "b62f1c1ebe8146596d0ba0725c1f3d36f0e4bd56dcdb33241ee833676505b78c",
+      "git_blob_sha": "a9f281ede6f83fca5ecc76f9031b99ccd5af0481"
+    },
+    {
+      "path": "apps/cfd-solve.cpp",
+      "bytes": 52105,
+      "sha256": "e7cd861651175d026a8ab939e5ec31f92c08926049a7f7c3a01e9e48aa46391d",
+      "git_blob_sha": "ef97ea8b83f7f02b41fb7a68e0be10a3114bd4e1"
+    },
+    {
+      "path": "apps/cfd-validate.cpp",
+      "bytes": 257,
+      "sha256": "402c96109115f8a2fd8f8fe5bc52d8c1bf1510b407c57c33d88b79ee6c962199",
+      "git_blob_sha": "ac17847348688e4e81e9a6f94808006328c775e4"
+    },
+    {
+      "path": "apps/continuation_cases.cpp",
+      "bytes": 87179,
+      "sha256": "21c129f2bfddd29ce3c6e403b32f801dfb84d0d75c8711ec1174af7808ca237e",
+      "git_blob_sha": "23b797d13444cfc094f5e11db84e288363c276e7"
+    },
+    {
+      "path": "apps/continuation_cases.hpp",
+      "bytes": 86,
+      "sha256": "4c834fe0fd23851781989d1d3aecf27d0ef51fd9b0664c2aaaf4eadd8b2c938f",
+      "git_blob_sha": "ef3786de36c57afb16245677e85c7bb3e9199c41"
+    },
+    {
+      "path": "cmake/ensure_executable.cmake",
+      "bytes": 695,
+      "sha256": "de2c0aa7447d8995236ea36deaafbd9194d30bf50b3c41ed5889be4d861b8054",
+      "git_blob_sha": "4d3a6d084a14b109410e7498261acbb74ce1c67b"
+    },
+    {
+      "path": "docs/INTEGRATION_TRACKER.md",
+      "bytes": 64501,
+      "sha256": "27a16197cedda19ec8a781ebb025f992c0d1da430982e6b7751d43d64292dc77",
+      "git_blob_sha": "2c6050f9758f38932b92c873eb5cc8157dde2cbd"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "bytes": 12567,
+      "sha256": "7ac041f337a2988593712d394e780e705936242e14c87c35d156990ec546f1f7",
+      "git_blob_sha": "9f59125123b318d773548330a0f374a4936197c2"
+    },
+    {
+      "path": "examples/README.md",
+      "bytes": 11706,
+      "sha256": "e51f704fe3a58aabf1bcd90dfcf39fa25424bb133e02000a5e34be30df77c0ba",
+      "git_blob_sha": "48c648a2c6ab47063d6fe44e397c18336960faad"
+    },
+    {
+      "path": "examples/battery_dfn.cpp",
+      "bytes": 3857,
+      "sha256": "480999e74fde50911d4b479c1f736be3950b8d7c5ba7ec04538e07b05575629b",
+      "git_blob_sha": "9e08fa8433390116d93fcac15dfd7e8a1602ae96"
+    },
+    {
+      "path": "examples/battery_series_pack.cpp",
+      "bytes": 2402,
+      "sha256": "954eddc66cdf126544af28c40fa860145c66b2b39305899cceea1fd7f6788e03",
+      "git_blob_sha": "780ecf9d8b5174df1409ac468dd38eeaa409ab31"
+    },
+    {
+      "path": "examples/battery_thermal_pack.cpp",
+      "bytes": 3146,
+      "sha256": "84c6386ef93689bffb9dd7927f1968b03287841754d2b486a406c1c7c94a7c3a",
+      "git_blob_sha": "c5fb31e263ba26ee31299c4a8a6bba2df44bf939"
+    },
+    {
+      "path": "examples/benchmark_suite.schema.json",
+      "bytes": 1889,
+      "sha256": "2260e3ebe185f1aad7430fd6fd92203862821cf66c28601576d8115e504d8c90",
+      "git_blob_sha": "b128dcd4336871bf2eb2dd9202c980cf7b1d8c2d"
+    },
+    {
+      "path": "examples/common/benchmark.hpp",
+      "bytes": 2522,
+      "sha256": "2aa1be206cd9000bd94e94e99ee9c731e0a06cc1e9902c95f5f612ac0b2f4676",
+      "git_blob_sha": "8b3faa19ee9298d66706bfbe7b2dd6c1604be3fa"
+    },
+    {
+      "path": "examples/compare_benchmarks.py",
+      "bytes": 2670,
+      "sha256": "4b1411f19a747cadcd02a40777079f613c3385a9f3afdcaa83036d9629a4f879",
+      "git_blob_sha": "40af32a34302a8586222e1e7a8c8837aff104f2f"
+    },
+    {
+      "path": "examples/live_3d_viewer.py",
+      "bytes": 5506,
+      "sha256": "2abe5d569ac228e014b408b3302a6f4f06f71827e796077ab23adf4f66239d07",
+      "git_blob_sha": "e99acf2905122ddc813665adb4da1291aba7b928"
+    },
+    {
+      "path": "examples/phase01_hpc_multigrid.cpp",
+      "bytes": 953,
+      "sha256": "94e53d164e1d6c72911737ffc1890343b36f4879b74c7092821ca919257edb36",
+      "git_blob_sha": "0bacbcf63afab45690ae97ddcbad86c6df75020d"
+    },
+    {
+      "path": "examples/phase02_lbm_taylor_green.cpp",
+      "bytes": 720,
+      "sha256": "4456e742de9f5cdb43bed8bea7bec217ce3223512ee57d7b40218d44e60e3684",
+      "git_blob_sha": "3c194cf9eaf7c1c2413b4c56ab6269c50e8f423e"
+    },
+    {
+      "path": "examples/phase03_compressible_vof.cpp",
+      "bytes": 3384,
+      "sha256": "4d8c0960eeca4fe7da984cf1b9654b11a58722346d38c728fef28be6ac8a7cf5",
+      "git_blob_sha": "8e5075f2c68f1edc300edfcba00600c3845ca811"
+    },
+    {
+      "path": "examples/phase03_euler_euler.cpp",
+      "bytes": 3368,
+      "sha256": "6ec15c2f99f3c35fdb46b28e144e7852119baaf1effa998899814d2a95bf7440",
+      "git_blob_sha": "d7e85213f0f176f4662c8500a2f1e0e7818988dc"
+    },
+    {
+      "path": "examples/phase03_fvm_lid_cavity.cpp",
+      "bytes": 1518,
+      "sha256": "26d82f6a7e0ce34d0d7362467e92690b778373565a57bc7d7d2b00016e57fce1",
+      "git_blob_sha": "0d921a3dff01c89871095ffb3dc699010bafbb32"
+    },
+    {
+      "path": "examples/phase03_fvm_thin_film.cpp",
+      "bytes": 2883,
+      "sha256": "d0e1c74c91f4380caae0f2458ac89f7ddabebdec45a9718dd3f78f2f1bc80bc7",
+      "git_blob_sha": "eb2a6aed7416717eaf712e924d56702006b42de1"
+    },
+    {
+      "path": "examples/phase03_particle_rheology.cpp",
+      "bytes": 4260,
+      "sha256": "abb9002a696f067c4a1d90e752fccfb479b0dd7a690dec2f680b72b1a4b6f1c5",
+      "git_blob_sha": "2c7cfd6f8ea925e5a006acba8bf0edae42ae1801"
+    },
+    {
+      "path": "examples/phase03_reacting_hooks.cpp",
+      "bytes": 2726,
+      "sha256": "3bcb0a7f1de0c5e0c79b55dd1771da59d3ff6b24b3a61a9c40ab1e7412e025f9",
+      "git_blob_sha": "72393f477667fba5cbec046868142ff23cf04fb6"
+    },
+    {
+      "path": "examples/phase03_spray.cpp",
+      "bytes": 2955,
+      "sha256": "9ba5e585415002732593834a463edf132c6fc15aca23a325a97701229be4cbdc",
+      "git_blob_sha": "2882943c69b8077fc21885e4cf556ac689bbd241"
+    },
+    {
+      "path": "examples/phase03_vof_dam_break.cpp",
+      "bytes": 3553,
+      "sha256": "7caff45e9ca10b2d7a7e68bb9d944241564e7e73a062c074c9f08c1e6fd912b5",
+      "git_blob_sha": "21986fce381e3236df2d0e8edc3614015c57ad58"
+    },
+    {
+      "path": "examples/phase04_fem_dynamic_bar.cpp",
+      "bytes": 894,
+      "sha256": "242704a4534917f003ce5e422075743a1af7a5ead200ac163c81f5c12b9e78f3",
+      "git_blob_sha": "f8951c608a7866708a4f0907f710404bac7eaae6"
+    },
+    {
+      "path": "examples/phase05_fdtd_pulse.cpp",
+      "bytes": 732,
+      "sha256": "1ccde642b4a15b7e8fd008d5b16c797fd6fc0cb2acd193968affe5b048b4d111",
+      "git_blob_sha": "abe9d0d98cc418c684bd51404684241d841a52a0"
+    },
+    {
+      "path": "examples/phase06_optics_lens.cpp",
+      "bytes": 1162,
+      "sha256": "cfc261bfcf54cd374ec45e3190b44fe4e3057bd7af883efc49e3111dbe82990b",
+      "git_blob_sha": "52ad39a214d808c406a9133e4b6e41b31fa045da"
+    },
+    {
+      "path": "examples/phase07_chemistry_corrosion.cpp",
+      "bytes": 1890,
+      "sha256": "c8336e4c3a98e7d571e68ca691b3755b873afd6b271cfbc1e3872ccaf37fa167",
+      "git_blob_sha": "33372b4f3a0304777e3f03cbe9a68298b9ec5db7"
+    },
+    {
+      "path": "examples/phase08_multiphysics_joule.cpp",
+      "bytes": 1328,
+      "sha256": "9c6ce7bf826d2ce705d887fca7b871470e702095034d6f09df7a381654da7867",
+      "git_blob_sha": "d12bd7c507dab544848842d9c912972b1b6438f7"
+    },
+    {
+      "path": "examples/phase10_rf_sweep.cpp",
+      "bytes": 862,
+      "sha256": "781e13567b6486d4a1fe011828bfb3cf13a8b5c562cd059414e2e4e8c9589b57",
+      "git_blob_sha": "cd8924bf85d061132e33ce6b5e693868b2bf76a4"
+    },
+    {
+      "path": "examples/phase11_spice_rc.cpp",
+      "bytes": 734,
+      "sha256": "a773834e5faef6e330f3873cfc18ef9fd855f61d41ae50fb3f9ed83b7a3a344d",
+      "git_blob_sha": "c0bfb9916eeda56e47f41baeafd9e797a3c3f485"
+    },
+    {
+      "path": "examples/phase12_em_pic.cpp",
+      "bytes": 1221,
+      "sha256": "96fdc6ec68fe96a2574de36fb79514727e282936b3209f3a927de93ce37bf23b",
+      "git_blob_sha": "b2c73afc1ecc2018412f0d2c1e7e6b1edfebfe5b"
+    },
+    {
+      "path": "examples/phase12_surface_mom.cpp",
+      "bytes": 2347,
+      "sha256": "1df91c7bdc0dd60871b75bd1bd026b776d3d7c3368098ceb22e59f743b2a3955",
+      "git_blob_sha": "b6eb3c3e8fc1b49607e360dc370a3f2696d97990"
+    },
+    {
+      "path": "examples/phase13_cosserat_rods.cpp",
+      "bytes": 1887,
+      "sha256": "7604736a0b8990bda261e4e4c7c348eb193838181ed24fa933a456b54a0ce638",
+      "git_blob_sha": "b53bd4185de6906217b66799066c9e620187cd2b"
+    },
+    {
+      "path": "examples/phase13_dem_settling.cpp",
+      "bytes": 997,
+      "sha256": "0d269f853aa83aa640968f18faa95a773832dbe278ae0fe7e636ab9ef24abe69",
+      "git_blob_sha": "16f86ecb64e386d65aefe809eadc74676664fe85"
+    },
+    {
+      "path": "examples/phase14_acoustics_photoacoustic.cpp",
+      "bytes": 968,
+      "sha256": "e032ce3cf51ee66a24cba1abcb0ad7537b2f981665f33a8306bdfe31976dc5c0",
+      "git_blob_sha": "d86d621fdd30df648f43ab01137b245592666454"
+    },
+    {
+      "path": "examples/phase15_tcad_pn.cpp",
+      "bytes": 980,
+      "sha256": "4cfa5683232c7c4b5d9fb254fa09bda2e7286a9a310939ad477167e0fd846431",
+      "git_blob_sha": "ef079c3ac7ba3dc073916eff634617b4949db3de"
+    },
+    {
+      "path": "examples/phase16a_battery_drive_cycle.cpp",
+      "bytes": 1241,
+      "sha256": "a62e643d5cfe7f7f4ac5643cbf4ebec98d326ddc544d76cb9af0520a6934a3c4",
+      "git_blob_sha": "4c0f10b831b498ecd41a1931f3492d19cdfdd7f1"
+    },
+    {
+      "path": "examples/phase17_nonlinear_mechanics.cpp",
+      "bytes": 12402,
+      "sha256": "9fb5e6c1fbf90c665425993bbaf79f339e7d3635691401b2f33bfef1d79ee32e",
+      "git_blob_sha": "a819a85a674f749818bb9013473372305b331c22"
+    },
+    {
+      "path": "examples/phase18_porous_thmc_phase_field.cpp",
+      "bytes": 1138,
+      "sha256": "82c5b43c070ed9ce960818bf93c270037f96884be3dd202b94411b7006fce595",
+      "git_blob_sha": "40fd08f27c038fc0a66cc6e1be1a49911f88ecbc"
+    },
+    {
+      "path": "examples/phase19_dg_kinetic.cpp",
+      "bytes": 1371,
+      "sha256": "46836decf68ff4dcf8405ba93d7bd9f1f28fa1b1f76dfa66ceadb83de9c92be0",
+      "git_blob_sha": "a811075f00ff6a6c3892e37e6f19c74ef88c704f"
+    },
+    {
+      "path": "examples/phase20_monte_carlo_atomistics.cpp",
+      "bytes": 1228,
+      "sha256": "4d35934ebd67010618d5d1426ec3360fb615952b53a041aae19732c126f52af0",
+      "git_blob_sha": "558b3ebc7dd201476a2529438d12bf4eecabfd8f"
+    },
+    {
+      "path": "examples/phase21_dae_power.cpp",
+      "bytes": 1386,
+      "sha256": "78474d9b7b39f297971e589ecd2195cde85374f97ebe369a0a74b3468db6d1ab",
+      "git_blob_sha": "f431ebfe2f78e421a2b73bed190e3c90613b9dc4"
+    },
+    {
+      "path": "examples/phase22_solver_domain_wave.cpp",
+      "bytes": 5737,
+      "sha256": "c5cb90f75c0dd34a3c4e6523657fb3e7c2f1c05ded0b991c404bffcbc1e81f3c",
+      "git_blob_sha": "995fd5379bf06cb63bb125de34e76c0699a2d5cf"
+    },
+    {
+      "path": "examples/phase23_partition_asymptotic.cpp",
+      "bytes": 3862,
+      "sha256": "33d34e37b22f131a97f35acc358200a42c4e7a244e149020409da838aa50621b",
+      "git_blob_sha": "392f67143c7a5742ca9352361adbce8a1c2e6067"
+    },
+    {
+      "path": "examples/phase24_photonics.cpp",
+      "bytes": 2081,
+      "sha256": "018e0c725401b78499b193bdc86598f0878fddb4c23af0280c176d4dcd47377b",
+      "git_blob_sha": "d187a8eb9fb1b25947a4c0b65d8c854744241e06"
+    },
+    {
+      "path": "examples/phase25_nonlinear_sheet.cpp",
+      "bytes": 1562,
+      "sha256": "e59f25eaea81dc38f5d11ec38f46532f1cf68fe5cc5b14242a419e2590458112",
+      "git_blob_sha": "faafa542e991397801c41403ca14500eb07c6397"
+    },
+    {
+      "path": "examples/phase26_optical_full_wave.cpp",
+      "bytes": 3430,
+      "sha256": "07b3f77a7afb69726e9bb62506bec0fbfa54d174f6cdab8b6b93ed4babe1070d",
+      "git_blob_sha": "540a481cd816dc5a354d53c6565c0f4deecc1c6c"
+    },
+    {
+      "path": "examples/phase27_harmonic_eddy.cpp",
+      "bytes": 1787,
+      "sha256": "66c1879ba5ac0e510ee1108423c72273be1bbf436fe575187aed566fe51041d8",
+      "git_blob_sha": "b6af3b2e6cdf5781ba18cf825ccb0ef1f2455c5d"
+    },
+    {
+      "path": "examples/phase28_eddy_circuit.cpp",
+      "bytes": 1360,
+      "sha256": "031d7a7bba65163a8dc110782779922ed2428706493f6a15dc2e1ca23b6f9a5b",
+      "git_blob_sha": "c27694563d3f085399a314794ba07f488316384a"
+    },
+    {
+      "path": "examples/phase29_integral_equations.cpp",
+      "bytes": 2184,
+      "sha256": "a9032daa9d63081dac728f2620b9fd328f036cc46c702c37ba841bc3e4845f52",
+      "git_blob_sha": "a73e63899275721a448209dca29b7fdb3ac206d7"
+    },
+    {
+      "path": "examples/real_fdtd_radome_vtk.cpp",
+      "bytes": 2937,
+      "sha256": "dd620d04c100e9bf209aa5ad854c1a9057252d3bef2c25fe57f3456ba634a8b4",
+      "git_blob_sha": "b8dfafa3b67417372cff073fb06025ba639f179b"
+    },
+    {
+      "path": "examples/real_lbm3d_model.cpp",
+      "bytes": 7497,
+      "sha256": "5f158eecbed7f1b80d354dc974b5eb2bd004b4ac69eab545834bdab931ae0867",
+      "git_blob_sha": "a358e3d2a8221bf72ac3c6bc45fe9b656f287781"
+    },
+    {
+      "path": "examples/real_openfoam_channel.cpp",
+      "bytes": 15138,
+      "sha256": "53ac0ba9af6e678c87541a79977b7b525588016a2f30f9a91fe9c5b288afb722",
+      "git_blob_sha": "eaaaf8d130019baf96cca086ec8e03d33c638d91"
+    },
+    {
+      "path": "examples/results/v0.19.0_reference.json",
+      "bytes": 23791,
+      "sha256": "205c3f755770f242f073bc55611c6f06b6b76a95337b95880d5272bce5787009",
+      "git_blob_sha": "dc3796f86f8eecfe98ff9c9718e1a7ef5a05bd5e"
+    },
+    {
+      "path": "examples/results/v0.19.0_reference_summary.md",
+      "bytes": 3039,
+      "sha256": "ec61523643d765a7b79e488cec56d3428501563bc84d352138e03c49ca716360",
+      "git_blob_sha": "d307b574223d2aae52f2bee04bf336b4f73ea1b8"
+    },
+    {
+      "path": "examples/run_benchmarks.py",
+      "bytes": 7653,
+      "sha256": "f9ec4d74baa7791bc84c8711ab3b07daa7f47d589666bee0f62f49ec53a5a88a",
+      "git_blob_sha": "7d1bf2bce24d770205d6040227befaf047c49573"
+    },
+    {
+      "path": "include/cfd/acoustics/coupling.hpp",
+      "bytes": 2445,
+      "sha256": "014d598f5a1dc7fe1f3095f958b721dc010eaf412ced76c724a8d2af5e2cfd5a",
+      "git_blob_sha": "8a5944fdfc5d7dd505b7ae9b9127c8772d445a44"
+    },
+    {
+      "path": "include/cfd/acoustics/kspace2d.hpp",
+      "bytes": 4882,
+      "sha256": "91e1e5ce13dc9eccc333f4f89719847eed6afbf0af05ebd7bf49f94051376ffa",
+      "git_blob_sha": "f2e442eabbd18eaf3dff7f83f44c0f8d3f0e6996"
+    },
+    {
+      "path": "include/cfd/acoustics/postprocess.hpp",
+      "bytes": 941,
+      "sha256": "ebd6ce4c29d988298bea30c0fa0307d1d4cf1d8ed99ecfcbda5e8a74450769a2",
+      "git_blob_sha": "2ab4d9812b4137872173e21d41143705ffb221fb"
+    },
+    {
+      "path": "include/cfd/atomistics/md1d.hpp",
+      "bytes": 4003,
+      "sha256": "4bdd70350091228c7c15c93432c4db6814248767f1200fab25a48e0afbf913f2",
+      "git_blob_sha": "c40e17d8fe4b7de03504e6570bd60a8378fd273c"
+    },
+    {
+      "path": "include/cfd/atomistics/neighbor_list.hpp",
+      "bytes": 6006,
+      "sha256": "94c1d65eacc6cde910a881d19c79820a80bdc38ea159d08c5c1e036f17b90dbb",
+      "git_blob_sha": "e55fef5cc594b850704fc5e894b37fcba883ede2"
+    },
+    {
+      "path": "include/cfd/battery/dfn.hpp",
+      "bytes": 5525,
+      "sha256": "1e6787a9d8ced21e536e72967ec6a02c86a849175ee4aa99d179a79ec3155f88",
+      "git_blob_sha": "ab13dc0ac56ee6276d376961c899660c489b6acd"
+    },
+    {
+      "path": "include/cfd/battery/lithium_ion.hpp",
+      "bytes": 9371,
+      "sha256": "32670a76daee7ce7f2d25eedf61c2c09a513364f2c3832da0fcad95b625bd801",
+      "git_blob_sha": "538ca54f833cc7e16a1b092fcb9db1fb4a3dacaa"
+    },
+    {
+      "path": "include/cfd/battery/pack.hpp",
+      "bytes": 1720,
+      "sha256": "9bd080f40f39c2bf721523028833abdc14567f2a95ba30ce6236590e5f1d647d",
+      "git_blob_sha": "0036afd88d4526b04638b0c04b493b50b7dbb4b3"
+    },
+    {
+      "path": "include/cfd/battery/thermal3d.hpp",
+      "bytes": 2756,
+      "sha256": "8a480d475ca6f7f88e842776b5b952877adcbcfe3f93031b626a7998311d36ff",
+      "git_blob_sha": "14a83bd7dcedf3afc5e8fbd38020952f07c2675d"
+    },
+    {
+      "path": "include/cfd/chemistry/advanced_thermo.hpp",
+      "bytes": 3551,
+      "sha256": "d5fb4bfbc6dc74a9fb48689974f34a1d9939d5cfd7ccc2e210ea89b606187c99",
+      "git_blob_sha": "92881dea719fdc335a3841f54d78a0811bf014cf"
+    },
+    {
+      "path": "include/cfd/chemistry/aqueous_equilibrium.hpp",
+      "bytes": 969,
+      "sha256": "647fbc5b870a5bd9bc432ce84a207560cc4cd7d99611496767a6ed092468f64b",
+      "git_blob_sha": "5e7cd025eef49ec144f44e05c58f9ceef455d453"
+    },
+    {
+      "path": "include/cfd/chemistry/database_io.hpp",
+      "bytes": 1265,
+      "sha256": "f60009291ce4fa3c073e01753d44c83d57a684276f357b055ea7aa576dc9ce46",
+      "git_blob_sha": "79bff407ff96c8db88e96372df8bfd94f332ffbe"
+    },
+    {
+      "path": "include/cfd/chemistry/equilibrium.hpp",
+      "bytes": 370,
+      "sha256": "67ee0ed3ae30793eb33d853300d68fbe92aa39c526da3bcea999461ab47cf42a",
+      "git_blob_sha": "15b51922803e9d3e963537a1a91ac07f4df4880a"
+    },
+    {
+      "path": "include/cfd/chemistry/implicit_reactor.hpp",
+      "bytes": 924,
+      "sha256": "499f7510bfa58af9da221aaa289ef00e263f40156c939ea46fb9752dff1b76a3",
+      "git_blob_sha": "72c138bed8d3a28d32e45479890e89a5d634185f"
+    },
+    {
+      "path": "include/cfd/chemistry/kinetics.hpp",
+      "bytes": 3122,
+      "sha256": "3d8e09b3de7baee6bfe5e006b76539b6a82a8f702bb9a6cf18508338e5764ed0",
+      "git_blob_sha": "014f5b99dbcc0a9e4b49f44b95e42989bae27c21"
+    },
+    {
+      "path": "include/cfd/chemistry/reaction_path.hpp",
+      "bytes": 359,
+      "sha256": "24de1fe9175e430b36b5b0e7bc743dd5cef56cebee8e53a48383368becb91f31",
+      "git_blob_sha": "b230f1ab922966b5343e005cd282ec1622928ed9"
+    },
+    {
+      "path": "include/cfd/chemistry/reactor_network.hpp",
+      "bytes": 1065,
+      "sha256": "f2a0f4f229a8092783ce87be123e8be6def95705cfe53f6b6b50b1bdeb330b14",
+      "git_blob_sha": "6b7fac01c0c86af87253177c55b89dfa6d471029"
+    },
+    {
+      "path": "include/cfd/chemistry/speciation_block.hpp",
+      "bytes": 4664,
+      "sha256": "54d1ebcfe6f7b04b01af5629842101b81198feb15f1e98f20bc9b6e91f178ed1",
+      "git_blob_sha": "418f20754b1f0a221ff9bbf68cacf41bfe075b90"
+    },
+    {
+      "path": "include/cfd/chemistry/thermo.hpp",
+      "bytes": 2488,
+      "sha256": "f8ff2bfab0d53626f87c303612a129141a5e3bd6b412ba1d823f4eae391e1f5a",
+      "git_blob_sha": "b2434cff9be4924e7a4eef1f3303852033153ada"
+    },
+    {
+      "path": "include/cfd/circuit/analysis.hpp",
+      "bytes": 7637,
+      "sha256": "98e9e4a38c5b54968db86fae54d24ab0a25e3c9454ac7de22ee8b8fa800d029f",
+      "git_blob_sha": "b346b57d3a6821b3dca69e3b65262abdc80ffe7a"
+    },
+    {
+      "path": "include/cfd/circuit/external_spice_adapter.hpp",
+      "bytes": 731,
+      "sha256": "a1e78040038bfafef10c6d114fabb989024201878890466419271a3a0a6ce3ea",
+      "git_blob_sha": "fb9c8d04b573613a1e473fafbd58cda7d2a67d6f"
+    },
+    {
+      "path": "include/cfd/circuit/osdi_adapter.hpp",
+      "bytes": 1431,
+      "sha256": "4d276611e02dbd30f1fc2bc33d9518914a3bf1b090c0ccf5d8bb154e37ccd8c4",
+      "git_blob_sha": "da28fbe8556618a30120e72c6e9fc228e0ec9855"
+    },
+    {
+      "path": "include/cfd/circuit/osdi_loader.hpp",
+      "bytes": 1426,
+      "sha256": "586809bb94a8484ad47caeb7044407f5dbc77975cacde9b3a66c6ba50ba1ea5f",
+      "git_blob_sha": "6ce544689f62e266388c5353bfab1ea93ea4f030"
+    },
+    {
+      "path": "include/cfd/circuit/raw.hpp",
+      "bytes": 1364,
+      "sha256": "a57cd31298dda924e2142fc216a0be6063e8555f183d885fd7748cafe5511a83",
+      "git_blob_sha": "fa0549120ba24a9b727d23762617096139c743d0"
+    },
+    {
+      "path": "include/cfd/circuit/spice.hpp",
+      "bytes": 21597,
+      "sha256": "54bced8d8d9146e6e62417fdb950df652e8d8fbdb45b188d62e044f4e1fab189",
+      "git_blob_sha": "b797980d0ab6a3865d4be68d617a18920e772c7b"
+    },
+    {
+      "path": "include/cfd/circuit/spice_compat.hpp",
+      "bytes": 903,
+      "sha256": "b515086deec64120c9539a88c045303a8bbb800eaa694b1e54d6048e8ffda366",
+      "git_blob_sha": "f412a98d14b35037c696be494cc157916febea67"
+    },
+    {
+      "path": "include/cfd/core/aligned_allocator.hpp",
+      "bytes": 1456,
+      "sha256": "909ab31795686b141f4bf6dee25286556645a5a7531c914a99b0dc93d3942c84",
+      "git_blob_sha": "788ba681e2438ccebed0c94ca330ee1a00e2c6a7"
+    },
+    {
+      "path": "include/cfd/core/amg_adapter.hpp",
+      "bytes": 605,
+      "sha256": "3616be1abd719a6cec39df33dbc2d27b66a6a8342fc8c66fc9c2532bdffda8a2",
+      "git_blob_sha": "85710fab95258bf3e920f83f35ce4c82bd8c11d2"
+    },
+    {
+      "path": "include/cfd/core/autotune.hpp",
+      "bytes": 2882,
+      "sha256": "f01faf38aeb73de592fc36dc8117f55998880df76107f834d75221676643d820",
+      "git_blob_sha": "f32d23905a5af9ebf6cdec3e83fc35d4b3a1e9c6"
+    },
+    {
+      "path": "include/cfd/core/backend.hpp",
+      "bytes": 595,
+      "sha256": "a482b7666d6b50080989f07b54e3756d18f31dab5dbb2ead3d8ee5520fd1ce46",
+      "git_blob_sha": "422840435be560ac252650e55ce7275b174adae8"
+    },
+    {
+      "path": "include/cfd/core/block_csr.hpp",
+      "bytes": 2810,
+      "sha256": "5c836d10158e8f8ad9984a8f8c72e54c506ef2445165b550e5eb824955594a94",
+      "git_blob_sha": "db3675d1be80d4950d510750aea99c53a3a15d0d"
+    },
+    {
+      "path": "include/cfd/core/block_solver.hpp",
+      "bytes": 5408,
+      "sha256": "634f3085636df3c92d92888fb97dd3731d3d7bf3debd54ccba5311defce96146",
+      "git_blob_sha": "282992591a02eb9c8bef22c7dcb75ce4ebc0ea33"
+    },
+    {
+      "path": "include/cfd/core/complex_sparse.hpp",
+      "bytes": 1208,
+      "sha256": "bc2a6f8d846195e1acb6945193695381d7cdb3bee1f7d57d36e1cbe9abf68093",
+      "git_blob_sha": "d07c956c86b1ff17b60de7a16b90c7f6e6d656f9"
+    },
+    {
+      "path": "include/cfd/core/conjugate_gradient.hpp",
+      "bytes": 3160,
+      "sha256": "5dbee411625d037af3440a925d546a88be0a48f9932fcde95b4e3bc4f9770d8c",
+      "git_blob_sha": "986ce249e6252114f88034ab05983a979bbb309a"
+    },
+    {
+      "path": "include/cfd/core/csr_matrix.hpp",
+      "bytes": 5460,
+      "sha256": "80b14a494aee59d437598dba88533972d017fe275731e5b9e5407a1f0dc3175c",
+      "git_blob_sha": "ad6ffd46408deed2096884e36d9d07c353308454"
+    },
+    {
+      "path": "include/cfd/core/dae.hpp",
+      "bytes": 4826,
+      "sha256": "b6e838853ea5063d740ce4242b4bd8c0e72131d1473dd00ed521e8e73fdaf0e5",
+      "git_blob_sha": "6f9f3eeaa57c068208922733d49e40f7c009273a"
+    },
+    {
+      "path": "include/cfd/core/decomposition.hpp",
+      "bytes": 896,
+      "sha256": "8418189f26143da587fee8f0250b099c76d06b08ff369b7ab312aebbc1965047",
+      "git_blob_sha": "735d013a8337ef0f8298e937c0e173384bd2475b"
+    },
+    {
+      "path": "include/cfd/core/device_residency.hpp",
+      "bytes": 1451,
+      "sha256": "e5ad6a7a840a641c1bcad2ac296cb5323154f70267e00133c0b8199db29c86f7",
+      "git_blob_sha": "e4d3d55f52bea99de7a45efcdb0ab3feac8c12a7"
+    },
+    {
+      "path": "include/cfd/core/distributed_csr.hpp",
+      "bytes": 826,
+      "sha256": "53d56fdfa3c4b8a215fd54518618886f84cc68cc196aa34f676fa31be134a299",
+      "git_blob_sha": "ca903dc74d0e301e9d9b62663eed4cbe65306e2b"
+    },
+    {
+      "path": "include/cfd/core/distributed_sparse_assembly.hpp",
+      "bytes": 5771,
+      "sha256": "d4eadb82c6ffc325b331d6434e7ab8e0deb71ac4dc2cb06d922f617ad4072f0f",
+      "git_blob_sha": "b04d68f7449436738c8ce8f77836719f01dff79c"
+    },
+    {
+      "path": "include/cfd/core/dual.hpp",
+      "bytes": 5689,
+      "sha256": "e1ef81fa0565660caa8b221e2567b677dbff3226d1fcfa6fffc8846ccb69a9a0",
+      "git_blob_sha": "a5191a2502b2346dcdf092af7020fd2f55a3914d"
+    },
+    {
+      "path": "include/cfd/core/eigen_solvers.hpp",
+      "bytes": 5045,
+      "sha256": "0f998a0f1029c8e8ef7caa1aad3d4524a92ed1954ac565b8dfd7c84c19e016b5",
+      "git_blob_sha": "5df546504087fdd982df3b5ab112c9a0ef5086a3"
+    },
+    {
+      "path": "include/cfd/core/geometric_multigrid.hpp",
+      "bytes": 847,
+      "sha256": "658f36d60ae016b2d50045484a58bb14b19aea0f830ad0322a3c8f67e9107de5",
+      "git_blob_sha": "76b4b5b664a837946312e90ff18c52e6f999ab77"
+    },
+    {
+      "path": "include/cfd/core/grid.hpp",
+      "bytes": 680,
+      "sha256": "23c5c15dc5ed9ad6eed040949e99ed58d0fa3249743e0782eb3caab0e32dcde7",
+      "git_blob_sha": "0a53e2d7cef0fc4099b2dfd9b9c2f9f230d90279"
+    },
+    {
+      "path": "include/cfd/core/hybrid_dae_graph.hpp",
+      "bytes": 5476,
+      "sha256": "6e40d62eecb25599fc0f173139c696e6da6d48bc0eae2d517967d1051d7226b3",
+      "git_blob_sha": "ab71082f5d042bf596e0cba0028a6bfe8aa1520e"
+    },
+    {
+      "path": "include/cfd/core/iterative_solvers.hpp",
+      "bytes": 17243,
+      "sha256": "990c1ecb95deb53cfd882a31f37998aa5993e9cbe5d90e0af544b3106373597d",
+      "git_blob_sha": "a1c37086d3c989144c6de1dc82cac4e2fa0c5e4e"
+    },
+    {
+      "path": "include/cfd/core/mesh_partition.hpp",
+      "bytes": 4220,
+      "sha256": "c5d118836df6a808596f99aede0a658dbe8010df4a2642d9b37b26e2496ee3c1",
+      "git_blob_sha": "d8f0727f0a14a182e0c5ad844be465f8a96716ce"
+    },
+    {
+      "path": "include/cfd/core/mixed_precision.hpp",
+      "bytes": 532,
+      "sha256": "b7160e8e1095833ddaa4976bc63581bddd357fd87dd2b87e58e8731e55e18fd8",
+      "git_blob_sha": "ec473133c94b012817e6385b17fc1f5e5f7cdf22"
+    },
+    {
+      "path": "include/cfd/core/newton.hpp",
+      "bytes": 4186,
+      "sha256": "f743136d1e60099564ba9ab106c51e5abaac40e0f9e935bc151b57bea018d926",
+      "git_blob_sha": "fa980635e9b5e970c9d8b04efd931ba6b75ab593"
+    },
+    {
+      "path": "include/cfd/core/nonlinear_system.hpp",
+      "bytes": 10836,
+      "sha256": "8b483fd5929e3fe54130fe63bdfe4f0ef6c3e58b6fddf9dd5e20dbfe5342a3ed",
+      "git_blob_sha": "e5477e9d895aa914b5768d28429d7920962d30d7"
+    },
+    {
+      "path": "include/cfd/core/numa.hpp",
+      "bytes": 3656,
+      "sha256": "d73f755749f89e4cb3dcf7450553c26faad2346c139fa549c8c60eee27431e49",
+      "git_blob_sha": "acbaecad7b26638a8a1bd8de304089cddf9dc51d"
+    },
+    {
+      "path": "include/cfd/core/parallel.hpp",
+      "bytes": 3251,
+      "sha256": "0fc5e55a7e7fe82590c3b6ce640f5739eae9c1d427714ab5c07d89d8dda28edc",
+      "git_blob_sha": "e6b6ccb184f3ee9306419d68d0a96046effbfeb0"
+    },
+    {
+      "path": "include/cfd/core/profiler.hpp",
+      "bytes": 1140,
+      "sha256": "6927bc5f6b8ff0f3a240c38db2ffdcba907d9faaab187a968c3700765ca3fe56",
+      "git_blob_sha": "b171bff91eb77cd7cef6445acf2b341d66e65b29"
+    },
+    {
+      "path": "include/cfd/core/reverse_ad.hpp",
+      "bytes": 9388,
+      "sha256": "e023f2c06e0b9047750b17cf3e8ac2ec17437a58bb7eacbd2ed38ddf0f9fc914",
+      "git_blob_sha": "4a470ad1f1b8c973cacd292f6295385111ef2be8"
+    },
+    {
+      "path": "include/cfd/core/reverse_ad_distributed.hpp",
+      "bytes": 3541,
+      "sha256": "beba29dcc7062d415b25a339efa456b27ebb8eefc24113693fb9e608e4fa9266",
+      "git_blob_sha": "d91d7035408d727154e3ac4f4b09b82383ce07de"
+    },
+    {
+      "path": "include/cfd/core/scratch_arena.hpp",
+      "bytes": 1018,
+      "sha256": "75265515480cbf9e476c5cc7d3fb73ca1112d3a3d7d930dce6e6076dc2b70d74",
+      "git_blob_sha": "5f4ab330a667bcb222c6804803202d14a2e79abc"
+    },
+    {
+      "path": "include/cfd/core/simd.hpp",
+      "bytes": 923,
+      "sha256": "ada1024a27f7631884299a986bfacf4be16068e3eb0a74af3218560b381e33bc",
+      "git_blob_sha": "2533a463e4ac3c34cd24289e3dcb5b73fe125163"
+    },
+    {
+      "path": "include/cfd/core/soa_field.hpp",
+      "bytes": 1410,
+      "sha256": "441977555abae7b5c8f05b3a999b62a770b81fbc2402e0ae6b65cdf6362bf681",
+      "git_blob_sha": "f0fc8fd31cb86608a7f6a567d608307ebbfd72e5"
+    },
+    {
+      "path": "include/cfd/core/structured_stencil.hpp",
+      "bytes": 5670,
+      "sha256": "04101983a55ed1206b7040601284158c8bd804a4bdb31936cc50eca424b71a04",
+      "git_blob_sha": "788fbbfc374232aa0bc252ca18c1fdb2341e4696"
+    },
+    {
+      "path": "include/cfd/core/sycl_sparse.hpp",
+      "bytes": 5176,
+      "sha256": "8a70d19fc257f7bb6af6bb588ff8b51986ed917a0a25d6dc12d3829801ff54ba",
+      "git_blob_sha": "66d2950abd6000037cb091942289934c535dddf5"
+    },
+    {
+      "path": "include/cfd/core/task_graph.hpp",
+      "bytes": 568,
+      "sha256": "634221303053743321fe41421c45c4040a8c4dc22f5d44f1abf6bc56909e5913",
+      "git_blob_sha": "5abbee080fc87bc1a52a7e461c11f430e960db20"
+    },
+    {
+      "path": "include/cfd/dg/advection1d.hpp",
+      "bytes": 7995,
+      "sha256": "3baa22cbdf664225a5275b3705e3cefc747aa883d04b616a165309895bf611e3",
+      "git_blob_sha": "787f7a78fdae334fc038ebaca8d1ef9cc19f6efa"
+    },
+    {
+      "path": "include/cfd/dg/high_order_fem.hpp",
+      "bytes": 5106,
+      "sha256": "ee5126ee797789a21b21cf8529c796ce0f28da5e74614244265109d6e7a62872",
+      "git_blob_sha": "8d9416d217f3c23f9b10252287316a200d571cc7"
+    },
+    {
+      "path": "include/cfd/distributed/cartesian.hpp",
+      "bytes": 7014,
+      "sha256": "67f808a956c868ee81f36d6722478d9dd9268210d0b286b8bb9a0235102042ec",
+      "git_blob_sha": "3f8b0b2ccdda6f6e7af69e67bb6aa807099c8ece"
+    },
+    {
+      "path": "include/cfd/distributed/device_assignment.hpp",
+      "bytes": 6630,
+      "sha256": "54e3845de6a5b02a5d75d3a9ca5d518258d1c10e44d4ad0a2ff082649b4634f6",
+      "git_blob_sha": "56434e7130991dcb6bc616413f8a1278c7524990"
+    },
+    {
+      "path": "include/cfd/distributed/halo_grid.hpp",
+      "bytes": 4183,
+      "sha256": "1cf5a34e74fd7f70d27c937a1cb54cb9c13047efa38f51ffa99d042f26546b1f",
+      "git_blob_sha": "96ce8d42fe3dc6ce32facdc017bfb53754ec112f"
+    },
+    {
+      "path": "include/cfd/distributed/mpi_runtime.hpp",
+      "bytes": 5346,
+      "sha256": "d4d8c179e3c9eff274e7570bcf48cf3e77bf1a3771f6f5cb12b1973acade512c",
+      "git_blob_sha": "6e10737afa7014efa7641fdf93db848a3ecd6d4e"
+    },
+    {
+      "path": "include/cfd/distributed/mpi_selective_halo.hpp",
+      "bytes": 4643,
+      "sha256": "802544357f1e57caaa03650d9b589e3abe9713f83e7172f0e8da34d5cf8ae4de",
+      "git_blob_sha": "4f64af5ceddf1f4f8937f75f641f2e0d814eae71"
+    },
+    {
+      "path": "include/cfd/distributed/mpi_sparse.hpp",
+      "bytes": 2847,
+      "sha256": "6047acbe6f514a13de4b4a8d307aa72d0a6b76ee1fb04cfb6d7ef90da90f9006",
+      "git_blob_sha": "efece896e1df88910872944b7822b5c956d4c281"
+    },
+    {
+      "path": "include/cfd/distributed/mpi_sycl_halo.hpp",
+      "bytes": 9542,
+      "sha256": "8b2bfb40a61f39f1d320546c8bea3dca014e12bc6de57594782538d40a675ac9",
+      "git_blob_sha": "fa713955eddf850324f3d780db6e3a3906303ca6"
+    },
+    {
+      "path": "include/cfd/distributed/repartition.hpp",
+      "bytes": 1285,
+      "sha256": "5cf555a9f54c615234d598cf99665dca28d8fe23dcff94f299699b6ae8571a16",
+      "git_blob_sha": "408170e6b9e62aec3bcfeaa9f688d8f449ff1455"
+    },
+    {
+      "path": "include/cfd/distributed/selective_halo.hpp",
+      "bytes": 8504,
+      "sha256": "8fb63d6c69c8abefeba233d2065a561d944e481ebe390e3359f57e28f397163f",
+      "git_blob_sha": "288f2fc9d7f833698ca7624dbf491cc4f0b10433"
+    },
+    {
+      "path": "include/cfd/electrochemistry/corrosion_models.hpp",
+      "bytes": 8749,
+      "sha256": "8bdc37a718da9c222fbcdf53a3d5bc6684d7144f06407d745aedc8b4d0989fe1",
+      "git_blob_sha": "1fdb4a70860738c7841bbb0e2fade7fd6d12f6f7"
+    },
+    {
+      "path": "include/cfd/electrochemistry/electrochemistry.hpp",
+      "bytes": 1248,
+      "sha256": "82afb37c4129b459734abd371c6ae7398b68e3bb3cc04336556e0f8b26e26c68",
+      "git_blob_sha": "d48ae91bdac9c52c3f2913d7d1db32f44360d860"
+    },
+    {
+      "path": "include/cfd/electrochemistry/implicit_pnp.hpp",
+      "bytes": 885,
+      "sha256": "1f2ce72484dc15c9bccaf62dcef1f5eb8f90bde62d4f977ca76a186c0dcd6fb8",
+      "git_blob_sha": "0574f7513f7910d5ce5d1b0808e5edb2610b6457"
+    },
+    {
+      "path": "include/cfd/em/adaptivity3d.hpp",
+      "bytes": 1171,
+      "sha256": "20db907025cefc8bd6f8c24d0ad7fb022023e30551838cc453f783edfb0b5e46",
+      "git_blob_sha": "43cd3cddb9aa09e565907658f8e710821fe36723"
+    },
+    {
+      "path": "include/cfd/em/cable.hpp",
+      "bytes": 2305,
+      "sha256": "545099503fd2adcd77d4d914ffea0b153d4421da2213256531fe8543aadac61c",
+      "git_blob_sha": "930fbdface97907dcb1ac2d038e08ddcc4c93a8e"
+    },
+    {
+      "path": "include/cfd/em/edge_fem2d.hpp",
+      "bytes": 2123,
+      "sha256": "4251d3971eb32ecec87cadc34d0ea9b6ae2d975da2c68bc36f914e48d0dff180",
+      "git_blob_sha": "2fea0a5616250efbd0714211761128a843af7912"
+    },
+    {
+      "path": "include/cfd/em/edge_fem3d.hpp",
+      "bytes": 3899,
+      "sha256": "bd8e7029b2268faaaf168b8f4e101e03201cd081b26e8fe5fed508b1a7780556",
+      "git_blob_sha": "f746b470197ac1ce29e83da661ee73565b3db504"
+    },
+    {
+      "path": "include/cfd/em/frequency_domain.hpp",
+      "bytes": 1729,
+      "sha256": "49a0e97715cb3bb87d7fbd826b4da03f6cf6aa77d67ede833467fb065179f18c",
+      "git_blob_sha": "27d8e5998046d0fc9d190bf39e9cf55a6a8b63d0"
+    },
+    {
+      "path": "include/cfd/em/metasurface_gstc.hpp",
+      "bytes": 994,
+      "sha256": "7e2af471630bd068783302bb57ea85d76c68c26e4e7f970fc840c3404b4c5d18",
+      "git_blob_sha": "e37ae67e9fd8fe7d7d459202bb4c1e0c2f1e4a80"
+    },
+    {
+      "path": "include/cfd/em/photonic_modes.hpp",
+      "bytes": 2590,
+      "sha256": "d8edb4da1f929477b5b9273a9bda1d1007cc242775e741c65c0c0d9c534d269d",
+      "git_blob_sha": "c6146503f87b4594f5f04e8e027df9ef684a34f0"
+    },
+    {
+      "path": "include/cfd/em/system.hpp",
+      "bytes": 3483,
+      "sha256": "7fe9edb518d566e0ebe29eb6c6ff8cac374a160ec38d1827725a17541fd946ec",
+      "git_blob_sha": "1e525fd9149ca2b4f6a3351e0e94616af6251c82"
+    },
+    {
+      "path": "include/cfd/em/wave_port.hpp",
+      "bytes": 1701,
+      "sha256": "94c32c292a0cd13ba1a33346d68b131a23aad48e72942e808de5892b92da9116",
+      "git_blob_sha": "a1a88a1b3e7a4130f6c2b9305e3ac01458b408f7"
+    },
+    {
+      "path": "include/cfd/fem/adaptivity.hpp",
+      "bytes": 1484,
+      "sha256": "bb75cc6f28822b959f340bd1d68d8028a0e9d4de588af9800d6b288b05a7b9ef",
+      "git_blob_sha": "0e652690c5b17cbbb846dd55d8134c0848bf7971"
+    },
+    {
+      "path": "include/cfd/fem/assembly.hpp",
+      "bytes": 724,
+      "sha256": "70a213213bc44052ca54c1b895460d5090ff42c9c3e0deb39c66626bbb0d5c35",
+      "git_blob_sha": "07735641f5fd8765195cbdbc4cc2f509cb747202"
+    },
+    {
+      "path": "include/cfd/fem/material_laws.hpp",
+      "bytes": 1027,
+      "sha256": "0a8d092c7dfa104ca699296af3919f00a068d5f980d1afc5107292cac4b1f840",
+      "git_blob_sha": "e60e0fbbeb5e52ed7780af1b0fb0773a449bc97b"
+    },
+    {
+      "path": "include/cfd/fem/mesh2d.hpp",
+      "bytes": 938,
+      "sha256": "d80f841b2fd5ebbd8bdb6fd3a2776474bf30f7c7e0f505d66b7eedb70bda22ee",
+      "git_blob_sha": "88ed49f34f5510659392554a38f0eee6164fcc6d"
+    },
+    {
+      "path": "include/cfd/fem/mesh3d.hpp",
+      "bytes": 885,
+      "sha256": "e089a8e8741aca72655e865245f3fbfd104d424e8a5b0e8391c7c61cd76c8544",
+      "git_blob_sha": "883afaba6867b0915cb2b98d2bacaca9d5ad62df"
+    },
+    {
+      "path": "include/cfd/fem/nonlinear_geometry.hpp",
+      "bytes": 848,
+      "sha256": "6c07685530628a89e9679d18c28bd35b07def564a2d15d93dd72db3dfcf57c8f",
+      "git_blob_sha": "fe357a6522faa01d70e6a14f8a1a19f8f50a693a"
+    },
+    {
+      "path": "include/cfd/fem/phase_change.hpp",
+      "bytes": 540,
+      "sha256": "ad9b97d7dafc70a4aa0593a11ad630e0c1fcdaa6b7cb6aab741cc4498dcaa501",
+      "git_blob_sha": "f9d1627ab8412dbd78f26ccc427e9f218ec1fb92"
+    },
+    {
+      "path": "include/cfd/fem/reference_element.hpp",
+      "bytes": 1577,
+      "sha256": "a07f75936625ad3369b85b8fc40ba74b0d12d4fc55d7111c33654bc4999826d1",
+      "git_blob_sha": "612c81543a762bca5f0c9300254cf9bb8216011c"
+    },
+    {
+      "path": "include/cfd/fvm/adaptive_mesh.hpp",
+      "bytes": 4415,
+      "sha256": "5dc6ed524de73adb983d2573378256aba1cd408e4bc6a52347ed5f41c7d5faf8",
+      "git_blob_sha": "d70513800284cc3cf20b4663e9015ab8b8a675ec"
+    },
+    {
+      "path": "include/cfd/fvm/advanced_models.hpp",
+      "bytes": 1429,
+      "sha256": "8d013a9316e3d6996d4625b70c7ae8a2cb2efb13d28554d3b44af0968315e464",
+      "git_blob_sha": "b206c74eff13ac96e98c49dbf6c4337cdad587b5"
+    },
+    {
+      "path": "include/cfd/fvm/combustion.hpp",
+      "bytes": 711,
+      "sha256": "23ec330b54af07125893de05179adb79c6c36c5a67d7a453d06d17881b2cbc32",
+      "git_blob_sha": "8f87645eb43c4cf7c5bfef01b43ab317f7d43b1e"
+    },
+    {
+      "path": "include/cfd/fvm/derived_fields.hpp",
+      "bytes": 691,
+      "sha256": "59760e9d3b3c75c2f341243dbe0d4af5d72534da6601dee7d2956f53de609c0f",
+      "git_blob_sha": "905912c2e5d82115e1f8c94e4eff26acba58efdd"
+    },
+    {
+      "path": "include/cfd/fvm/field.hpp",
+      "bytes": 2822,
+      "sha256": "fa6b98d772397a5fd5a0126cacf4059024b8692e19962478b8c1d2ac922192f9",
+      "git_blob_sha": "50093158c962e2ac5209c8f1c21ceea0c2861e8d"
+    },
+    {
+      "path": "include/cfd/fvm/function_objects.hpp",
+      "bytes": 898,
+      "sha256": "31670877adc0f48a2ad3865a2c08c3e33601d2b4187649ea66af4abadc57a7b9",
+      "git_blob_sha": "e6ac27322d37b2b1d18ade5c6e75f37f2de24acb"
+    },
+    {
+      "path": "include/cfd/fvm/fv_matrix.hpp",
+      "bytes": 590,
+      "sha256": "7895803b2f6901c1a0b5a0dbf5ea54ea5278ce1ccb95e0e9749662c700278730",
+      "git_blob_sha": "4733091225e5f2f4fa55d203de34d8643f1324e9"
+    },
+    {
+      "path": "include/cfd/fvm/mesh_motion.hpp",
+      "bytes": 482,
+      "sha256": "254bb5409b47cbb2501cae4618754a266a49f9bf78a42bc4989351766374f941",
+      "git_blob_sha": "2ff3c0133fb5de14dbab2adfe493d5d33846542d"
+    },
+    {
+      "path": "include/cfd/fvm/operators.hpp",
+      "bytes": 2054,
+      "sha256": "e70bc63e9ac681b3cf8f30d6b81d5d2209a72c9b37011871f1d2e56badbb1d17",
+      "git_blob_sha": "63ea3cce2a9286bb7c216f3ad807f79511a59a54"
+    },
+    {
+      "path": "include/cfd/fvm/poly_mesh.hpp",
+      "bytes": 3674,
+      "sha256": "a4205a650f35e0b961bdcbc51d8f106028ca1230429aa2eb91ff71bd1ff0fc55",
+      "git_blob_sha": "31972d769d4ba809e35a6bd5d178a3250cc297db"
+    },
+    {
+      "path": "include/cfd/fvm/pressure_velocity.hpp",
+      "bytes": 2058,
+      "sha256": "874c8ca19e1d52e156b0c667ec3ad9f2f3d0e7eb3ee3498cae65c17467b052e0",
+      "git_blob_sha": "ece8a293fe50ebd7e148578d2106444849b3d9a1"
+    },
+    {
+      "path": "include/cfd/fvm/radiation.hpp",
+      "bytes": 378,
+      "sha256": "fc04a666cb426175edfc6c59f4af9d529a4906f7fcc5e52e2bfeaec1afa71c36",
+      "git_blob_sha": "9e78ce156d3ed6c1a4151de720c3ec76fb1aaf62"
+    },
+    {
+      "path": "include/cfd/fvm/radiation_network.hpp",
+      "bytes": 995,
+      "sha256": "c4af02c5e3bbbdcdabcf087e6e7394963a3c20bb630a139628df7295d098084d",
+      "git_blob_sha": "0e37e76c7cf04487d89f8553a8a2de7d5dcd9c94"
+    },
+    {
+      "path": "include/cfd/fvm/reordering.hpp",
+      "bytes": 845,
+      "sha256": "8b60abf3242d9fc21ac562bbd913e8c398b36c3399fff67204d9f5b3c4ce3894",
+      "git_blob_sha": "e802dc05bb933c499ab3330056fe92660d0ada79"
+    },
+    {
+      "path": "include/cfd/fvm/resident_rans_sycl.hpp",
+      "bytes": 9708,
+      "sha256": "2ebbfc26d7e67ac1a67189d0247c04b53ced7dce689f705dfd18a409814a6078",
+      "git_blob_sha": "a089cd0a2bfdabffe45b5d742ec94c7151c8fc53"
+    },
+    {
+      "path": "include/cfd/fvm/resident_sycl.hpp",
+      "bytes": 25000,
+      "sha256": "39d66376f1b63a1f7ab36c5ddedadb1c99b15b69bb63a673e029236b1786b14d",
+      "git_blob_sha": "b7c3975ec7e5516daa90acc7df2b30422d80a7c7"
+    },
+    {
+      "path": "include/cfd/fvm/runtime_schemes.hpp",
+      "bytes": 448,
+      "sha256": "7ebaf482aa61f1b8fda8ce3f49a4c8e3449b71c14d6ceeccaa91db0eefbc7af8",
+      "git_blob_sha": "b4b551010842426a80c9eb30e0ce8f8b4e479218"
+    },
+    {
+      "path": "include/cfd/fvm/schemes.hpp",
+      "bytes": 2482,
+      "sha256": "c23da153311fa12225806cbc7456c1c46dc9b018490105adabf42cc5e5cb967b",
+      "git_blob_sha": "35fe4f0e946f2bd515dd8e782d94ad5e41e04e53"
+    },
+    {
+      "path": "include/cfd/fvm/temporal.hpp",
+      "bytes": 1044,
+      "sha256": "aa0cabc95d8edded5b1559254c49e733097bfa552f1504fb597261faa1a9098a",
+      "git_blob_sha": "0a5d842aff2480fc6edbe5b4a8c36008adddedf6"
+    },
+    {
+      "path": "include/cfd/fvm/turbulence.hpp",
+      "bytes": 574,
+      "sha256": "ee7478d993a385a110f51873e3cbedd53190fb3d4cc745ed2be3914c7299d12f",
+      "git_blob_sha": "da673a214797fdb5527bd1296c55df4fe2079646"
+    },
+    {
+      "path": "include/cfd/io/checkpoint.hpp",
+      "bytes": 7333,
+      "sha256": "8067eaefa615cd964c48a77b2128ff0e3d50a533c96a58ed1bf3bd0198c302a2",
+      "git_blob_sha": "e2a02fad5b0c7cd80a660c8e85397f8c4083e05a"
+    },
+    {
+      "path": "include/cfd/io/fvm_checkpoint.hpp",
+      "bytes": 962,
+      "sha256": "8660f8b7c4249f23c7f335454159d3cb6d49664bcaa34b9eaf56d49609f23175",
+      "git_blob_sha": "fa2ec568e0022fe460440c84b25a1906e6f5739b"
+    },
+    {
+      "path": "include/cfd/io/mesh_io.hpp",
+      "bytes": 1450,
+      "sha256": "eddf2dddbb4e05b93735fd10c8e2066fc3928ed718e6e7bcbf482c3e94708be6",
+      "git_blob_sha": "1398cc4008ae7167f0e1e5c084329846125d569d"
+    },
+    {
+      "path": "include/cfd/io/openfoam_io.hpp",
+      "bytes": 1195,
+      "sha256": "c7feb1ec736ef6596df51a03275861f5b41807003545ee69336c084f593722f5",
+      "git_blob_sha": "bbbfdf9fe39a100ce46dfcd22d065ac8ff2f490e"
+    },
+    {
+      "path": "include/cfd/io/xdmf_contract.hpp",
+      "bytes": 1545,
+      "sha256": "72c664f3cbc79519328f7415f9e6165272fd7933bf5d63e063087ce5e1026a58",
+      "git_blob_sha": "254a417c6ca2cea7f31463c205e4ec253f6967cd"
+    },
+    {
+      "path": "include/cfd/kinetic/vlasov1d1v.hpp",
+      "bytes": 4481,
+      "sha256": "5f64a12a9f5331c0f74fc974c88f49a62d953cc05ddbd18a81a316c4c8a31e98",
+      "git_blob_sha": "67cdc7beef808cc43a3406ea7c089c085aed0ec1"
+    },
+    {
+      "path": "include/cfd/kinetic/vlasov_poisson1d1v.hpp",
+      "bytes": 7901,
+      "sha256": "fcd1c40719d172068d9e29fe6af4f75c84f2754d9008724258faf2f545f88e7c",
+      "git_blob_sha": "25d082de5abc663072d3d37429b0ae601ba368cc"
+    },
+    {
+      "path": "include/cfd/mechanics/constitutive3d.hpp",
+      "bytes": 13372,
+      "sha256": "886fada25eb17eed89cef379a2fad68282aada4eb9104d147111830c9fd30b35",
+      "git_blob_sha": "ea6c5a898e8b744e15f45d6919780d65d43b0af5"
+    },
+    {
+      "path": "include/cfd/mechanics/continuum_baselines.hpp",
+      "bytes": 9361,
+      "sha256": "b3a5354b2c8a2e67d1dd648fb74165677a863c936e2e7de233624c1eeb58c893",
+      "git_blob_sha": "47b1231be41f16adb7a2ca76960f0fc417c28345"
+    },
+    {
+      "path": "include/cfd/mechanics/cosserat_rods.hpp",
+      "bytes": 3632,
+      "sha256": "a2072be7679c098866327b2ae90b83e8ca80783e9a6ad198f57b82bdf03786d3",
+      "git_blob_sha": "374740e082a7c62a21dfe6dd20627401aac8d1a6"
+    },
+    {
+      "path": "include/cfd/mechanics/finite_strain_j2.hpp",
+      "bytes": 15629,
+      "sha256": "42956b919b7b8de181771d00772ef475bdfef5c0f84e0e69293abeab0c80fab1",
+      "git_blob_sha": "795802687cb571b8d8f9130c4bf97e3148d118cb"
+    },
+    {
+      "path": "include/cfd/mechanics/finite_strain_j2_calibration.hpp",
+      "bytes": 4680,
+      "sha256": "95bcfe648b84a49674bed5ae844bf71f58edb50236ca834e6ccad1a284473a2e",
+      "git_blob_sha": "f429b24f06fc8d62e7dffb8017f6830f6af42270"
+    },
+    {
+      "path": "include/cfd/mechanics/finite_strain_tet4.hpp",
+      "bytes": 6224,
+      "sha256": "309610ae979170e38edbd6b425eaa13a06c4dec388a4e732606ef73b991f243d",
+      "git_blob_sha": "fb466be84cc06f84ae476876ce397c00adc85163"
+    },
+    {
+      "path": "include/cfd/mechanics/finite_strain_tet4_plastic.hpp",
+      "bytes": 4540,
+      "sha256": "c74d0d67f77cc278a753ad1c206ef7a3d48ff2f6924b8940e269a3d0c03df053",
+      "git_blob_sha": "6b6cce5e258e7a275af336e6b543aa5c47619b92"
+    },
+    {
+      "path": "include/cfd/mechanics/finite_strain_tri3_plastic.hpp",
+      "bytes": 6287,
+      "sha256": "4e1ef937efa2aa4758d8af04369498b38e7744a47b5eba40e54ed29d8e3ed588",
+      "git_blob_sha": "da33e00e8558d7d443d57d277ad00df47c36ff09"
+    },
+    {
+      "path": "include/cfd/mechanics/meshfree_neighbor_graph.hpp",
+      "bytes": 10102,
+      "sha256": "a88c0c5fa821806917d619d7cfd1a0df9cfc30fba7b4b11bde4a3aff8deadb69",
+      "git_blob_sha": "7d81a13f4e62d4d45b08f9195fecd1a353614e87"
+    },
+    {
+      "path": "include/cfd/mechanics/phase_field_fracture1d.hpp",
+      "bytes": 6801,
+      "sha256": "687754294b5a13b9f7b159c4b7758644c8a984c66c85aecea3000df66166d35e",
+      "git_blob_sha": "d356e4e258ee14a305082275c57205e0bf395085"
+    },
+    {
+      "path": "include/cfd/mechanics/phase_field_fracture_operator1d.hpp",
+      "bytes": 10108,
+      "sha256": "bc5314a28091041f3c38b8cad88368aa1552b83973270a1fdca261c6f67a534d",
+      "git_blob_sha": "9242ba631dc202e519c0090df612938e89de2ce6"
+    },
+    {
+      "path": "include/cfd/multibody/advanced_dynamics.hpp",
+      "bytes": 6909,
+      "sha256": "7bcb1bda285870c43b7baedccb05c32a0f8eb8f43a946b06ef8a5b90ba9a4667",
+      "git_blob_sha": "9b7abc24b143c66f4a0fb3f1d1884cadc657f5d9"
+    },
+    {
+      "path": "include/cfd/multibody/cfd_dem_coupling.hpp",
+      "bytes": 2999,
+      "sha256": "2d3d152e7f715e8cfade9385af26741cca9fe3729c6556920378a1301815e137",
+      "git_blob_sha": "89e8b7e499a61e2554ee5685d55f835c2df29806"
+    },
+    {
+      "path": "include/cfd/multibody/constraints.hpp",
+      "bytes": 3915,
+      "sha256": "e88fc02bbbd65b12342b3c4929b9c6f4fbc9f645f61e7daaf1a061044599f5a5",
+      "git_blob_sha": "945c24400e132e34bf62daa766c6d4ce137fd946"
+    },
+    {
+      "path": "include/cfd/multibody/contact.hpp",
+      "bytes": 5680,
+      "sha256": "e3d4d024bb02a88d62c3fb71b9adeccdb1f9e1e71f05bbf3941f50e84472a48d",
+      "git_blob_sha": "6f2e2b26770332e841229cfb7529f97fa7a924bf"
+    },
+    {
+      "path": "include/cfd/multibody/distributed_dem.hpp",
+      "bytes": 6936,
+      "sha256": "6c983c2f714f0a01d6ba8d42395353d3e9208981975570bd36ab4c962f447f7b",
+      "git_blob_sha": "63b55a84825d1b4cec7c336c8eed220d4101631e"
+    },
+    {
+      "path": "include/cfd/multibody/math.hpp",
+      "bytes": 3503,
+      "sha256": "4df4c4545f75f2337bff94fbe8e1246ffef770b6d9f08f4f6609b25229d69f8f",
+      "git_blob_sha": "353e22cb80be4ad447693b16281b93ac7c7641a0"
+    },
+    {
+      "path": "include/cfd/multibody/mpi_resident_dem_sycl.hpp",
+      "bytes": 6993,
+      "sha256": "ce27df613f23c1e68f17303960c47a8334e56f8e03aea519e20e1278655ede7c",
+      "git_blob_sha": "c71aaf30b3d4c77309b98e25cda23e28adc30611"
+    },
+    {
+      "path": "include/cfd/multibody/resident_cfd_dem_sycl.hpp",
+      "bytes": 2677,
+      "sha256": "f3920873a98c10130eef85f66640e9f5844763ef644adcd05827098ac00b38ca",
+      "git_blob_sha": "b7444c8c74f2c18fdffa1fdb84bd951b6eb3ec1a"
+    },
+    {
+      "path": "include/cfd/multibody/resident_dem_sycl.hpp",
+      "bytes": 9074,
+      "sha256": "febad0c2692efb7efd2809f91a038ccffef676553ff24b901a9b0b6670279b04",
+      "git_blob_sha": "510a1983574d132ba9017fe136ac2651d6312db0"
+    },
+    {
+      "path": "include/cfd/multibody/rigid_body.hpp",
+      "bytes": 1492,
+      "sha256": "4d5c5e50553146aebbf2241b9e4f34ebbb251e6ffc699b5477d410f4e6991b1f",
+      "git_blob_sha": "054e41e0df69c40cd5c33015cc8517f194a0b137"
+    },
+    {
+      "path": "include/cfd/multibody/system.hpp",
+      "bytes": 3526,
+      "sha256": "42fc2f95785f7660a628d40a6cf39cea5e535726dce9227471cab463345c48ca",
+      "git_blob_sha": "0940813c0d93207fe8f6bd210e77104b8c2162ea"
+    },
+    {
+      "path": "include/cfd/multiphysics/bioheat.hpp",
+      "bytes": 4862,
+      "sha256": "afa30cb2f2a7ba6678fdba142c05706fdb0aefe000bb9ff6e49d254737133433",
+      "git_blob_sha": "b867ec50a1c65a14a53f04d6348678051dd5034c"
+    },
+    {
+      "path": "include/cfd/multiphysics/block_system.hpp",
+      "bytes": 1187,
+      "sha256": "71a1d1879277acfb3d7f4bf6a5d0296e4798607d6f6e6eedd8a15f73cbbda19c",
+      "git_blob_sha": "e1d0ec94c6b6274c5c2f1408a9c9637b7e11fd1d"
+    },
+    {
+      "path": "include/cfd/multiphysics/cht.hpp",
+      "bytes": 318,
+      "sha256": "101e68963e365a2aa507a125f16b2299656ce988acc0118e742c0f11af142efd",
+      "git_blob_sha": "a9d967f051441dadb5a19cfaa8b03fc48487adef"
+    },
+    {
+      "path": "include/cfd/multiphysics/deformation_optics.hpp",
+      "bytes": 420,
+      "sha256": "7ba18208649c1567393425a5a5ec2b1f61e923ccb5c2ee2ed8f43c2e5e463489",
+      "git_blob_sha": "d795027280ab5609f004c5826a4a85dd8c96462b"
+    },
+    {
+      "path": "include/cfd/multiphysics/electro_thermal.hpp",
+      "bytes": 1763,
+      "sha256": "df6e115dd64e1eb4cd24489751d839b5ec7f3f4c49f00fa70541be96684a1151",
+      "git_blob_sha": "e49711d65f5a508c5828a52e8dd5f9f408851819"
+    },
+    {
+      "path": "include/cfd/multiphysics/electrochemical_heat.hpp",
+      "bytes": 262,
+      "sha256": "5da9febe87c632f949806a518f7efc5da00692152c488d79db7f5c3ffc842846",
+      "git_blob_sha": "136ae75fa3547b4e4a2f976421ef43071026a124"
+    },
+    {
+      "path": "include/cfd/multiphysics/em_spice_bridge.hpp",
+      "bytes": 829,
+      "sha256": "47efcde581d8d0c007e1056f124b84384dfe1b1a33771a6c9b0f70f9b9b54aa7",
+      "git_blob_sha": "24047cf88b57a0d79e33b7824421ae6e44140408"
+    },
+    {
+      "path": "include/cfd/multiphysics/field_registry.hpp",
+      "bytes": 1825,
+      "sha256": "e44f72c6d77ccc47a6de63772e26d976af0a93c935917e84c7db75e99bf8a55b",
+      "git_blob_sha": "f6005ba26bcee6378469c884f6a2e38fc12289f4"
+    },
+    {
+      "path": "include/cfd/multiphysics/partitioned.hpp",
+      "bytes": 823,
+      "sha256": "2a8397bdc4d5070781e2ac23dceb44b570b25f58850ac1777246429999b92bbd",
+      "git_blob_sha": "f1961fb1bfa924769bcb69058825cac0ab8e9c69"
+    },
+    {
+      "path": "include/cfd/multiphysics/pipeline.hpp",
+      "bytes": 1373,
+      "sha256": "b23bfb64eb6f43329ed3644061a4c605757250e58e0d8ea49980dc3535230da5",
+      "git_blob_sha": "69892d71f98c4acb30638333f21d1338069fd4ad"
+    },
+    {
+      "path": "include/cfd/multiphysics/porous_electrothermal.hpp",
+      "bytes": 981,
+      "sha256": "4a2cb2d38a74c4c36cbda37b0b22d3a0ad3fee6f631a3f6e01d7ae47d6637d41",
+      "git_blob_sha": "27f2834f2c67aadca0bca0c51598b725b6c7c1e1"
+    },
+    {
+      "path": "include/cfd/multiphysics/projection.hpp",
+      "bytes": 1276,
+      "sha256": "fe48679e364eafb5c4ff11b7ef10d5ab584926440d0a69bc414e561015d689f8",
+      "git_blob_sha": "37582301bd8764eec27fe131c7ac609673fc0240"
+    },
+    {
+      "path": "include/cfd/multiphysics/transfer.hpp",
+      "bytes": 967,
+      "sha256": "1478ba5e22005177f25914b7561c166f35bb7a033951895980c2b6db1e839de4",
+      "git_blob_sha": "14efdff348cf20c38d241de5c81e504cd0fabb18"
+    },
+    {
+      "path": "include/cfd/optics/analysis.hpp",
+      "bytes": 686,
+      "sha256": "04ac1dc4cd1ccd6c7d4282b0370fcccac339793117ad1c670bd1b4f79222891f",
+      "git_blob_sha": "eeaae6ecf975bfad7bbabcaa7391af2c5b14d2f7"
+    },
+    {
+      "path": "include/cfd/optics/birefringence.hpp",
+      "bytes": 475,
+      "sha256": "9834a1296874560e000aaf9ab0a11a04883aad163114b6a434fd1976cf69d767",
+      "git_blob_sha": "96e091fdf65ee2af7f3559e911be99c5601f0646"
+    },
+    {
+      "path": "include/cfd/optics/diffraction.hpp",
+      "bytes": 553,
+      "sha256": "e416175f9a524066c9a7087b9ad71dc7ea3a88f85445663d63713fae9312db8b",
+      "git_blob_sha": "a040fe27657573343720648b99c3ce30efa4c0f2"
+    },
+    {
+      "path": "include/cfd/optics/freeform.hpp",
+      "bytes": 850,
+      "sha256": "9641504c0553d0b54d77b97d4bf0944ad2e5501ee1d8f1ed2ec1a3839bd85c4b",
+      "git_blob_sha": "56300077a9274a74dc2d597f202b95553013c883"
+    },
+    {
+      "path": "include/cfd/optics/interchange.hpp",
+      "bytes": 851,
+      "sha256": "f094c110cbc9d5f7f6de6e5a4f1f565a4f4aeb36fa6fe3f5e1572567962e67bb",
+      "git_blob_sha": "6f263c755b61da5caf2161cee49e0bd15389098d"
+    },
+    {
+      "path": "include/cfd/optics/nonlinear_polarization.hpp",
+      "bytes": 1015,
+      "sha256": "b9cd07401da9388260d1949e4e8aebe1541a233babbf8bf921496e27bf456663",
+      "git_blob_sha": "5e2c1643bb7278c10d12a12d141f802c749c810b"
+    },
+    {
+      "path": "include/cfd/optics/nonsequential.hpp",
+      "bytes": 1052,
+      "sha256": "b21143a9e83253dee0af854c07867c9c86de0d3d11a93163fe452cda16100cfa",
+      "git_blob_sha": "1e70312140135887b31a8c691d4648f5006df2a2"
+    },
+    {
+      "path": "include/cfd/optics/optimization.hpp",
+      "bytes": 2125,
+      "sha256": "815f227a655aa05520b57a2d82e0a892e210edd6b0865617fff70c138cab6623",
+      "git_blob_sha": "40d1ab5899734189cd469bd2850044fb5372fb07"
+    },
+    {
+      "path": "include/cfd/optics/serialization.hpp",
+      "bytes": 341,
+      "sha256": "336c4a8c5af0e0293113668eb92d0ff597f635253718e0ee1f2487185dd89621",
+      "git_blob_sha": "e1595bb15e6e398d5a7a5634fb33c71fb8c1ae0f"
+    },
+    {
+      "path": "include/cfd/optics/system_models.hpp",
+      "bytes": 1940,
+      "sha256": "6cd6560b890b2b5816cb05ce99b5a2f2b051a6099e27160b3ab27cd4b41bb459",
+      "git_blob_sha": "453352f761880001abf60253d1e7b86ae34405ee"
+    },
+    {
+      "path": "include/cfd/optics/transform.hpp",
+      "bytes": 651,
+      "sha256": "dd1b34a46d259199404e1cd5ab9ff1684d320c88a9fe0cce68a0b269ffd10c90",
+      "git_blob_sha": "6eba2acf18a111639ce0e461eb9c1aaabfcd26ad"
+    },
+    {
+      "path": "include/cfd/optics/wavefront.hpp",
+      "bytes": 591,
+      "sha256": "9240e1349b655121c74876c9a53b0b27fe83e48936dd735487b6767c87e1d1b5",
+      "git_blob_sha": "b32eb44f7de24fb15ef821345de9282cd82e1c2d"
+    },
+    {
+      "path": "include/cfd/particle/cross_sections.hpp",
+      "bytes": 5030,
+      "sha256": "f9968f3eeb5b2b3fb3b8eef710d1e97543e13fa72b2e1d04200e6f63511a48b1",
+      "git_blob_sha": "921483334c7d1e190e7312f446ef64137b87fe29"
+    },
+    {
+      "path": "include/cfd/particle/electromagnetic.hpp",
+      "bytes": 56259,
+      "sha256": "36d593844514da47953eafb3a8a13fa70c0440f7e0931b2d8a499e92f5d33c35",
+      "git_blob_sha": "60ceb4fbd65307de0a7357c9bb824f4cd3a20b02"
+    },
+    {
+      "path": "include/cfd/particle/monte_carlo.hpp",
+      "bytes": 2927,
+      "sha256": "88a1dcf0c4a0b8fc7836f724accc745a1ff79d9c2e23b1dc3b4a28582c5671a5",
+      "git_blob_sha": "b6c87c16fb30e00364c98b5738339d85c6ea507c"
+    },
+    {
+      "path": "include/cfd/particle/plasma.hpp",
+      "bytes": 2136,
+      "sha256": "f45b84e0eff2a07a301ec444377ca5fc2a6462ba58d3de2ef108715e77650c21",
+      "git_blob_sha": "5122f8a938bcc6aa65e7f605c076ca407fbc8f54"
+    },
+    {
+      "path": "include/cfd/particle/transport.hpp",
+      "bytes": 7209,
+      "sha256": "3932d51e6206b9ef61ea9f76c724cea0901318b4d485f79e3711f349b5c7d1d3",
+      "git_blob_sha": "13098bce0037f40bc59c4f00d94dca28c6ee076f"
+    },
+    {
+      "path": "include/cfd/particle/wakefield.hpp",
+      "bytes": 996,
+      "sha256": "495323075d66097680372edd5afed505fc214d87c3d35c8184f8f7c215698d69",
+      "git_blob_sha": "b6e886a859effdd26a059f6ed8e235439e62933a"
+    },
+    {
+      "path": "include/cfd/physics/material.hpp",
+      "bytes": 394,
+      "sha256": "e8001ce2e7789d4e83d44e485ca2c6f767e542e95f3700b0b6417afccd9a73c7",
+      "git_blob_sha": "dbe74d7870d3f800d2bb616fa4bec98448b8d885"
+    },
+    {
+      "path": "include/cfd/physics/material_bridge.hpp",
+      "bytes": 398,
+      "sha256": "8def6256099146f89058ca7206da83f268e9fa778316449a7d8136e4947805a2",
+      "git_blob_sha": "6d9c671aac485f3d5ca1d6ca80ffca8259089b3b"
+    },
+    {
+      "path": "include/cfd/porous/cahn_hilliard_calphad.hpp",
+      "bytes": 8227,
+      "sha256": "acd789d520f9f47925199fd3a2b74d1891fd21c050e9ff57422a3533723a8c32",
+      "git_blob_sha": "520909a79a9f8a2bf1df6089ca3b33abaf49817e"
+    },
+    {
+      "path": "include/cfd/porous/fractured_darcy_thmc.hpp",
+      "bytes": 8130,
+      "sha256": "f6a3af0416065d866241d12fe5da0a80297a53c83ff87fcbbeb1741b58c80e93",
+      "git_blob_sha": "df3eb9e936ae6669590e4ed017afa1dedf20510e"
+    },
+    {
+      "path": "include/cfd/porous/thmc1d.hpp",
+      "bytes": 8155,
+      "sha256": "ba6f3b2500eba36ce75a63884cf05fbbe56d8d290d25286a96700036f7ff9d28",
+      "git_blob_sha": "8ebe3d8ebb9d51c16d4d7361fe0c2fe3a35f3c2a"
+    },
+    {
+      "path": "include/cfd/power/ac_power_flow.hpp",
+      "bytes": 4099,
+      "sha256": "556faffd600e8ffd7e050a9d6634f83fd2f5dc945353794a2d43b608a5caf0c3",
+      "git_blob_sha": "74e5c659c8ddcdda14cbef912305de434d93ba7d"
+    },
+    {
+      "path": "include/cfd/power/multibus_power.hpp",
+      "bytes": 14728,
+      "sha256": "1508f12145a6173c85fd4950738358f70092aa1280a8fd572584177887058165",
+      "git_blob_sha": "88560a854ceb32a7aa9ede0394e82aff1c324d59"
+    },
+    {
+      "path": "include/cfd/python/c_api.h",
+      "bytes": 484,
+      "sha256": "69361ffe67896db1699ce0299d53350b595ad9451624b15583d449473302dc36",
+      "git_blob_sha": "5c3faaaef90b9ce7e3bb95e2ea3450ecc23a3016"
+    },
+    {
+      "path": "include/cfd/rf/antenna.hpp",
+      "bytes": 3429,
+      "sha256": "b16a4e0331bba37bc602d7198b0b82eb8c6825004a2f19003cc14a3d188369e0",
+      "git_blob_sha": "4ad8880e18460e46b73b3e19cb8633b7022fe770"
+    },
+    {
+      "path": "include/cfd/rf/asymptotic.hpp",
+      "bytes": 11516,
+      "sha256": "946fa87d9370727c442aeefb0ceea6893f100f02829f068b9a05bd0782f29e3f",
+      "git_blob_sha": "59ffe06cd22fa19a4643a44104005e1b9f3a708e"
+    },
+    {
+      "path": "include/cfd/rf/conductor_models.hpp",
+      "bytes": 1736,
+      "sha256": "e1c16a40399c9e67ecd46d769d4bbd6ccd1a66e401348a6e549a1995bf43163e",
+      "git_blob_sha": "f07984107bf09278a6917a4b2f26c7a0a2995bf0"
+    },
+    {
+      "path": "include/cfd/rf/integral_equation_extensions.hpp",
+      "bytes": 1840,
+      "sha256": "360108beee6ea26f936c102bfd7fced18fd392d1ef42ad03700ad5264c1b034b",
+      "git_blob_sha": "812986f781f57a2e8e78d29f49d1c17890bf14a6"
+    },
+    {
+      "path": "include/cfd/rf/modal_elements.hpp",
+      "bytes": 621,
+      "sha256": "3c12196170171e5bd02d6d926a97612fb0440439a2411274dcc6aa03fd720a42",
+      "git_blob_sha": "e962717ebf54454f1e71d0ba6128ec287be74209"
+    },
+    {
+      "path": "include/cfd/rf/network.hpp",
+      "bytes": 4274,
+      "sha256": "b3fc2dc0195e5c37bec849db2075ec1e195c5897110fef72ae0daebd5f24ed42",
+      "git_blob_sha": "c61d9be1a040d57c1fe3b31b0a2648fb066c0bba"
+    },
+    {
+      "path": "include/cfd/rf/nport.hpp",
+      "bytes": 8582,
+      "sha256": "4d6c8260e77449078bef0ef5575bd15928c45ac130ae17dc6a536e3dff9e079a",
+      "git_blob_sha": "10fa87dd04e4c93771c7e7ae874ed50137fd4b4b"
+    },
+    {
+      "path": "include/cfd/rf/peec.hpp",
+      "bytes": 3227,
+      "sha256": "f010e8d2a7c7c8b84a06099a101e3ae61361b98d957bd9d7e8ab9cc9ae26fb9c",
+      "git_blob_sha": "6b5f3063bdbb0658f7b26cfbff91f01feaec1ecb"
+    },
+    {
+      "path": "include/cfd/rf/surface_mom.hpp",
+      "bytes": 3330,
+      "sha256": "f5f90bc9d6e5454d82149ace1853460246dcac88bed51537d4145f9dd065274c",
+      "git_blob_sha": "d87b6dc090dd4feae959eab5fd09dee8c245a4cd"
+    },
+    {
+      "path": "include/cfd/rf/thin_wire_mom.hpp",
+      "bytes": 5870,
+      "sha256": "8f8d7f68c785cfcb55f3e06199b95feff63287b1b56325dad26ef2e94093d18a",
+      "git_blob_sha": "1c48942bbcadf07878fec39c07699e6ed7197649"
+    },
+    {
+      "path": "include/cfd/solvers/electrochemistry/corrosion1d.hpp",
+      "bytes": 1286,
+      "sha256": "796f678e126f94a468b136e26bc23da185fc08cc6682e0ee8f6d6bb2679beac7",
+      "git_blob_sha": "05296c89e26ba2b593980e0b1cb15d216cbe5c58"
+    },
+    {
+      "path": "include/cfd/solvers/electrochemistry/mixed_potential.hpp",
+      "bytes": 1169,
+      "sha256": "ef9ec59a274dd5d36bc2adc3cb5730f51aa89d0911f388894546b9c0af59c7e3",
+      "git_blob_sha": "15fbb5aba46647d5c7bb07f1b8f9c734ce0d96d5"
+    },
+    {
+      "path": "include/cfd/solvers/electrochemistry/nernst_planck1d.hpp",
+      "bytes": 2152,
+      "sha256": "b18a81fb90e50347048b58a0d234203b01b99eadb055da86b6c3b8bb8b7edfc6",
+      "git_blob_sha": "de67ae52ae9e1c334b5685a731c57b581c39d0f5"
+    },
+    {
+      "path": "include/cfd/solvers/electrochemistry/nernst_planck_poly.hpp",
+      "bytes": 5743,
+      "sha256": "5777d43de3d7998af1a40cdc489cb9a4c9e2524ca9e623edd0b39e45b49df4f2",
+      "git_blob_sha": "1bb55308ad812ac0506170382d4e320657fe256f"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/cylindrical_multigrid.hpp",
+      "bytes": 452,
+      "sha256": "57e78c4030ecb1f239af72cf6851572101aaf46105482a04513767f4ad692e01",
+      "git_blob_sha": "a6e8094a3ea4e7c117eb7bb1e3ebe6136e85f9ab"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/cylindrical_tm.hpp",
+      "bytes": 1316,
+      "sha256": "b5680fa1e7b841342e18efd30ee5a61a0cc68a79d3c9815e32e60c0d71cbd950",
+      "git_blob_sha": "6bd998cb892db472b66f031650bf89b730a1500e"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/emc_sources.hpp",
+      "bytes": 1369,
+      "sha256": "210673bf96c597a03c09bdc615fb052e462b6344afbbe54b45206b5af6ff6180",
+      "git_blob_sha": "c70aeaaffbe2ba1ee672ee69074ea0d11ca0f46a"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/hdf5_xdmf.hpp",
+      "bytes": 659,
+      "sha256": "a97f8cb843b96983d3be1abfb863e9f89269af23a91af55518cecec0eb1034e8",
+      "git_blob_sha": "cfc229896914275d74940580e23bd86112848d76"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/maxwell1d.hpp",
+      "bytes": 5078,
+      "sha256": "3901a0cd6eca2b93e4feed8ca8ab38aaa05e0ab4ec42e8974c60442dc1bb5270",
+      "git_blob_sha": "3919c4332574d825540749df929139d26f67db0c"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/maxwell3d.hpp",
+      "bytes": 2710,
+      "sha256": "0efd37d144d1e1c4a9a70011f4509667ffc103bacf5e6aa380d4d0306594dab2",
+      "git_blob_sha": "4cec67f9c2b30b4399327e262971d29917c8c6ac"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/monitor.hpp",
+      "bytes": 1087,
+      "sha256": "04c4944d2cd55de817e8ee993bedfd3f753c9ffafb3e34efb851538bb6c76c75",
+      "git_blob_sha": "552a2b0d0829aca8f2afd00b63bc2551553e6c5f"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/multiconductor_tline.hpp",
+      "bytes": 649,
+      "sha256": "bb6ea6eb4b825cf791057d0c023828f061b368b3fdec38a4a93d0f6f7ffa036b",
+      "git_blob_sha": "512075b4da2eb5cc3603dddb800d32d299b8342b"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/port.hpp",
+      "bytes": 1368,
+      "sha256": "3075fa6908bd7427d793c918aa3d9c964e00d37aa88f54019f848f0bac82a3e3",
+      "git_blob_sha": "1681a5030932c92d6374487e010c44e7acd37f01"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/postprocess.hpp",
+      "bytes": 1048,
+      "sha256": "dbee8bf365a9e0185d3fc3e6856474d9210629672b384992f76ca14ca8162051",
+      "git_blob_sha": "715f80df0b313b2e52f6caefbce5f34f3821f16d"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/resident_sycl.hpp",
+      "bytes": 23083,
+      "sha256": "f7c5d2bdd183d90cddf2611a2a59007bbb26a22c88593b7b0df1807c6d67eedf",
+      "git_blob_sha": "5e30cfd0943bbf8ff5728d9b0ca5add367b38e2e"
+    },
+    {
+      "path": "include/cfd/solvers/fdtd/vtk_io.hpp",
+      "bytes": 344,
+      "sha256": "32085d310b1d03bc4d1279e006fa75e8b7380dd6bbe5faa7ff5b5ffbc51903d9",
+      "git_blob_sha": "4443ccf51bc950c7f9f1d58ade1b50d6460f0cc7"
+    },
+    {
+      "path": "include/cfd/solvers/fem/axisymmetric_elasticity.hpp",
+      "bytes": 1621,
+      "sha256": "64e90dbd80ce4c5381923c74cdfacafe558f61988fb6c0368f1e86976e945dce",
+      "git_blob_sha": "d4f20eb86f23124458030195692dd841ce4e7bd8"
+    },
+    {
+      "path": "include/cfd/solvers/fem/brinkman2d.hpp",
+      "bytes": 795,
+      "sha256": "8096fd210bf0d659b4f21aedc03da66cddf9ee4412b5ae783b372de917191905",
+      "git_blob_sha": "85f618e9f97748ed8a773b46c2fa72e6088c8c43"
+    },
+    {
+      "path": "include/cfd/solvers/fem/darcy2d.hpp",
+      "bytes": 1453,
+      "sha256": "eafe321aa3291de3f79d4cf36338508a748100e3c3a502df419cc3146c7ebbd3",
+      "git_blob_sha": "cfc44516db1b2771dd25d3d8f8cff7b3b11bbee0"
+    },
+    {
+      "path": "include/cfd/solvers/fem/dynamic_bar1d.hpp",
+      "bytes": 1182,
+      "sha256": "72805605666c5b405c941d629431b374e97379a48ecd84dd07a05fcd946d4eff",
+      "git_blob_sha": "fd706a4a71e14b0006436f8a22eb177cf150dd72"
+    },
+    {
+      "path": "include/cfd/solvers/fem/eddy_current2d.hpp",
+      "bytes": 975,
+      "sha256": "ea20d413f2f770dbfc6ba876c58d98051dfa627c1a51247e7a70bf367343d207",
+      "git_blob_sha": "4c482955e62b47acee7f5474fc70b3380fc922b3"
+    },
+    {
+      "path": "include/cfd/solvers/fem/elasticity2d.hpp",
+      "bytes": 1691,
+      "sha256": "7716353d4902c7f2d64e41aa8c2b8e03531fc560f0ed9a925e1f2ea77eef79a7",
+      "git_blob_sha": "10b5d2bdb04292ab141b8487d2d77896210ebc00"
+    },
+    {
+      "path": "include/cfd/solvers/fem/electromagnetics2d.hpp",
+      "bytes": 1972,
+      "sha256": "a8e5c1d6c112d5726a28df47fe0a6a56be95e3c8a6574548ab38a7dfff958b27",
+      "git_blob_sha": "1bca1486bc831b606dc54bdef43adcbe4102a0fc"
+    },
+    {
+      "path": "include/cfd/solvers/fem/heat2d.hpp",
+      "bytes": 1627,
+      "sha256": "bba317c277753dffb6b80d5d197150c5501e060c55354b40f3321da16ab390cd",
+      "git_blob_sha": "341e27f538129425f0e47eee3b981edb82a2ead6"
+    },
+    {
+      "path": "include/cfd/solvers/fem/magnetostatics2d.hpp",
+      "bytes": 3212,
+      "sha256": "04c118930ca6643c53ad52228ce344cddde240c3dd74f0965115695fc0e5bf22",
+      "git_blob_sha": "47780a1710d6599b8059cf999a14ed5640eed572"
+    },
+    {
+      "path": "include/cfd/solvers/fem/mixed_stokes.hpp",
+      "bytes": 653,
+      "sha256": "44776285c445569f4f3ec61ae74e3dca5f2c4d5d3bec107886af65010a9dc542",
+      "git_blob_sha": "315ce803b0fc19b7a763d9772971a53aae185466"
+    },
+    {
+      "path": "include/cfd/solvers/fem/modal_bar1d.hpp",
+      "bytes": 1043,
+      "sha256": "65a6bf545b4df8c1ec478ecd67e104387aec9b30dc9b224e8cda35bbc7021d2a",
+      "git_blob_sha": "875bd45687d200c22550785e49e0991f0f83eade"
+    },
+    {
+      "path": "include/cfd/solvers/fem/nonlinear_poisson2d.hpp",
+      "bytes": 1242,
+      "sha256": "11cf8a2d585e9ffe039389b8b20d3028d75a0bbdbba6ed510a008507dcbcdc06",
+      "git_blob_sha": "9ad8d18918634d69afe5bb9a5a87d445e2e31c6b"
+    },
+    {
+      "path": "include/cfd/solvers/fem/piezoelectric_bar1d.hpp",
+      "bytes": 1572,
+      "sha256": "4e290f9e681118672e1f47327167c31c21ffec4572a16c957efd394da40d0914",
+      "git_blob_sha": "795516f9af0f14c0720b2b3e0410b4405c0bc5b5"
+    },
+    {
+      "path": "include/cfd/solvers/fem/poisson1d.hpp",
+      "bytes": 713,
+      "sha256": "3bb967921e7ba077ebad7a6baa1eeb53c80cfa87e4ba75f8ab4c62d218264c20",
+      "git_blob_sha": "38a1fcc1a0ab40ceeaee56306f70126920806edb"
+    },
+    {
+      "path": "include/cfd/solvers/fem/poisson2d.hpp",
+      "bytes": 984,
+      "sha256": "0eae83c00e0332743033b20cf73f78160f1fc5a0e43d9e0548c9a22d140bd29e",
+      "git_blob_sha": "cba4f36087263ee8b03d6ab6559a133a76a8b164"
+    },
+    {
+      "path": "include/cfd/solvers/fem/poisson3d.hpp",
+      "bytes": 971,
+      "sha256": "fc254aeab49965c72b6ec9d0dc45303e27702b04ddc94fa49d49448d2cfd5a24",
+      "git_blob_sha": "35d142a4b6679e852d9fc2e370594e485e4f28a3"
+    },
+    {
+      "path": "include/cfd/solvers/fem/scalar_diffusion2d.hpp",
+      "bytes": 1729,
+      "sha256": "c831882c44a73fad7f03a8f399900af001d51092845e41a30c27db615ce48188",
+      "git_blob_sha": "23522f1e5080509f0a9929c82fc8e97d1c1320f5"
+    },
+    {
+      "path": "include/cfd/solvers/fem/stokes2d.hpp",
+      "bytes": 855,
+      "sha256": "5409fd0046406c121471ebd6f68deb95cb520f2ca68440010d71205c24e9f2ac",
+      "git_blob_sha": "9589e68093a087f8c63e14917564897b37e15416"
+    },
+    {
+      "path": "include/cfd/solvers/fem/thermoelastic_block.hpp",
+      "bytes": 401,
+      "sha256": "99e718f67e4e332a1e5d39ee8883001c60e29a4e651f086e1f6d1a28acb7f153",
+      "git_blob_sha": "cefa9ea02cc8fed6c82c408f661fa72730a43bcf"
+    },
+    {
+      "path": "include/cfd/solvers/fem/transport_stabilization.hpp",
+      "bytes": 718,
+      "sha256": "f75cc90a48e2ddcdaab68eff887c39476ecbc593d889386bfebc3aaa9bb2d134",
+      "git_blob_sha": "cff065c03442297e141dc2abac743799d7c34c78"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/collocated_incompressible.hpp",
+      "bytes": 6659,
+      "sha256": "b909c16bcfdba3194eff14e6236cf94c4e7466fa853091d07af86d8c4cac3bc0",
+      "git_blob_sha": "b8a82e7d18f22f344a98ec8dcc0e229aa0fd2db1"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/compressible1d.hpp",
+      "bytes": 2411,
+      "sha256": "44a74e09a77bcfc4a5523318b9e88dc83841585bd871fad080953f8f760f9ce9",
+      "git_blob_sha": "f0706fcc54f35a758a287a31e1993c8d687bfacc"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/compressible_vof.hpp",
+      "bytes": 3224,
+      "sha256": "c44b971edcdc3cc58ee46e61f08be7c8a3de7161688bab62857069b24d4a3973",
+      "git_blob_sha": "747f8034c26fb29c0146ec1a2ad0069d45e2c02d"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/dense_particle_rheology.hpp",
+      "bytes": 1507,
+      "sha256": "ba001d695565b0401be87965a0d63bcc0b95a2ac6a75c195b62605ac6db15bf1",
+      "git_blob_sha": "2116aad601ac700c9657ca06935ea48deb02ec48"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/diffusion2d.hpp",
+      "bytes": 1110,
+      "sha256": "d08ec6e31809241f6517dc30762387c6909f49bb04faf7416c96c9d91926a5a2",
+      "git_blob_sha": "1e75f008d00aab5e51bb2f4de9108d97429f7a7d"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/euler_euler.hpp",
+      "bytes": 3620,
+      "sha256": "5a01b9cdcb815393552b10ae35e7999f8af81fd02ea830135f5e8700cf1405fc",
+      "git_blob_sha": "447f872a15067be47538e54afebcd49b7193e124"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/flame_models.hpp",
+      "bytes": 1667,
+      "sha256": "3e2b6c7c8f2ffdb9020a7861c734b4eca7ff7d27183bffaa36228d49caa94777",
+      "git_blob_sha": "64e0e03ba98e68ec3999b63536c1412ce73244e2"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/incompressible2d.hpp",
+      "bytes": 2837,
+      "sha256": "c33f9b0cac384f71c23c0ab4b47b99b260b7335f19cd240fd42d588a3bb9e10a",
+      "git_blob_sha": "d072dbcb2be7ed8ebdf4bb5b95a567d414a237eb"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/particle_interactions.hpp",
+      "bytes": 1880,
+      "sha256": "f3e8b69e0b7e06b896bafa4c50e1b8437a12512e2fb53471c61ad8765e6eae39",
+      "git_blob_sha": "54fe58716233852ac4d5a37f19ce1a6175b241e0"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/particles.hpp",
+      "bytes": 1505,
+      "sha256": "a2e8954c7046a47bfdd7a52fb84137b7dd3ec3a213638b98fadfdf6ddbacbf75",
+      "git_blob_sha": "3d148ff4eac2308c1fb82a71077e98ced58890ac"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/premixed_flame1d.hpp",
+      "bytes": 848,
+      "sha256": "8bda60bd42448fa26ba5723ee1bcfb5ab1b95fd0d8f97d347283ce8319dbbb54",
+      "git_blob_sha": "f43262fbb27894f4f704f7c7ad912765b841b02d"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/projection2d.hpp",
+      "bytes": 2308,
+      "sha256": "419fe5352d5d1548f844d36e7a6c2cf105546c90936af6d19b4c2154ec1c4922",
+      "git_blob_sha": "d33a655b1a6baa0129352db2fbdceab05284ec12"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/rans_transport.hpp",
+      "bytes": 11401,
+      "sha256": "49d47db4b9d2edee35b1fcbb28fcf4ee8daba6c95fca8be776e1bf167b071896",
+      "git_blob_sha": "1d78d420c7bc1459ff080ccc228ba1a8039d7190"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/reacting.hpp",
+      "bytes": 319,
+      "sha256": "5f3bab0dfda000b1ba5ad727b8e9a0fd118f6c60b45b3c6938f4235b50053f5c",
+      "git_blob_sha": "bc0f47700a4f7ba8bd565263c73652a5ff30501d"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/scalar_transport.hpp",
+      "bytes": 2523,
+      "sha256": "382f6be0585bf30094189c7088a4621bbb5b4104b096fc63c0b55994777dcc71",
+      "git_blob_sha": "0094dc455759d899608ff249ba2a80402cec246c"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/solid_heat.hpp",
+      "bytes": 1658,
+      "sha256": "326d3c247e11de3b175190b40f6b75dd8c871c698d620f4fc161cf0f2bde5537",
+      "git_blob_sha": "ff6c8bfce98bbfaa16cf1395a4b8833419f3eed3"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/soot_radiation.hpp",
+      "bytes": 1001,
+      "sha256": "193abe845da08c3b22a83bb8e954d70934fc149a9cc87e02c9be6306fee7e984",
+      "git_blob_sha": "a7d4af84a6685f438eee8b6c07d71795641a83d5"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/species_transport.hpp",
+      "bytes": 762,
+      "sha256": "2853140542c2a409f27217e37e8eb9bd9770210b806932d63e487c723d54e778",
+      "git_blob_sha": "4a5b7fc55811fff5b311ee66303b4966e7fda7c5"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/spray.hpp",
+      "bytes": 3154,
+      "sha256": "50ea1de77f2565057c14486a5d4e93d9d213b2d3589f38e63b153a3e37dfb89d",
+      "git_blob_sha": "0f76ef62dd302f23b7cd49ad8a3926015536f3b0"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/thermal_transport.hpp",
+      "bytes": 2200,
+      "sha256": "3e7bef1149abbc3bc8a850f6bff3b019cb7072f5659076602e48e12c1325d3dc",
+      "git_blob_sha": "a2104c68b5dbff213c5a0094763cdbd533459a3c"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/thin_film.hpp",
+      "bytes": 2370,
+      "sha256": "b7a79192569c4711ea6fc7895783ee18c97e0d168770db3868fe7a39394199fe",
+      "git_blob_sha": "eb9c5f9ce79ab845553402763d02d57642b6c34c"
+    },
+    {
+      "path": "include/cfd/solvers/fvm/vof.hpp",
+      "bytes": 1216,
+      "sha256": "6d46617e5aa8680e919bdc3c14a1cf15913701e06398481690f0aa02ebe4270f",
+      "git_blob_sha": "c8127ff6266c7c37c439620f4693daaa78c13893"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/advanced_d2q9.hpp",
+      "bytes": 1591,
+      "sha256": "a55648c9d9d2c76ba8ad2584009189c39768194d6bd3804825ed544f56d870d0",
+      "git_blob_sha": "42d8e3fdf85ddeaf1ea7e129ed897433e94e07d7"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/compressed_pull.hpp",
+      "bytes": 8519,
+      "sha256": "b8c9c93c0faacb5144e6789452c181041d614c5710b0d4e6e3112e8e02c522ce",
+      "git_blob_sha": "fd951a31a3718e1ca2946fff226b1f4dafbf3a92"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/d2q9.hpp",
+      "bytes": 4495,
+      "sha256": "a77f09f6850f47a1101cea07da5131987d8f0a2b43bf646c92401e4728fd7245",
+      "git_blob_sha": "50bc4c760cbcc62a6cd8d9904adcdc1d1aefe44d"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/d2q9_sycl.hpp",
+      "bytes": 1845,
+      "sha256": "6c72faef465de3fb9dd9751a6fab72df202c9eb8e137951be19fe7b3504565ec",
+      "git_blob_sha": "4c2a1448e317ed6def191a96bae5d0cf82ae1466"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/descriptors.hpp",
+      "bytes": 5651,
+      "sha256": "f7662665f5941bc485830c3e4c127cd3b8c4d2f51bade60111d101d9d7651303",
+      "git_blob_sha": "050931ec577d6dbb110ad80d21ffa8c7d43582eb"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/diagnostics.hpp",
+      "bytes": 412,
+      "sha256": "f3b7aa5a1e060488aeb50f99f8e32f1b5f84e2945e49dcf048cc619df848abaa",
+      "git_blob_sha": "07b36ebe3101ae5750d3468dd4cfe2faebfa5855"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/distributed_pull.hpp",
+      "bytes": 19420,
+      "sha256": "5a6d80f253caebefcc90b073e3d8ab2899945eb5225d5c622c3ade66124ae08d",
+      "git_blob_sha": "e563da0b2510b8bc1c2b80b7fcd2f810ff06258e"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/distributed_sycl_pull.hpp",
+      "bytes": 18478,
+      "sha256": "752c4580615fbce904b7ee4b2a9673802a71186a0080aaf84300fd259e6f940b",
+      "git_blob_sha": "935d9b5ab90783942306c3e41450c06a548f3b00"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/esoteric_pull.hpp",
+      "bytes": 22422,
+      "sha256": "85fa6bb0a14dac87dc9487fe5de1ee30caad2aff9ce3905989b5616a854c08af",
+      "git_blob_sha": "8c20e52629859b89b5d22e814ea8fb01db933fc7"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/esoteric_pull_sycl.hpp",
+      "bytes": 21965,
+      "sha256": "c57eb0d02d8e33c72b2aa5182215e15aa8a1d7ccc252106ac6177ad2048ae91f",
+      "git_blob_sha": "f8bb3e878a2324b02fd09e9026d5a8b85f327166"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/free_surface.hpp",
+      "bytes": 1477,
+      "sha256": "62eaf5540f3986ad3e8e9cb4e6fe7cce11b0dc18c35ac5176d97be9ffbcf1621",
+      "git_blob_sha": "a23463c7299d102a7015a8754e4201255825ec0a"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/one_step_pull.hpp",
+      "bytes": 9361,
+      "sha256": "ca36a751d0fac733a96b48be1decef0eda477814e94445583e85176bb444e59f",
+      "git_blob_sha": "13449a10308dd051efcb14d645cd32b3f46918f6"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/particles.hpp",
+      "bytes": 1484,
+      "sha256": "9e33af2e43b4e1482083ab4d3698b339d0ee237972711eac27d4ea5374bd8afc",
+      "git_blob_sha": "367fd87f7fb716e4db5d02c1f23519f3be60f81f"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/passive_scalar.hpp",
+      "bytes": 2738,
+      "sha256": "5f7b30c79c6f6981fdc87e72c5a25d2229a8a1be30e83ef5d7eaf80e98ae9d4f",
+      "git_blob_sha": "fb40e094381711e8c2d7e235df78c383f83668f2"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/precision_pull.hpp",
+      "bytes": 8836,
+      "sha256": "65cb571aa8e05e4044ca42b69be8101432d8c9692409d0129ea9c56ce5d6eec0",
+      "git_blob_sha": "2544dde643114e6c7f3ea45d9a24cd97d08e7a41"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/resident_multiphysics_sycl.hpp",
+      "bytes": 25466,
+      "sha256": "51b18c673107a2ea03e53d2cb9ce463f6fff72e01461312c497639409d89a740",
+      "git_blob_sha": "4ddd63861b5d226bf153923fc9ad1b447c215874"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/visualization.hpp",
+      "bytes": 2264,
+      "sha256": "c70f49c9b96a78fe8d046a6c60345539dac9b857b65a6bf04282f251e6a7c686",
+      "git_blob_sha": "2839409db230362342ab8be1c349927c164f571c"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/voxelize.hpp",
+      "bytes": 552,
+      "sha256": "3393c184d464ce3c5aaa87ffd881029905f8cee53776f10a772cee9e640de962",
+      "git_blob_sha": "59691dab903fefd01c297e4c2710d0dbd0ed61ac"
+    },
+    {
+      "path": "include/cfd/solvers/lbm/voxelize_sycl.hpp",
+      "bytes": 322,
+      "sha256": "7bd1b8d62771d2e655724a82769d9d46319d8eb327a7406db79d15bb55002445",
+      "git_blob_sha": "f9a0b7264540a9a1a0de7910295baf3455a368be"
+    },
+    {
+      "path": "include/cfd/solvers/optics/gaussian_beam.hpp",
+      "bytes": 924,
+      "sha256": "e138a756c65b851c0129f8c5534faf4e9b0414c1bf5b7054b232f5f5247536a3",
+      "git_blob_sha": "4cab5c03acc983f6063fa6b1c8d07d78707317a9"
+    },
+    {
+      "path": "include/cfd/solvers/optics/materials.hpp",
+      "bytes": 945,
+      "sha256": "072c2fb22ac5ef01b98fbb670df498d3ed7dc1c4a75e488dbc1bc6c3bc17bf9b",
+      "git_blob_sha": "2c6f267a5aa0246c2cbe7dff5e2f42e5001ca7c4"
+    },
+    {
+      "path": "include/cfd/solvers/optics/paraxial.hpp",
+      "bytes": 941,
+      "sha256": "b014092f57c901b6b4b600cb6bf4d610837e67f096d5c42c316f6b3fd9ac2e5e",
+      "git_blob_sha": "90b9af0fd5a8ab522ae15578b103bf45e8126e86"
+    },
+    {
+      "path": "include/cfd/solvers/optics/polarization.hpp",
+      "bytes": 1075,
+      "sha256": "23c1a5cedcd0214a069fbef8c62c7d04c4254b8fca9f4ad51d0ef4e2d775a1bb",
+      "git_blob_sha": "11037b933c58a2a69f183bff3999f91af37045ad"
+    },
+    {
+      "path": "include/cfd/solvers/optics/ray.hpp",
+      "bytes": 629,
+      "sha256": "d879b9a036da82098dbd6d87ccdb41bbf99fef976eee855180bcffe7b0634e9d",
+      "git_blob_sha": "57fef5afddde1f4910f4ff6e4165ec6720992f8e"
+    },
+    {
+      "path": "include/cfd/solvers/optics/sequential.hpp",
+      "bytes": 1341,
+      "sha256": "360e62c63efd719b73a92b8688be6146bbff0df292797b7b4966eab58f6375fc",
+      "git_blob_sha": "71e169447c06e5eda97dbc4ce72c1edd67410746"
+    },
+    {
+      "path": "include/cfd/spectral/fft.hpp",
+      "bytes": 712,
+      "sha256": "3f6eb9387dc7a5ba34991c3c2b11dcdbd3b7c73021430cf75ee4f3bc5558874f",
+      "git_blob_sha": "1574609f3fc1dab8a61b7a5398ef30edfd08caf8"
+    },
+    {
+      "path": "include/cfd/tcad/advanced_devices.hpp",
+      "bytes": 3314,
+      "sha256": "8f19a9c0a9dc04dd24e999748b78e4b40a392af8dd3ba9045f06f033743bf329",
+      "git_blob_sha": "207d985a4950aab46fc5cf4f444af4e9355f6524"
+    },
+    {
+      "path": "include/cfd/tcad/bipolar_power.hpp",
+      "bytes": 5824,
+      "sha256": "1aa30d7dfba41b1e7e959438cb03e10a9ab22c84f473d334ebcbdf964b1f39d2",
+      "git_blob_sha": "f04bf89e2e49fddc714ce4137f31134b06bf0fbc"
+    },
+    {
+      "path": "include/cfd/tcad/mos.hpp",
+      "bytes": 5552,
+      "sha256": "23fd3638fa3ae4d7b088ce065cc69996297b0ea981cdc5eb1405e37119a1101f",
+      "git_blob_sha": "4dbcd45969993dc8d1510c981a7ea4d9138623e8"
+    },
+    {
+      "path": "include/cfd/tcad/semiconductor1d.hpp",
+      "bytes": 9559,
+      "sha256": "c1932a77560bdecb6c66a3525ce47236ebde8d990fd114142b37c745188cf12c",
+      "git_blob_sha": "8a17f1236ca150193910d5829421634e91285213"
+    },
+    {
+      "path": "include/cfd/workflow/campaign.hpp",
+      "bytes": 7616,
+      "sha256": "9f6ab4a38e07c6d2796ef8a39641083284516497adb912729b5499395697880f",
+      "git_blob_sha": "b98045de5993e9abcdec47a15ebd53103ba8258d"
+    },
+    {
+      "path": "include/cfd/workflow/campaign_control.hpp",
+      "bytes": 2472,
+      "sha256": "7e2d4f2d4f695185972dd38c36e48db72a9510eb3826e84555021e2ca2e6cb77",
+      "git_blob_sha": "c7f3db192c928732d79ff3eea36e3c7f89779587"
+    },
+    {
+      "path": "include/cfd/workflow/deploy.hpp",
+      "bytes": 15062,
+      "sha256": "14de33794b2b4b99c9d5e0dad3bec7238c47ac1d1eb15fbe8f9f3a60b5d12cd2",
+      "git_blob_sha": "cf0e97f8f6d52dd0bb9e6ea405797f75abf1afeb"
+    },
+    {
+      "path": "include/cfd/workflow/provenance.hpp",
+      "bytes": 556,
+      "sha256": "32cf53d9c541087db61e85d7d8b47d8e4f866e9b9e8a6a75f7c2c5ae23346c87",
+      "git_blob_sha": "17c4c50ffdad9bd355bf1a45bf8ad05697e10a75"
+    },
+    {
+      "path": "include/cfd/workflow/runner.hpp",
+      "bytes": 1153,
+      "sha256": "defc3aac59aa41939e870ba52a057fa8b4200fbf8fae0473dbf4151e3b94ede9",
+      "git_blob_sha": "f188d2fc502f39167b32d7afb38136471dccd689"
+    },
+    {
+      "path": "include/cfd/workflow/schema.hpp",
+      "bytes": 1189,
+      "sha256": "248f785c63b852f6e9e19a2fee0e08d49004068606a4978b727283b3ae03f3ab",
+      "git_blob_sha": "73d2c3bbc1ae11a587e8800e1fc6c1a98184e8f7"
+    },
+    {
+      "path": "include/cfd/workflow/validation_catalog.hpp",
+      "bytes": 213,
+      "sha256": "b7edcb8dd71d6b641f29d02365e652dc940f80e6876d14229c6bb5aeeee46521",
+      "git_blob_sha": "572ce1120e394580191b39942c31151d94c97181"
+    },
+    {
+      "path": "python/cfd_solvers/__init__.py",
+      "bytes": 143,
+      "sha256": "e7835555cb91e07a78d8cbc84010d38657065065625a958cf56267ab934f31de",
+      "git_blob_sha": "4fb720cdb883f4e6964a99dd7b10727f044b4c8e"
+    },
+    {
+      "path": "python/cfd_solvers/bindings.py",
+      "bytes": 1774,
+      "sha256": "8779fb3d5999d517265ca49810dfeda9dc0b55ce6cbd73979cd7ac082dc89c35",
+      "git_blob_sha": "e6a94d53fdddc807d21ec7e00f4f4d8b6fafe385"
+    },
+    {
+      "path": "src/acoustics/coupling.cpp",
+      "bytes": 6338,
+      "sha256": "486a1c907a80525000d6d307527562427f9aea9b1ba52a850a6687bb5132d1dc",
+      "git_blob_sha": "e8a559a8410b0b56af3d00044d318a04c472bce9"
+    },
+    {
+      "path": "src/acoustics/kspace2d.cpp",
+      "bytes": 14689,
+      "sha256": "361ef6b4c13a7453383b97d0064a47dbb553fb4867db7723fe71c30f12936f34",
+      "git_blob_sha": "e3b945003362afeb32a3413dc040f794992a145c"
+    },
+    {
+      "path": "src/acoustics/postprocess.cpp",
+      "bytes": 2203,
+      "sha256": "19d0eab9a6282f06f90f6c56a116df15161e9e9f176ad468c148c9d48262bb3b",
+      "git_blob_sha": "12faeccc351e91b31ba1d91b4326a53b2cd3db1b"
+    },
+    {
+      "path": "src/battery/dfn.cpp",
+      "bytes": 16719,
+      "sha256": "8275edf517b776a3e9039720475bbc1d2b404cf8d511378a70cce4a30894e855",
+      "git_blob_sha": "1de9d4ce6374a6de7ea1d5d3f2e8c33b656caddd"
+    },
+    {
+      "path": "src/battery/lithium_ion.cpp",
+      "bytes": 24082,
+      "sha256": "bba80545ebc130d60c29d8a808fbe28dbd4bee394573edf4ca02f1f1f791c059",
+      "git_blob_sha": "839bf6eed369d3afd82350a51cd08b366084b77d"
+    },
+    {
+      "path": "src/battery/pack.cpp",
+      "bytes": 4203,
+      "sha256": "fee3afb51a36c1810d061e08069c487e93c31feedcae4b35e0935460723935b2",
+      "git_blob_sha": "dc33862aff9e41170212b555274542bf9c518439"
+    },
+    {
+      "path": "src/battery/thermal3d.cpp",
+      "bytes": 8066,
+      "sha256": "895304f3dfaa6067a03d4aea17b7c9754bcf7212ebbd3f5a865191a028be2375",
+      "git_blob_sha": "51592151566aac0b3fcc0e3da45dc15c836802f6"
+    },
+    {
+      "path": "src/chemistry/advanced_thermo.cpp",
+      "bytes": 8410,
+      "sha256": "a23ed66e6c023d777921b57082a63ce5a3d7b7188fead4084add429fae112471",
+      "git_blob_sha": "20b2d950cbf96db2e9679adba41ab793b4f128b2"
+    },
+    {
+      "path": "src/chemistry/aqueous_equilibrium.cpp",
+      "bytes": 2351,
+      "sha256": "e5aff8bc9e540e29c17e201ae6410a91ce25991d8bfb554c684a289e0391ecdc",
+      "git_blob_sha": "a7a10dc18f72669fff6db9aad1746876996b02e3"
+    },
+    {
+      "path": "src/chemistry/database_io.cpp",
+      "bytes": 8881,
+      "sha256": "66ab0b2afb36e96fed10eae50bfc2b662b238e7a5fe5a329c74a623f62e3f857",
+      "git_blob_sha": "2c5ba0903da3521708406f56db65dbf825d8cc41"
+    },
+    {
+      "path": "src/chemistry/equilibrium.cpp",
+      "bytes": 721,
+      "sha256": "f3c633eb4fbddd98588da39edeb234351760fcad2a4e894d7a42107e8b2a1130",
+      "git_blob_sha": "ea0dc4f916145de5105e160f407155aae228de6b"
+    },
+    {
+      "path": "src/chemistry/implicit_reactor.cpp",
+      "bytes": 4284,
+      "sha256": "43fc8130affdbe870d1fec3cfb4365dab424de925ea62bb91e7a3cd28cf2474d",
+      "git_blob_sha": "f975c5f631d553e9ca686543478de32b9a7942c5"
+    },
+    {
+      "path": "src/chemistry/kinetics.cpp",
+      "bytes": 7111,
+      "sha256": "4c0fa840471e6bc7000e2fd22684428eed8309dd3c795899a9c2a9e8f8e9c672",
+      "git_blob_sha": "1e33596dd7d2c37e543e12316a573eca35fbda97"
+    },
+    {
+      "path": "src/chemistry/reaction_path.cpp",
+      "bytes": 822,
+      "sha256": "66c1085ec04b1f8d897b31d1bc7be5e19a1c45766c5ef93c6f91e3694d884afc",
+      "git_blob_sha": "3194b4cb95f21211eb4a8f30e1322c0ad92264a5"
+    },
+    {
+      "path": "src/chemistry/reactor_network.cpp",
+      "bytes": 2647,
+      "sha256": "33bcb51729acf2702ad94dd75694f5fa67c3a5ae90131f3db83c8d4492d63def",
+      "git_blob_sha": "c0af27aef66bd09c4e2b3c19085f861841793340"
+    },
+    {
+      "path": "src/chemistry/thermo.cpp",
+      "bytes": 3764,
+      "sha256": "03aa7eabd584dce3b85890bc94c69dfac9e211304dc78d4c365b28db8da2bffd",
+      "git_blob_sha": "67c64dc7827972f71281b38ca84e9d6473ea8510"
+    },
+    {
+      "path": "src/circuit/analysis.cpp",
+      "bytes": 22791,
+      "sha256": "5b4b7790ca42acd36b3fd8e48f2d22cffa0a3b5910c3026184518d61765a4802",
+      "git_blob_sha": "62eeaa4e37dc92ebb70a03d88b8e70b83ce68d5c"
+    },
+    {
+      "path": "src/circuit/external_spice_adapter.cpp",
+      "bytes": 1051,
+      "sha256": "056264a916b621b13467594596f642a7e4947493e5356723bac5dbd3be0f4b43",
+      "git_blob_sha": "6d4f4cc0b4e8d605e8dcad0e32a088bca21bc566"
+    },
+    {
+      "path": "src/circuit/osdi_adapter.cpp",
+      "bytes": 1394,
+      "sha256": "bdfc3defaa54718a65bb6a0b4dd84e7491aa6a25eeff0114b7f697d111abe050",
+      "git_blob_sha": "13c3ac2ec4f3e6fd1000be05fcef306281dc79ef"
+    },
+    {
+      "path": "src/circuit/osdi_loader.cpp",
+      "bytes": 3224,
+      "sha256": "d596b528d8684b62691333adf7190dd4d451b7cf480fe03aad66d1888eba957d",
+      "git_blob_sha": "5ceb81496ab0f95360c5537211803effb41e4714"
+    },
+    {
+      "path": "src/circuit/raw.cpp",
+      "bytes": 7141,
+      "sha256": "6b5c69637a7d237480b667cc1a3dfc55848c99bea41aa357085d66f3f932dcf3",
+      "git_blob_sha": "a55ae2302160defe87588a728f7a06769d88adaa"
+    },
+    {
+      "path": "src/circuit/spice.cpp",
+      "bytes": 149738,
+      "sha256": "47324c86b973cc92d2e574a9c2e3a2f0aa97eb23ec80d61d8a9e89ff86777425",
+      "git_blob_sha": "afda6de34f54895d411285fffe80cb6cdda4c946"
+    },
+    {
+      "path": "src/core/autotune.cpp",
+      "bytes": 5220,
+      "sha256": "b5abddd972da88df0cb7a4c4f4a47455eac4f926f0b21d0eb44df31f0ceee528",
+      "git_blob_sha": "ef59417049b0bfbd20649ab4db5406d6b11dec75"
+    },
+    {
+      "path": "src/core/backend.cpp",
+      "bytes": 1674,
+      "sha256": "c5d88156d28e3e984b9b6273f7baada645e31b9ae2f6a851bbbc369020723466",
+      "git_blob_sha": "6b6523972eacd2cc5951fa99398a0c81b51a1569"
+    },
+    {
+      "path": "src/core/complex_sparse.cpp",
+      "bytes": 3875,
+      "sha256": "62e491b7eb51ddc8d671fd14347644be4e16f5c7fb069067a3b99f6ac209efba",
+      "git_blob_sha": "cb0de5e0bb400451c086d2e0809c1e1eed8e8536"
+    },
+    {
+      "path": "src/core/distributed_csr.cpp",
+      "bytes": 1576,
+      "sha256": "6d7342db02d4262717d53779d4271bac330313ea16d2e90a39b32422dba40ef0",
+      "git_blob_sha": "bfb0e9e7982493ee3068c3f8318f96a05bf7c8c1"
+    },
+    {
+      "path": "src/core/geometric_multigrid.cpp",
+      "bytes": 2804,
+      "sha256": "9b2472ac2bd1274d646a1ee74fddcf1307f1d3814e6187a12758e736c13cdbd2",
+      "git_blob_sha": "f93dc2c11148d8691724991c9a1107340196f930"
+    },
+    {
+      "path": "src/core/mixed_precision.cpp",
+      "bytes": 1621,
+      "sha256": "c6dbfb814ad9edefabaa85696eacb65ca24bcedd6a333721513a681251789416",
+      "git_blob_sha": "5a3eaaa98ede35ea3da7cb42f97957091a97462e"
+    },
+    {
+      "path": "src/core/numa.cpp",
+      "bytes": 9521,
+      "sha256": "edd482ea8b4b4a039422c8f97a010007f803b6cc8975dcf655079ca7d2a08b88",
+      "git_blob_sha": "7642910c985ca718993b7f288158decd5fa3b0ad"
+    },
+    {
+      "path": "src/core/profiler.cpp",
+      "bytes": 1240,
+      "sha256": "53b1daf7955154bd616eb2cae931b17cfb3276917dc0f9dff9a5cc3b86bc8572",
+      "git_blob_sha": "f868043869bdb1d95e540b66b385989c039d33b2"
+    },
+    {
+      "path": "src/core/task_graph.cpp",
+      "bytes": 1272,
+      "sha256": "86085bc58bf15e8bbb429c2a0aa1f6276ca264d11dd7f86d4c67e4fa97a23090",
+      "git_blob_sha": "1924fc76fe401c572507814b86b3a577b98189ed"
+    },
+    {
+      "path": "src/distributed/mpi_dem.cpp",
+      "bytes": 10507,
+      "sha256": "e11894bad63ad38732b68bd77ef5a5c0524d1ea840432bd37153da8f9e851fe9",
+      "git_blob_sha": "2728e89d56ea0778a98a50817e376bafad2d0fe2"
+    },
+    {
+      "path": "src/distributed/mpi_resident_dem_sycl.cpp",
+      "bytes": 36839,
+      "sha256": "3c877fa80137385eaefa76985d18fe1804289bcc48257c07032bd01a217eeb10",
+      "git_blob_sha": "d4a5f92675dc0e252fad6a7ffd1356b33548dff8"
+    },
+    {
+      "path": "src/distributed/mpi_runtime.cpp",
+      "bytes": 4871,
+      "sha256": "e3f39ec847c45664e6705cfd6b9524656b4ef4dff539fac744d24c7ce009b247",
+      "git_blob_sha": "0f5fb211e66cbd7fb657c20ea9e0c1875463f3c7"
+    },
+    {
+      "path": "src/distributed/mpi_sparse.cpp",
+      "bytes": 12064,
+      "sha256": "a18577fac704be54a25c41e6ce89a642eed362a83363ef9c83e9c046977eef5e",
+      "git_blob_sha": "9cf188ef93e3cdf168387e4efd27445fe08015a2"
+    },
+    {
+      "path": "src/distributed/repartition.cpp",
+      "bytes": 5054,
+      "sha256": "1bebfa21695042c17f5b75641ea45e38af2431a3d1bb8211a3652a0b96d70942",
+      "git_blob_sha": "42c9de4c47003f9f19cd9c0a3cf0fe08296bacc6"
+    },
+    {
+      "path": "src/electrochemistry/corrosion1d.cpp",
+      "bytes": 3928,
+      "sha256": "0f1744135dfa805e2678398ac95e5bf141ed90e754a7b41cc7052f9b44dcfc40",
+      "git_blob_sha": "327368d242acd90182aeadbbc3b33efd72486267"
+    },
+    {
+      "path": "src/electrochemistry/corrosion_models.cpp",
+      "bytes": 15756,
+      "sha256": "603228b5b6ff422f2057e8f34587575da6e68035fdcac523a23b09f41c382fd6",
+      "git_blob_sha": "739c1d8d3bc80d8c66035d3a5ffffa748058a1fb"
+    },
+    {
+      "path": "src/electrochemistry/electrochemistry.cpp",
+      "bytes": 2398,
+      "sha256": "07693c2293eca2e1fa3f4820ccf48c6113ab8b68641860fdb3aa55d0144c41db",
+      "git_blob_sha": "0a4b57ef71093521ae00cefd28d137b733a51592"
+    },
+    {
+      "path": "src/electrochemistry/implicit_pnp.cpp",
+      "bytes": 3163,
+      "sha256": "a7e878a4f4425177e9835c4e6f11c6b7506d12fd802c45f4854b4f483255b3df",
+      "git_blob_sha": "ea95c2bd95c4e2f9f195a7861a8f65250802db87"
+    },
+    {
+      "path": "src/electrochemistry/mixed_potential.cpp",
+      "bytes": 4549,
+      "sha256": "4a58ed597383c85746ddc008ba4b0bfa26063bd1147081cb8f24cf2a6bcf05e7",
+      "git_blob_sha": "aa5d186890d0d9397edadb068c8a7addaad3894c"
+    },
+    {
+      "path": "src/electrochemistry/nernst_planck1d.cpp",
+      "bytes": 5508,
+      "sha256": "3d139ea339374d09c3730d65647cb1c561a0441ff0879c244762fb6b83cfa101",
+      "git_blob_sha": "cac08f1c025b1ff86c3c406ba2b35c238b4cd95a"
+    },
+    {
+      "path": "src/electrochemistry/nernst_planck_poly.cpp",
+      "bytes": 22333,
+      "sha256": "effe9d7247dffc543281092ea9e9dd7ded65bf4e10e058363d0bba4a49ee15fc",
+      "git_blob_sha": "d58f59cb02f7b095ceafa0a66edb99b41005270e"
+    },
+    {
+      "path": "src/em/adaptivity3d.cpp",
+      "bytes": 6267,
+      "sha256": "16e01fbeffbf91933ceb4af4fcf78177d6d03106911b6152bd314e2224792a2b",
+      "git_blob_sha": "67f701f168e93f8dd2264d1e0c5219fb5056ec78"
+    },
+    {
+      "path": "src/em/cable.cpp",
+      "bytes": 5549,
+      "sha256": "f86ac4d890d1af04ea3e0507d293a1f7714956399b7999c039b172da68ec08f2",
+      "git_blob_sha": "66520354724f7732f14e548e8950b58a53ed15ef"
+    },
+    {
+      "path": "src/em/edge_fem2d.cpp",
+      "bytes": 7686,
+      "sha256": "bd776a536c5941358210f462e00d37af9a2ea7b324a17ab039446faeb2989815",
+      "git_blob_sha": "770c41f2dd360341bd605d8185327ce5ca4aafe6"
+    },
+    {
+      "path": "src/em/edge_fem3d.cpp",
+      "bytes": 13460,
+      "sha256": "0c5cc3f33bb733e5daf776af15b68fc6f6b5fca2f68bbd23a4856a42d420eed6",
+      "git_blob_sha": "0df90dab10e20dce0e0d37feb8859570790729cc"
+    },
+    {
+      "path": "src/em/frequency_domain.cpp",
+      "bytes": 7593,
+      "sha256": "3636baaf5f9a34c930bc815a21e9eb30997960e0d85287e22c0241f954455d94",
+      "git_blob_sha": "de1435dd3334c24d12fe7ead1923c3b51cf99a4f"
+    },
+    {
+      "path": "src/em/metasurface_gstc.cpp",
+      "bytes": 2053,
+      "sha256": "0c3743572b829975cbd19bbf38cda73416df58ca31faa4ab90c5c09e558465b3",
+      "git_blob_sha": "d8f5ae901ad7e702e37995ba7f17aa0cd39b1c0c"
+    },
+    {
+      "path": "src/em/photonic_modes.cpp",
+      "bytes": 18258,
+      "sha256": "b78dc7c21ed1975f5aa4cca59ed310715d42900b4759762cc6f0b541c9066e13",
+      "git_blob_sha": "d6577d1ab8507d1401e584e121c8a09f0035a9a0"
+    },
+    {
+      "path": "src/em/system.cpp",
+      "bytes": 11064,
+      "sha256": "80690c65c83f39cd6e760940a63b2f19d96a7f2a732e252ca737f7e97204c6d4",
+      "git_blob_sha": "663a0994a0e6a184eab7a1ccb06f33be87094c53"
+    },
+    {
+      "path": "src/em/wave_port.cpp",
+      "bytes": 4781,
+      "sha256": "68f4092e61ead23108fe6a72602761058a57f71925477e6b495d7c7357edb610",
+      "git_blob_sha": "7886e943f19fb1f664931ba6b49a66dc7a963ab1"
+    },
+    {
+      "path": "src/fdtd/cylindrical_multigrid.cpp",
+      "bytes": 917,
+      "sha256": "dbfa6588952861c8b8632d298329de7aacae933073ff39451dda3fb47cc653f7",
+      "git_blob_sha": "9af3968d35df6122db736d3c59ad86b1eed974ab"
+    },
+    {
+      "path": "src/fdtd/cylindrical_tm.cpp",
+      "bytes": 2969,
+      "sha256": "9ad7f1aea9fb635f81775f1b01022449662c82b6e86a960c75a616d9c0a62692",
+      "git_blob_sha": "e39e181d02a6a47c92ccf224d088e66289eb2c05"
+    },
+    {
+      "path": "src/fdtd/emc_sources.cpp",
+      "bytes": 5048,
+      "sha256": "b6db15e021b55254a3d944dd3b23d0259f5daa7b8b498c2017f5b8044dbb8ac8",
+      "git_blob_sha": "2f3970200b307be5179eab4e84c5b537fc1b2e89"
+    },
+    {
+      "path": "src/fdtd/hdf5_xdmf.cpp",
+      "bytes": 5704,
+      "sha256": "3fec38c6aaa98d5dc51be51a30d5bfaa201771ed32e9fa7df784fc11486c1c8d",
+      "git_blob_sha": "1db1318ccbd4527f8ee365ed2fe6415ee33dac60"
+    },
+    {
+      "path": "src/fdtd/maxwell1d.cpp",
+      "bytes": 20220,
+      "sha256": "48c8fd293f25941555afe9a6cc42477224931e9a1b922dbeec22e3d349b392ad",
+      "git_blob_sha": "49fdc4e472682e23f721c342fb9655e83578c33f"
+    },
+    {
+      "path": "src/fdtd/maxwell3d.cpp",
+      "bytes": 4936,
+      "sha256": "f9a045d0e7cae687d204318e33c3cc2598661723d887cf9a10a81fea967e8712",
+      "git_blob_sha": "51b9d400081cae06e7555cd99c2c03c0765d7ae0"
+    },
+    {
+      "path": "src/fdtd/monitor.cpp",
+      "bytes": 1851,
+      "sha256": "b8eb5856e86f89da37e1d9dae6de9b0a9ee399de303c91ad91e52fcc28c0e978",
+      "git_blob_sha": "db227ea5a2496c0114383e55f82352174fa0f72a"
+    },
+    {
+      "path": "src/fdtd/multiconductor_tline.cpp",
+      "bytes": 1220,
+      "sha256": "5482e4d1224d6881b67d983f88e3787b73424a6ba387275f9c517b65e173ac70",
+      "git_blob_sha": "4e8fe77a224e953465411e1ed4a97c7e367889e4"
+    },
+    {
+      "path": "src/fdtd/port.cpp",
+      "bytes": 1634,
+      "sha256": "96fc465a2e9963427b9a7c4357bb2a09333aeb5e02245b6a842ac685e3d7ce40",
+      "git_blob_sha": "c5b0b627aedfc68ad3d206e0e6d626b0cb5dd3ed"
+    },
+    {
+      "path": "src/fdtd/postprocess.cpp",
+      "bytes": 3445,
+      "sha256": "33cf57cd4388d30cfb8dc083998bc62780e7754e6491bde0dfeda6e9c82de7b2",
+      "git_blob_sha": "92d053640335cc3f981a0c228dda2e651aec303d"
+    },
+    {
+      "path": "src/fdtd/vtk_io.cpp",
+      "bytes": 1166,
+      "sha256": "30b52eae464ca16611b0705530d7ac2b38152f09feac0ca5ef9eb4c5305cf558",
+      "git_blob_sha": "7136c4f1c8edde0634ef0ff923c62bbff4e62628"
+    },
+    {
+      "path": "src/fem/adaptivity.cpp",
+      "bytes": 8693,
+      "sha256": "52f141dae7f629fd6be7d9a72b402e192bf0560a5ca53d98b68fefd2b96172b3",
+      "git_blob_sha": "b0723538ed62c0e943686daab06c6321413534d1"
+    },
+    {
+      "path": "src/fem/assembly.cpp",
+      "bytes": 2739,
+      "sha256": "4b6176a6e8e1f27efbaf87f5db93758dcb29ec2c7e9894c7f71855d8bf6a91bd",
+      "git_blob_sha": "3b5dbca59670bbc94204f45451c7d0d76db3bbb9"
+    },
+    {
+      "path": "src/fem/axisymmetric_elasticity.cpp",
+      "bytes": 5739,
+      "sha256": "0c05ff4bf3d6adc0394adb49cbc978244afc0c6da0650615dc603839d25a564b",
+      "git_blob_sha": "ad13c483af242ecfcdc7731c34f79b0130ede88a"
+    },
+    {
+      "path": "src/fem/brinkman2d.cpp",
+      "bytes": 2385,
+      "sha256": "099e752a84367a6cac004d0aa7cea4f586dce23a5a6f70cd6488734eafa6df9a",
+      "git_blob_sha": "cf4f4d0547e2c9b2817b775bdb14f48de50d0144"
+    },
+    {
+      "path": "src/fem/darcy2d.cpp",
+      "bytes": 2420,
+      "sha256": "c30a995cb1ed532696c86d929bc9faba841791da0a48dc81c1143b5b14dab938",
+      "git_blob_sha": "47752803d472395e41c31dc4fbd6a4ba89c000a1"
+    },
+    {
+      "path": "src/fem/dynamic_bar1d.cpp",
+      "bytes": 3282,
+      "sha256": "fde93edca0fc8d835293061c1ad9b947b4567ee1431ccac6d63e3445ab718b5d",
+      "git_blob_sha": "704534b55d38450fa9d4be25ab59c0204b9c2abe"
+    },
+    {
+      "path": "src/fem/eddy_current2d.cpp",
+      "bytes": 2767,
+      "sha256": "310f31f82b8ca5c89f8da73a9109ab9932c9ed197fcf725c531a090a2070044a",
+      "git_blob_sha": "b2132b58151797ee21a57254a3071864000a1440"
+    },
+    {
+      "path": "src/fem/elasticity2d.cpp",
+      "bytes": 6126,
+      "sha256": "5e7f7e2c0e64269b678c85dda9458e64759d135f9810d293410851473b5f429b",
+      "git_blob_sha": "1d903d7566b1486762bd1b3d524c314fbb3dc10c"
+    },
+    {
+      "path": "src/fem/electromagnetics2d.cpp",
+      "bytes": 3395,
+      "sha256": "e5d5d31c537a434a387bd3e2a5a36f30fcc947891efe98bb314d7c89149f928a",
+      "git_blob_sha": "b2406f59ab9feee570efd4a4ea06143b144b5dac"
+    },
+    {
+      "path": "src/fem/heat2d.cpp",
+      "bytes": 4670,
+      "sha256": "a24e373fd98bc096ac8ee408f9e83843d1186781fabdcf247baecb257260f7ab",
+      "git_blob_sha": "41ac12e1e9a881306bf91528edbf43c37ad26b2a"
+    },
+    {
+      "path": "src/fem/magnetostatics2d.cpp",
+      "bytes": 7995,
+      "sha256": "f170341bf3f5827f9bac3cf12d359d0a3e083cc7938c3f10187a25e3d7a30e0e",
+      "git_blob_sha": "b74ab3de10ebf65abb0a1b79be1f8ec183b0a983"
+    },
+    {
+      "path": "src/fem/material_laws.cpp",
+      "bytes": 1437,
+      "sha256": "bb69a79eed74a94c755709e875e65db8e950e21c3965c050bfc526663fb16a00",
+      "git_blob_sha": "ea62d27f56aeac07fb2802622e2fabc642a571c1"
+    },
+    {
+      "path": "src/fem/mesh2d.cpp",
+      "bytes": 3079,
+      "sha256": "b2ce19392a04ed5be783d96f6e5c6f2cd7e5602557c1ba0e10b7d5c05288cc2e",
+      "git_blob_sha": "37a2f03d1b93c9745a9e4a5e41f6132c95135eec"
+    },
+    {
+      "path": "src/fem/mesh3d.cpp",
+      "bytes": 2726,
+      "sha256": "d123e81f59531bde05547a4a4830ae6bd13ad4fdcaaec0784c73d35d5d776f67",
+      "git_blob_sha": "3bf5c00bfaf6c725aebb476408db64b37692bc17"
+    },
+    {
+      "path": "src/fem/mixed_stokes.cpp",
+      "bytes": 1802,
+      "sha256": "1f8d00d4def9cf1437e1db96bc6ac516ff4da947bf885725c3968f9b30ff376c",
+      "git_blob_sha": "a47b146b31a9418e93c6ce95a5f9ddb80f95a079"
+    },
+    {
+      "path": "src/fem/modal_bar1d.cpp",
+      "bytes": 2238,
+      "sha256": "a4c65dfece42bf48686c7f12a3f1f7f1c5fe9277bba824021cf4a02677a31f59",
+      "git_blob_sha": "34300995e064caede093c6a3383765de36b7c61b"
+    },
+    {
+      "path": "src/fem/nonlinear_geometry.cpp",
+      "bytes": 2210,
+      "sha256": "4bf5b42b1a346cc9cf726c73f1dbf4f3d43103435f48812d272b63e6dad75276",
+      "git_blob_sha": "7a2254a43ee554cf92be68f6fa590d73a63e618c"
+    },
+    {
+      "path": "src/fem/nonlinear_poisson2d.cpp",
+      "bytes": 5774,
+      "sha256": "4b0070f84e88615ae4622e2723111b70b300c084db6fa87627b128a08c4298be",
+      "git_blob_sha": "7efde3ff0eb8bc9ef9e4ecb67d33d1501a3bea46"
+    },
+    {
+      "path": "src/fem/phase_change.cpp",
+      "bytes": 1577,
+      "sha256": "009dd5ec1bb7a2b5fa4f9539008fc2c34f6478617f12b1fc7a534a9827f53c0d",
+      "git_blob_sha": "d4002ea19009ad5adf6f13345be6b704f48cf4e4"
+    },
+    {
+      "path": "src/fem/piezoelectric_bar1d.cpp",
+      "bytes": 3743,
+      "sha256": "36d57f32592d13537903ef74e66277190daa465190b7b4a7372aa3bd011a3abc",
+      "git_blob_sha": "a0716548e857ca1ca323b6092398696c7c12a211"
+    },
+    {
+      "path": "src/fem/poisson1d.cpp",
+      "bytes": 1919,
+      "sha256": "1011979bf08331c51fb830fa227a4e2eb675368cd1c4278ae37625daa54b27c1",
+      "git_blob_sha": "6c6727cd7587ad498ec2b7e35fd314ab9809fd14"
+    },
+    {
+      "path": "src/fem/poisson2d.cpp",
+      "bytes": 3472,
+      "sha256": "6d8ae19e6f4f98b9e2f8943f6408c127663356cd772faece22ae39fa864de39e",
+      "git_blob_sha": "be60f891f7daf7aecdd5b0b27fc43dbace20ca83"
+    },
+    {
+      "path": "src/fem/poisson3d.cpp",
+      "bytes": 3101,
+      "sha256": "aa50200c0c450daec5bec4a16d7ff40ee84e6fdb20591793c4b1f485eed45dae",
+      "git_blob_sha": "978a3f32d5799751f540420d8e5b6749930c2ace"
+    },
+    {
+      "path": "src/fem/reference_element.cpp",
+      "bytes": 12416,
+      "sha256": "957ae699cf43b4413fb02044da7e5481c9f94e4b0dac1f85215f924aad064e68",
+      "git_blob_sha": "ad62e6a72488aba6566407cc3c74ee3baf005983"
+    },
+    {
+      "path": "src/fem/scalar_diffusion2d.cpp",
+      "bytes": 7314,
+      "sha256": "8eb0076e0cc07e6f8f200a9a3915bd8d2d1880e3fff76b84c983f1aa73c6e83f",
+      "git_blob_sha": "d6279bf0272acd9ec913a0c2e1e1a59a1934a99e"
+    },
+    {
+      "path": "src/fem/stokes2d.cpp",
+      "bytes": 2885,
+      "sha256": "5ecc3ffa9b05148ed43c825dd9b9d29301c57a6aa9aa624e380cc5076a22ec45",
+      "git_blob_sha": "12296a677631f56c501d0b495b631e639e546015"
+    },
+    {
+      "path": "src/fem/thermoelastic_block.cpp",
+      "bytes": 941,
+      "sha256": "6c0ff554d01fc795f782b4104454b0cf380e295ca33868f206f8810c73d2e5f5",
+      "git_blob_sha": "c4cfb387936835eac2f1b85b551d158f6f63577a"
+    },
+    {
+      "path": "src/fem/transport_stabilization.cpp",
+      "bytes": 1359,
+      "sha256": "240e2cd9480d8805288d733b4f00fe9ac699d6009cfe17b135a38b2a576322ce",
+      "git_blob_sha": "464f97df68b86ecfcda44ffef38130b6ee1566f1"
+    },
+    {
+      "path": "src/fvm/adaptive_mesh.cpp",
+      "bytes": 21163,
+      "sha256": "d95a415afe3455d08d9a461df99cf1b139597f0ccb10791af01ba7a844d22e25",
+      "git_blob_sha": "d4bf6706fc6d832a7ddadda5a01a5acb29c9acf1"
+    },
+    {
+      "path": "src/fvm/advanced_models.cpp",
+      "bytes": 2372,
+      "sha256": "4df9ceceaefe1f2f5a10c19c9bd7e02229ffdf1ffbaf97a9b586d8ede6733c28",
+      "git_blob_sha": "3c555fdfa2b3fa8a62c1eb11156d5a2dd5c2da02"
+    },
+    {
+      "path": "src/fvm/collocated_incompressible.cpp",
+      "bytes": 26037,
+      "sha256": "43e5b53f8cc3c8c4e127a0539703cc42f7e12773dd49f1a0485564c8b70672b3",
+      "git_blob_sha": "fa11972f2822953f4d92a021940c897f96b86e67"
+    },
+    {
+      "path": "src/fvm/combustion.cpp",
+      "bytes": 1549,
+      "sha256": "9f0973afa715364c689097e1f4a409c3b42e80ba2d36f9206ae43164f9aaa948",
+      "git_blob_sha": "fb59a54e4f97c8b91ade231005276b7e47eaedb3"
+    },
+    {
+      "path": "src/fvm/compressible1d.cpp",
+      "bytes": 14809,
+      "sha256": "b493d0c2ce5d29ff9b5260309f852fbca3c84ffead3cbf10e59859d672c56c64",
+      "git_blob_sha": "94fa34ab1c1e18c8fc1eeb69551f751d741d37b8"
+    },
+    {
+      "path": "src/fvm/compressible_vof.cpp",
+      "bytes": 8624,
+      "sha256": "6d1c15e568afe0aa8d55e6d3beee69487b029eeccac8b2ed008b9cc26b5492a9",
+      "git_blob_sha": "97501004f67744b402dcf5a1faf4b9c7d909d5d3"
+    },
+    {
+      "path": "src/fvm/dense_particle_rheology.cpp",
+      "bytes": 5603,
+      "sha256": "a63fe6de1b95e4e38da6484fd88f4a514d79c7e91ab53991f984e8cbf11af7ed",
+      "git_blob_sha": "e69a50afb069b8edc131f6ef11b22f0f7b6d1306"
+    },
+    {
+      "path": "src/fvm/derived_fields.cpp",
+      "bytes": 3060,
+      "sha256": "883c8da36e4ac7392aa922cc5e497fdad01920dfb8e53aebe9e36d516c8e67bd",
+      "git_blob_sha": "3971c1686e42d2a209443acff9f7f4938f90237d"
+    },
+    {
+      "path": "src/fvm/diffusion2d.cpp",
+      "bytes": 2613,
+      "sha256": "0685d740b3a835eb6ae85ec3db4e7d2d0d214827c2be621fccc2528af6c61460",
+      "git_blob_sha": "91d1e205c83463f7356c5ef9777c5eda9e36ce40"
+    },
+    {
+      "path": "src/fvm/euler_euler.cpp",
+      "bytes": 11102,
+      "sha256": "524dd45653f76c8072fdc981b6ddf23b4ce118d3c1e4a4c1ca004d72b7733b48",
+      "git_blob_sha": "f558cac18d54479f26a241729c3b21fac7e8b933"
+    },
+    {
+      "path": "src/fvm/flame_models.cpp",
+      "bytes": 2802,
+      "sha256": "ef8921e8d963e34dd9281d6637a82f217626fe19d127e0a0478ad7b1d5838c94",
+      "git_blob_sha": "e2cee12662f9b684441d6afeb79f63578447baed"
+    },
+    {
+      "path": "src/fvm/function_objects.cpp",
+      "bytes": 723,
+      "sha256": "52433446e1784354dc93b1bb54b212b1adf22d2b968962c64dda2d3ef1403b38",
+      "git_blob_sha": "57e37379135804a25375e80aa87f9fafc6ed153e"
+    },
+    {
+      "path": "src/fvm/fv_matrix.cpp",
+      "bytes": 603,
+      "sha256": "6cf0fade4fa9693347b8cd0de447eadb63f57c9b8cd9172c6002470314748cde",
+      "git_blob_sha": "f178983a3567fdf5bc0fded6d25e9c82e59170fb"
+    },
+    {
+      "path": "src/fvm/incompressible2d.cpp",
+      "bytes": 10247,
+      "sha256": "0a6c081cb4664128e41bd489b65b4768c025b4567eed29502c950705e18dbc0d",
+      "git_blob_sha": "e8575bf1d06328aa7dbbe60791d1d8d1bd1841bb"
+    },
+    {
+      "path": "src/fvm/mesh_motion.cpp",
+      "bytes": 1757,
+      "sha256": "12297872f302fcd63dc1d6420cdc76ec05b111a92a5b0ff4f152fbfa4326465f",
+      "git_blob_sha": "7bf0c1a9f40cf50ad10e13ed3601ee8c9f9bf3b6"
+    },
+    {
+      "path": "src/fvm/operators.cpp",
+      "bytes": 10469,
+      "sha256": "3deb097ec207363a9bcfefb2adbfa519390880308b43ad174533aa41b33aee6d",
+      "git_blob_sha": "d70528040c61b1caac9a38754a5c803d84c11d7c"
+    },
+    {
+      "path": "src/fvm/particle_interactions.cpp",
+      "bytes": 8980,
+      "sha256": "0d77dd4749e2a97b029baee854b3d582d2b2579bacd44b667430a2079bd94278",
+      "git_blob_sha": "5f4a2e77f5eb4f9ca6d08e60f4322f4791684c04"
+    },
+    {
+      "path": "src/fvm/particles.cpp",
+      "bytes": 3180,
+      "sha256": "22d9ff6bc68b992fa347a7908076b503cef5bf95aaace7481cf8d60a6ee2d9c5",
+      "git_blob_sha": "e0600076ac58e2fb6cf6f02b2caad4c2715d697d"
+    },
+    {
+      "path": "src/fvm/poly_mesh.cpp",
+      "bytes": 5934,
+      "sha256": "8044ea68cde0214ef67bc554f640d25aa2611016b1336f8b887310a0744f2d74",
+      "git_blob_sha": "7d9e6bd96cb55e046464349a238c35d54a7d4aaa"
+    },
+    {
+      "path": "src/fvm/premixed_flame1d.cpp",
+      "bytes": 1753,
+      "sha256": "708cd7efab711cd4846169b810eb0bcc0af393b2c417e82074d5866a240bc9fd",
+      "git_blob_sha": "581c99b7c4558d19dfbfe7627bfba87fbe882997"
+    },
+    {
+      "path": "src/fvm/pressure_velocity.cpp",
+      "bytes": 8933,
+      "sha256": "7007d5ab749b1c9d12953f6690dea99d5ba199629ed1e717d2c9043df7a65b76",
+      "git_blob_sha": "3e6ffbaf3aa51fcd066259ac882bb3f552068871"
+    },
+    {
+      "path": "src/fvm/projection2d.cpp",
+      "bytes": 6667,
+      "sha256": "78479662e85fc9a0521b0db772607b3630f3847b991801cfc6933bdecfae8c53",
+      "git_blob_sha": "059f1ceb0e1e5bf7e3c5a4064c8c9e1ed8630cf5"
+    },
+    {
+      "path": "src/fvm/radiation.cpp",
+      "bytes": 612,
+      "sha256": "d0e17175cc002342af8660946f1d72b6ea408ac4bd924d27418a207036c1ba32",
+      "git_blob_sha": "559e69ee4eb52b4f47010340f478d1e247866ead"
+    },
+    {
+      "path": "src/fvm/radiation_network.cpp",
+      "bytes": 1688,
+      "sha256": "411cca3d8b1bdfa58e4e38b115d526caf3392c7681a770b62eee84e07797c3d6",
+      "git_blob_sha": "95076ad89def303b0f24bf6f6d56e949808312d9"
+    },
+    {
+      "path": "src/fvm/rans_transport.cpp",
+      "bytes": 45063,
+      "sha256": "8424fca3235b0db8da22fddfa83b290b6f217d4cf0cdf68aaba6ad2847ad9d0e",
+      "git_blob_sha": "39290870653973011aaa7d1a9e8cc4f5a8d88285"
+    },
+    {
+      "path": "src/fvm/reacting.cpp",
+      "bytes": 464,
+      "sha256": "41c4c109ebfb18ff7fa9e8532fd4625406afa2bc7e12f6bbe40abbac9effdc19",
+      "git_blob_sha": "c288c896fe0ee5d2955051b02e1b50a20066b234"
+    },
+    {
+      "path": "src/fvm/reordering.cpp",
+      "bytes": 2448,
+      "sha256": "2df13297570b7677f4e2bfe18799a9779bc83ae089bd56caa79353fb135dc7b8",
+      "git_blob_sha": "1f8225d075c6e3c831559d8521c26ef10a57420f"
+    },
+    {
+      "path": "src/fvm/runtime_schemes.cpp",
+      "bytes": 1532,
+      "sha256": "db99cd5378a6e38090fe0603a201ac1d491e1fabba62bbe816ee7f9ab8af3bbf",
+      "git_blob_sha": "8103a54607d4c35084f675dee406e0e26fcbba33"
+    },
+    {
+      "path": "src/fvm/scalar_transport.cpp",
+      "bytes": 5919,
+      "sha256": "5c87552992f80a149b6c41a7243d80a44fb45ed1865198f584d772399eb79566",
+      "git_blob_sha": "cff7737b920e7a63dff4a11c3a9d9cca7b75b4f9"
+    },
+    {
+      "path": "src/fvm/schemes.cpp",
+      "bytes": 9904,
+      "sha256": "83239250070f7843a86cceceb15f7b8e05b92356e92ade04cc99b0649dc02593",
+      "git_blob_sha": "058b7b42d1d41bdf5f33a2411cd47681bc3c7b03"
+    },
+    {
+      "path": "src/fvm/solid_heat.cpp",
+      "bytes": 2716,
+      "sha256": "0efc9fb14b5bf2ceb56376a43cbf699714f847ea3ce1b1ec4af3ca5a05c8705d",
+      "git_blob_sha": "499d9fe1517513e3bbb37b8e76d0f481348c0656"
+    },
+    {
+      "path": "src/fvm/soot_radiation.cpp",
+      "bytes": 1715,
+      "sha256": "cd4b363589a7a1b5d5941d6d59fdf9eef14d1589e236d08d1b1604ea24f5e3a3",
+      "git_blob_sha": "b528b57076652144b2a6fefcf10139d6587a28bb"
+    },
+    {
+      "path": "src/fvm/species_transport.cpp",
+      "bytes": 847,
+      "sha256": "aa2151e22a3a2c1fca1806d9dc1af9100a66997328b471bad459cf4c713c6978",
+      "git_blob_sha": "a02414ac9a79276b828f91204e19f0b1b3bf3603"
+    },
+    {
+      "path": "src/fvm/spray.cpp",
+      "bytes": 7855,
+      "sha256": "9805e9151750428a816650266518f5041fa6aa742b947e15863bcb95b7c8c999",
+      "git_blob_sha": "f84721acb1bf471784fbbb84a5c9c39b6209840b"
+    },
+    {
+      "path": "src/fvm/thermal_transport.cpp",
+      "bytes": 4620,
+      "sha256": "ac9bd80fdcc19fdfeff704687faa38a67243a02d24944a370726e54d2f99da16",
+      "git_blob_sha": "9d533f6943ac0af1def73820138f5c8458b0aef4"
+    },
+    {
+      "path": "src/fvm/thin_film.cpp",
+      "bytes": 5777,
+      "sha256": "2f5f8ae9c8877d4526b991fe9dae124796c39599d1de9cb46c25eed2f9f5e834",
+      "git_blob_sha": "da22191c679cc2e120cde37bba5419a573d02612"
+    },
+    {
+      "path": "src/fvm/turbulence.cpp",
+      "bytes": 2091,
+      "sha256": "0d1c14c4f17e6c1017d5bbebbd292e1668a03795dc944618d40385dd77d48526",
+      "git_blob_sha": "19be29390b9d4cb75711e8c003f117c5f9bc99f1"
+    },
+    {
+      "path": "src/fvm/vof.cpp",
+      "bytes": 2656,
+      "sha256": "c6bb8702d67d5f54934509a8ac6290920a8097c95d14ecb14a2e90d9f81a02da",
+      "git_blob_sha": "13e0475994c638fba1283f3578e27a0a19a04501"
+    },
+    {
+      "path": "src/io/fvm_checkpoint.cpp",
+      "bytes": 15589,
+      "sha256": "0f229b218f93aa7d8d56b8c0c3dece77561d1df2ca9b559b0cc3216ccffea08e",
+      "git_blob_sha": "bd3d3f4e514c2ca14af96643cd47706051e29cfa"
+    },
+    {
+      "path": "src/io/hdf5_xdmf.cpp",
+      "bytes": 5018,
+      "sha256": "a71ab2c4e9169b26135eaee1588a50be6d619344b2e701c7d7fb61ae5397a807",
+      "git_blob_sha": "df9f21ea36459801fa609768f827b3697594e5b7"
+    },
+    {
+      "path": "src/io/mesh_io.cpp",
+      "bytes": 8550,
+      "sha256": "59a44d5e2365b0a97ad7c9da5d1128822dbe6e054927f43847227968c07f4b14",
+      "git_blob_sha": "b49dc327967ddcec9b67e92c40200f52203224ed"
+    },
+    {
+      "path": "src/io/openfoam_io.cpp",
+      "bytes": 9502,
+      "sha256": "82c83bfc9be6753ff44bc63770034845881d800c794f7e5be04ebe45d3e6c53e",
+      "git_blob_sha": "0993bc76f4425cce0dce4ea6a0ccc705f0961ee6"
+    },
+    {
+      "path": "src/lbm/advanced_d2q9.cpp",
+      "bytes": 15065,
+      "sha256": "4c05945cde1f3c6127ef6cdfbb9832e9d1d6a145f50cb223a9701f587b3ee02f",
+      "git_blob_sha": "b3fc8ab1847884b11b89476552ff51e2ba3434ef"
+    },
+    {
+      "path": "src/lbm/d2q9.cpp",
+      "bytes": 14043,
+      "sha256": "45f09d0824dc2db0fb8e569fa9c04a0e74ef23646f1fb09e19c889b8371b3b13",
+      "git_blob_sha": "501d6c1b8ee9fd81290dc0e808e49bd68f3603b2"
+    },
+    {
+      "path": "src/lbm/diagnostics.cpp",
+      "bytes": 1333,
+      "sha256": "ca532a71a169fa9665d4970a7920c77ecd3a822e9fe0311a4835b835c28ed14a",
+      "git_blob_sha": "78aa271eb2bb2679319b9efa5339786cd73b8af4"
+    },
+    {
+      "path": "src/lbm/esoteric_pull.cpp",
+      "bytes": 255,
+      "sha256": "78effff26b252519ac612edd0b91c804942e04516f276d81c5a7cb0eee9e879f",
+      "git_blob_sha": "6ac14ad17216e6689924db59d28466dbcfbb9b4c"
+    },
+    {
+      "path": "src/lbm/free_surface.cpp",
+      "bytes": 5330,
+      "sha256": "712eb4b4bacd3a87581a76a7a1be82d22a57ce6b06e93202539d26a4a47269d0",
+      "git_blob_sha": "eea8bf2c5e87797ee95206cbf764a89a1bb15366"
+    },
+    {
+      "path": "src/lbm/particles.cpp",
+      "bytes": 5856,
+      "sha256": "7cb0f488acf3460de60a638272e5eabdc4b5fb9872df92f6c4651242e355cf53",
+      "git_blob_sha": "b5f5bbad250b4ae2d18860706ad7f41b8ea892fd"
+    },
+    {
+      "path": "src/lbm/visualization.cpp",
+      "bytes": 11456,
+      "sha256": "8bf998fd3ef878cabbd073deaa9b51115c38d99d4c7bc1f6ea29f71ba119bb91",
+      "git_blob_sha": "d34dcb54524ce3fa04c3e28fd7d8476f39c7aaaf"
+    },
+    {
+      "path": "src/lbm/voxelize.cpp",
+      "bytes": 2019,
+      "sha256": "89cd5eea6bc5d514fdf49cccd35d4c451a586fe4ec4e654067764a1dbb4112e0",
+      "git_blob_sha": "18e1551f63b9a1ee6f79431f28ff89f4dba9df34"
+    },
+    {
+      "path": "src/mechanics/cosserat_rods.cpp",
+      "bytes": 15540,
+      "sha256": "0f58a0aa851dd15a5ec884d783e8566710cfc0585270d27fa69c103025effa2d",
+      "git_blob_sha": "8561100c6830e16ddf1d003fd9c12eccbc19d567"
+    },
+    {
+      "path": "src/multibody/advanced_dynamics.cpp",
+      "bytes": 15549,
+      "sha256": "40fc1f3128d875314d9182139ab139070776986c5c8c751eeb48f6194a68d5da",
+      "git_blob_sha": "b19bc457ec3fb37fa17c084e0d1d695823195781"
+    },
+    {
+      "path": "src/multibody/cfd_dem_coupling.cpp",
+      "bytes": 7906,
+      "sha256": "b1806eab03f1860fa3555e31ed66c9c148d7fc89179c68bbb1feee3c70a6661d",
+      "git_blob_sha": "5a4d085537d6e20765e6b193a840bdcd11a10135"
+    },
+    {
+      "path": "src/multibody/distributed_dem.cpp",
+      "bytes": 17960,
+      "sha256": "b873505412a545788a458d134e1336422ab85392a85d64c846a629312ac5934e",
+      "git_blob_sha": "f95d263eae0b5e384a3286a6c772f5ac89530d29"
+    },
+    {
+      "path": "src/multibody/multibody.cpp",
+      "bytes": 54017,
+      "sha256": "b456f5ce4f4febfa7bc5802a085deb9fb286641f7b30a769e41da78f15238b2f",
+      "git_blob_sha": "71ea835034dac54364012e4b16028a10b3ae54b2"
+    },
+    {
+      "path": "src/multiphysics/bioheat.cpp",
+      "bytes": 11026,
+      "sha256": "96c4b2d8410c9e8c819e458200cfd6c26406989a68dd68e30603d9df730da7bc",
+      "git_blob_sha": "fbcdce45c67938b172a035dbb8455d2bad73d9bf"
+    },
+    {
+      "path": "src/multiphysics/block_system.cpp",
+      "bytes": 1624,
+      "sha256": "573fe109c0153d24061a8aecb2a279e9b27e8553e57ce6926bccc87992dc2282",
+      "git_blob_sha": "bb068846c3aab1ed0c69d71c4092e23b9341a481"
+    },
+    {
+      "path": "src/multiphysics/cht.cpp",
+      "bytes": 355,
+      "sha256": "6491336f00c5d34bbf5a142197c95159800f0a3ffb324ca3d1d5ef07703469df",
+      "git_blob_sha": "231b7296e7f6dd22f1f38da6fd8c68a71f119b46"
+    },
+    {
+      "path": "src/multiphysics/deformation_optics.cpp",
+      "bytes": 715,
+      "sha256": "caa884410ddfe1e499ed52b834f1842f91b09d4e2dd81ceff0e015dd853dc0e2",
+      "git_blob_sha": "a35b7f7e984f9b8b0356e8bdae2baeedb1935ed0"
+    },
+    {
+      "path": "src/multiphysics/electro_thermal.cpp",
+      "bytes": 2797,
+      "sha256": "8e0563a9747dd8990bf01d67971ea2e36baa26be7a614f4a414020c4b6faabef",
+      "git_blob_sha": "4c8233b467704fc792e7b49b8dd0cd1fbfde5ae8"
+    },
+    {
+      "path": "src/multiphysics/electrochemical_heat.cpp",
+      "bytes": 479,
+      "sha256": "e83007fba50f05a6194d11975dc62ab6af40380a1bc59d920c4e6243755a245e",
+      "git_blob_sha": "ebb04878234bd5e901f1a2b86f7cac3aceb2df1a"
+    },
+    {
+      "path": "src/multiphysics/em_spice_bridge.cpp",
+      "bytes": 1469,
+      "sha256": "1ed9b2aa23f365a715e6c3a5471b375f128cadab08da750f7eecd21a0edf94ea",
+      "git_blob_sha": "d3be13b3e9f5d4828ec75c1ca66c706e9200130c"
+    },
+    {
+      "path": "src/multiphysics/field_registry.cpp",
+      "bytes": 2272,
+      "sha256": "cf1ae38b93cddebfe349af0c770f15e43f2ee9ee5188b5beca228efb855c4e28",
+      "git_blob_sha": "0fd97c2fb159f02ecba98d45c2b77133c0b52c67"
+    },
+    {
+      "path": "src/multiphysics/partitioned.cpp",
+      "bytes": 2618,
+      "sha256": "1ecd0b17340de509e1711160448fa77ea8eecac0dbcfcf9d39954c21fed9140e",
+      "git_blob_sha": "dd84ca64ed58a6bfd821d87d57e15a33960f7255"
+    },
+    {
+      "path": "src/multiphysics/pipeline.cpp",
+      "bytes": 2109,
+      "sha256": "26f2ab31d1d0bc736b1fe104d35d1976abdc5f9b6054dacc27b347d68dd12d96",
+      "git_blob_sha": "78be7528f026a7284a55fc14b230e8d0c1a88eaa"
+    },
+    {
+      "path": "src/multiphysics/porous_electrothermal.cpp",
+      "bytes": 1429,
+      "sha256": "cb775ca1cbf21fc80feb5fa4a316be2c744d711399056de97485db4ab32a0a8e",
+      "git_blob_sha": "7540b9a5a137b8417828200d9f3dca9f43ad158c"
+    },
+    {
+      "path": "src/multiphysics/projection.cpp",
+      "bytes": 3709,
+      "sha256": "42d62ab2d5c2cbedf2cef415eae55c09d899bdbc36f509212936ea23e2f61269",
+      "git_blob_sha": "8f2b434cf8bff2c19853f05de4545bf3040ca620"
+    },
+    {
+      "path": "src/multiphysics/transfer.cpp",
+      "bytes": 3023,
+      "sha256": "c57bb986875d8dedd67f129028bd08b8d4c8b5c90c9a5413c8eac3f50a935d24",
+      "git_blob_sha": "fa195ead4e1def3631da347e2ce7d86942900a69"
+    },
+    {
+      "path": "src/optics/analysis.cpp",
+      "bytes": 1488,
+      "sha256": "418953c1c226ebd4a0483deea70ca69309c4245df6bc516cd34e4c398df39631",
+      "git_blob_sha": "02449464d9c661f37bb022da5764c49f04bc8afe"
+    },
+    {
+      "path": "src/optics/birefringence.cpp",
+      "bytes": 881,
+      "sha256": "a47544171123aa8db79e4d99a3e11c73e973aec62cbb8a599fd0988b3de302bd",
+      "git_blob_sha": "2adca10e3fec0fdec93f225a2008165ebcd0b26d"
+    },
+    {
+      "path": "src/optics/diffraction.cpp",
+      "bytes": 1865,
+      "sha256": "28299bced09d602086faad599eb0f853e5837cc4ee7ccfc53ffe732d4566ef45",
+      "git_blob_sha": "75a4f0db15861f29e7019f9cddfe9adbfe70e691"
+    },
+    {
+      "path": "src/optics/freeform.cpp",
+      "bytes": 1999,
+      "sha256": "606df9c3e42494c6eeeedc784f4a2a7685f17e4ca46e7a5b5ffbe76867625127",
+      "git_blob_sha": "3f43855045e2f937ff2826551e4b387ad923f6ac"
+    },
+    {
+      "path": "src/optics/gaussian_beam.cpp",
+      "bytes": 2084,
+      "sha256": "55fe2730eb799df88601f8e8c5746b438e7217c64ffbc280c39fbe81728a03b2",
+      "git_blob_sha": "d200b37f36dc1d7b0ab06847ad6568fbc7986cb2"
+    },
+    {
+      "path": "src/optics/interchange.cpp",
+      "bytes": 7572,
+      "sha256": "72a3e98dc7e6334873ddd477a7e6dbff9d2431d92413b69e1ef5645ac75de7b9",
+      "git_blob_sha": "94fe281f9c60db0b2031a854b074d656f01a6ccb"
+    },
+    {
+      "path": "src/optics/materials.cpp",
+      "bytes": 2336,
+      "sha256": "8cb8d1381fcf40d7c2244dd66ed1069762054cc87887693562efa55a8721f6d5",
+      "git_blob_sha": "11577678d7af2c1ceed706de796205223c43459c"
+    },
+    {
+      "path": "src/optics/nonlinear_polarization.cpp",
+      "bytes": 2318,
+      "sha256": "8fb8e23e3b3ddf10ecdf0c10f986df9ad3c67e0e430873ea014d08ab69e8006f",
+      "git_blob_sha": "3bf76d5e85070f07ea86a63dfe885dd44c3db439"
+    },
+    {
+      "path": "src/optics/nonsequential.cpp",
+      "bytes": 2889,
+      "sha256": "489d25cb6b79f54a0ebfdbf745be312fef5d783df317d911f46ba67b5984e84d",
+      "git_blob_sha": "1206915192b433661236a2c7b1c7599afccbee6e"
+    },
+    {
+      "path": "src/optics/optimization.cpp",
+      "bytes": 3972,
+      "sha256": "1c34dcacd9fa604328de0eab4f04895e5a6f1b57dea45c600455629d9708652a",
+      "git_blob_sha": "15ad5cbeea1382f5017f4755ea4b629d114af8c0"
+    },
+    {
+      "path": "src/optics/paraxial.cpp",
+      "bytes": 1401,
+      "sha256": "7b014bae910b5795e97a1ba94750c1e64a632007411a15c25d48f6d8f9bcfb3d",
+      "git_blob_sha": "eab2cee02073810f3308417ca6223be2e3b936e0"
+    },
+    {
+      "path": "src/optics/polarization.cpp",
+      "bytes": 2102,
+      "sha256": "4702f2569b93c6190134f392a4fd5188e86383d0b481518c33376cffa31bb206",
+      "git_blob_sha": "acd9642165f352bb3c956d365289863c2ec61503"
+    },
+    {
+      "path": "src/optics/ray.cpp",
+      "bytes": 1375,
+      "sha256": "fa09e4bb77afcf8f014b6a806041dabd96a4f770a3478d1a246eefcb71f9272e",
+      "git_blob_sha": "30b1fcb5a125a342db3ebfd344e648ea9c20b313"
+    },
+    {
+      "path": "src/optics/sequential.cpp",
+      "bytes": 5119,
+      "sha256": "e4002380a978d8bb9659d8d159a16ffb65b342ee88bb62cfc820f3f943b42692",
+      "git_blob_sha": "35ed46fe303a3cdeaa374639485494c27fa186a4"
+    },
+    {
+      "path": "src/optics/serialization.cpp",
+      "bytes": 2419,
+      "sha256": "1c7933c5aedf5cf26fdb67d8976d6a3afccfd959f68277027c24326194358031",
+      "git_blob_sha": "44909d8b9c855b5fd63595222c74a8e3d6b24b91"
+    },
+    {
+      "path": "src/optics/transform.cpp",
+      "bytes": 1345,
+      "sha256": "92d5046d06d7aec5806f6778370b498998d418f764746a13a5025f72a33e565a",
+      "git_blob_sha": "03dc6a01397d58624a56bf57eb445e1352d4629e"
+    },
+    {
+      "path": "src/optics/wavefront.cpp",
+      "bytes": 2728,
+      "sha256": "c59ad1df897d4ccf968e8aa508bf3d30bdfa1ec24e6270522a113d0be0251c2b",
+      "git_blob_sha": "9e0a5e506e565a63e31cfd447cf42c40c3649dc4"
+    },
+    {
+      "path": "src/particle/electromagnetic.cpp",
+      "bytes": 182926,
+      "sha256": "ba10180bb6644df6664e30da3888660101997fde626df4e9f57c3dc8feb21ff4",
+      "git_blob_sha": "f8facaa680848f769a1102119f881902f3651420"
+    },
+    {
+      "path": "src/particle/plasma.cpp",
+      "bytes": 6292,
+      "sha256": "9d7db5b8d3979e403a6d390c4faa519cf632399c7c605d9d8f0c96a6cec74be2",
+      "git_blob_sha": "25dd1608859c631ff606067b6aa1fb5701902127"
+    },
+    {
+      "path": "src/particle/transport.cpp",
+      "bytes": 21125,
+      "sha256": "80b799b2e5ef8d08d3c7cda70a6cc99e2d1833f3cb165a1659908efd47d064c7",
+      "git_blob_sha": "b76108aefa65a17f874f7195e98c0cbfbe1c20cd"
+    },
+    {
+      "path": "src/particle/wakefield.cpp",
+      "bytes": 1684,
+      "sha256": "9bfd7cb0cc607452c64d9148db383468f3a41b1a812103b56b99a323c5bfee30",
+      "git_blob_sha": "69e8e56ae839d0fbc54996f345e01308ecf6e3a7"
+    },
+    {
+      "path": "src/physics/material.cpp",
+      "bytes": 563,
+      "sha256": "00dcbdf39167f726b57d390fd30ce009f9ab28a61e75f876f76646bc9c3a1ef4",
+      "git_blob_sha": "79218c61f841bd3838322490424da9f33c03a9af"
+    },
+    {
+      "path": "src/physics/material_bridge.cpp",
+      "bytes": 627,
+      "sha256": "87f960d9aa991977ad18bd5f8b746f34d5ef62a1fd4c721f062adfeefab80a22",
+      "git_blob_sha": "9d0fd07bc402d240957967a82f5f035699d7db3e"
+    },
+    {
+      "path": "src/python/c_api.cpp",
+      "bytes": 1304,
+      "sha256": "fd611e321f31748fa32c0ebb56fbcdfa32f0dd776a69630234b54397de9aa1fb",
+      "git_blob_sha": "a20bbcb2f7ce8ade5e2f6f012c9290b8175a0c33"
+    },
+    {
+      "path": "src/rf/antenna.cpp",
+      "bytes": 9791,
+      "sha256": "29f56640cc2b60dc8e834630bc346e30dc31a51d704317a714a7ff34b85aeabb",
+      "git_blob_sha": "0dfbcc951aaace144165835e9483bb19e0569fbf"
+    },
+    {
+      "path": "src/rf/conductor_models.cpp",
+      "bytes": 3540,
+      "sha256": "9e322c8f147d8b1ff595c101cadd15a6cb998f9f7ada3c46faa12b2fe0baae16",
+      "git_blob_sha": "37b9b376f84021deb474824b8d4cf9b02d76dbc5"
+    },
+    {
+      "path": "src/rf/integral_equation_extensions.cpp",
+      "bytes": 12308,
+      "sha256": "deb5be3e3bd4b859d405a6738348f5edb841336e36199c0e15d6e34ed537cb7a",
+      "git_blob_sha": "92971d78efa33ac6b686bd37e4c86707882ea683"
+    },
+    {
+      "path": "src/rf/modal_elements.cpp",
+      "bytes": 1121,
+      "sha256": "01277c250c0efd2c37972a24a665630537a11251b747f44a14f2a6e7c3293b05",
+      "git_blob_sha": "7a4c65cd4ccad1535622cfedcd5b351c1bdc97d9"
+    },
+    {
+      "path": "src/rf/network.cpp",
+      "bytes": 11722,
+      "sha256": "ac2f7136ed6d847910a21cd92fdd6c28c2023dabf04de1275e7fae92b4469063",
+      "git_blob_sha": "78a9cab85443c81fa35ac15fd2a59414bb22faf2"
+    },
+    {
+      "path": "src/rf/nport.cpp",
+      "bytes": 35475,
+      "sha256": "c68749ea75f45c9b8bad4962150ebdafbbccf5545bed9192e8edb812b2b1a31a",
+      "git_blob_sha": "8b6acea22cb0153551d51ea40c44e9e4d88b5e90"
+    },
+    {
+      "path": "src/rf/peec.cpp",
+      "bytes": 13875,
+      "sha256": "7e4d443177b1f87441ebc0377f059d41264bc6236f352b99448899857af45d99",
+      "git_blob_sha": "418b34f90aa4ae3f37508ec25b6896a002a6a957"
+    },
+    {
+      "path": "src/rf/surface_mom.cpp",
+      "bytes": 21856,
+      "sha256": "e7082c7323260731274450a2202104723b810d77f65ca8d38164e17ff9bc43fc",
+      "git_blob_sha": "08dc84dad46be8a13ed3be02993ba2911cbd7344"
+    },
+    {
+      "path": "src/rf/thin_wire_mom.cpp",
+      "bytes": 26283,
+      "sha256": "2ae417ebdd349bed1b1534280740240f5a75042117a3f891c872ce0920b655bf",
+      "git_blob_sha": "0b29df768935864d0c3f07e6f20a9a6b26fc95c9"
+    },
+    {
+      "path": "src/spectral/fft.cpp",
+      "bytes": 3915,
+      "sha256": "ea1c878dd5e86ff0c566d624b22fca7f9d41bc25fbbb6122cb3220cb522d0400",
+      "git_blob_sha": "1e552f410adb8e54fdfe5454113d73acc3dbbbfa"
+    },
+    {
+      "path": "src/sycl/d2q9_sycl.cpp",
+      "bytes": 8220,
+      "sha256": "e8073b393f7cc0e25fc720f4723eaa548c25b4315487e9f4a983032c7d83e565",
+      "git_blob_sha": "38361d53387d957f4091edf51f86a6963045bc83"
+    },
+    {
+      "path": "src/sycl/esoteric_pull_sycl.cpp",
+      "bytes": 305,
+      "sha256": "aa4e40c1ba446b9e08c87411ea3a0f1e800c723b2f60527938e5580c1740e1b4",
+      "git_blob_sha": "6576a53c41dc24e744d0d099333f590b671aab98"
+    },
+    {
+      "path": "src/sycl/resident_cfd_dem_coupling.cpp",
+      "bytes": 6611,
+      "sha256": "67c0954f911c0bc3f015c6c577c7c56bc6e496773db4b7ce1b1ac50e183e190b",
+      "git_blob_sha": "4d88307a46db207f8c0645b44f5a0542c0d4ab61"
+    },
+    {
+      "path": "src/sycl/resident_dem_sycl.cpp",
+      "bytes": 37141,
+      "sha256": "b6f0fa6fc2819c62145fcda789ed7c751b15f314997adfca9769dc280ec2827e",
+      "git_blob_sha": "365c043e709167401605e0e3e753254ec0b318ea"
+    },
+    {
+      "path": "src/sycl/resident_fvm_sycl.cpp",
+      "bytes": 83067,
+      "sha256": "98277ff729fddb8ed40c8c46c32da65d90c62064309603a7c97e34ebdc35c6d5",
+      "git_blob_sha": "1f431faa2fb699443e4bcc0450e0e2e362ccc577"
+    },
+    {
+      "path": "src/sycl/resident_rans_sycl.cpp",
+      "bytes": 21065,
+      "sha256": "2a58c1386a6a98ef56ae143aa9292996ffa99960c28fbd4b26d3d413417f59dd",
+      "git_blob_sha": "a5893bac9478e03e955424bdbaff920cf939fe67"
+    },
+    {
+      "path": "src/sycl/sparse_linalg_sycl.cpp",
+      "bytes": 14917,
+      "sha256": "65a58c5afdcc934a152fc4d28a9b3dda6464b093eb8e3fe0ce3c44e462812a51",
+      "git_blob_sha": "4f99aeb95fab542c98738c4e1e77107185f69ead"
+    },
+    {
+      "path": "src/sycl/voxelize_sycl.cpp",
+      "bytes": 3682,
+      "sha256": "0bd51a2ad941fd91578d0c37985d5a1c16b9d00eecdb04f1a1121678741874a3",
+      "git_blob_sha": "57f4fda6555b235a3b676a772c3baa6396c1b392"
+    },
+    {
+      "path": "src/tcad/advanced_devices.cpp",
+      "bytes": 8108,
+      "sha256": "9fd04b05b0db224cae0b6cff053e7241f53bd6125acdcac563f3b0c5f57890e3",
+      "git_blob_sha": "264279160b5ff2b7c50bb4db5f263515b9f73920"
+    },
+    {
+      "path": "src/tcad/bipolar_power.cpp",
+      "bytes": 17255,
+      "sha256": "33f4f5744f14e7e07da9ca92a6e9201f31caf5b5c9009f31c5eef649f2341a93",
+      "git_blob_sha": "99a2622c3b1126401c37d91de742957b3faca3f2"
+    },
+    {
+      "path": "src/tcad/mos.cpp",
+      "bytes": 13575,
+      "sha256": "23c4261cc65224953a33a58f4a13ca2c5d48d972c40033961840ee5d3bcfaf4c",
+      "git_blob_sha": "4c8d1f2104ae736b684e59afe63de2cb5852498e"
+    },
+    {
+      "path": "src/tcad/semiconductor1d.cpp",
+      "bytes": 40247,
+      "sha256": "c53da5f47e3cb91ba5b2ede97bc219b4f6f769a6fdd7281a5121e66ef3422fde",
+      "git_blob_sha": "30e542b70e7778c7af33c41c01049601f0e97159"
+    },
+    {
+      "path": "src/workflow/campaign.cpp",
+      "bytes": 34326,
+      "sha256": "6630f3db421a46707bce6b8f85c92dff6b55410626cec53d6968fa32f3b5b63e",
+      "git_blob_sha": "2b1deaa406c5cd0536f1c9af2b3c11999653b219"
+    },
+    {
+      "path": "src/workflow/campaign_control.cpp",
+      "bytes": 13369,
+      "sha256": "552d755022bcaf03b6fabf0473b505588447aa036f36617e406e124cdceaf456",
+      "git_blob_sha": "a7b036f08514481cfd0eb27146551da43a9af0e7"
+    },
+    {
+      "path": "src/workflow/deploy.cpp",
+      "bytes": 70992,
+      "sha256": "f2f06b8e34461b2c9c524cd1768f1696cdf8b1f0bf9ca64e687aa783c804ecf1",
+      "git_blob_sha": "d29c5e32b88979397e833d6c05240394030b0165"
+    },
+    {
+      "path": "src/workflow/provenance.cpp",
+      "bytes": 1312,
+      "sha256": "609b82115194c46009a7278eda031a2f618dac548f81321b7efecd1e34f649be",
+      "git_blob_sha": "ab28aa6c0f39e710e83f195da49e588880d2812d"
+    },
+    {
+      "path": "src/workflow/runner.cpp",
+      "bytes": 2140,
+      "sha256": "c9951acb708e8af4f11184d1ce70211c2acc66ea5a0a66d0811f4b641b47ade5",
+      "git_blob_sha": "0f6dccaa6873423d224201eae1553c196f1f22eb"
+    },
+    {
+      "path": "src/workflow/schema.cpp",
+      "bytes": 3363,
+      "sha256": "9fac545a455b5e279a0953f7c09e47c47c82ca18ef32da996eec3480495b7910",
+      "git_blob_sha": "b4d5baebf7b76f49d71571c53aeebc899ab89536"
+    },
+    {
+      "path": "src/workflow/validation_catalog.cpp",
+      "bytes": 695,
+      "sha256": "6c1dfde06b201220d09699595aee4cff77800c623a98144f1a48bb475f185513",
+      "git_blob_sha": "86336d86aa3128f46570f0bc5fdf55bd363c6753"
+    },
+    {
+      "path": "tests/osdi_fixture.cpp",
+      "bytes": 190,
+      "sha256": "42748f5348f2019a4a9f84ed245d58fdb014da358fff316580997999a2c1730a",
+      "git_blob_sha": "e1701b0dc607994efb20289233da4b0fb87dc466"
+    },
+    {
+      "path": "tests/test_bioelectromagnetic_feedback.cpp",
+      "bytes": 2238,
+      "sha256": "e4b27650222a3223ccaaf90c22839ac54f655780c32e7afa3622cad9f112437a",
+      "git_blob_sha": "6e5c277b4e5df755566f51e312066a2541b5d6fe"
+    },
+    {
+      "path": "tests/test_chemistry_database.cpp",
+      "bytes": 2185,
+      "sha256": "6529af7fb35d7573e1da7a18916360c7125ee77dc30bb3a7b2bd2bfcd59ccc2a",
+      "git_blob_sha": "d765d46cf08d60f7e9874db9c2bbe9f233d2c5be"
+    },
+    {
+      "path": "tests/test_completion.cpp",
+      "bytes": 88922,
+      "sha256": "b3f68aa57dfb836d8342c8c8f35604024c0c26c7889d19f9e8ca5cc7394ef977",
+      "git_blob_sha": "508b419abbb4d77f940d0b333c40080ba1cd1478"
+    },
+    {
+      "path": "tests/test_compressible_vof.cpp",
+      "bytes": 4479,
+      "sha256": "662ceae2dc22b95731ae7d41206a5c98c0185290b826ebd160bcebbc92eab2f4",
+      "git_blob_sha": "539f06219410870ee0d33a5363fedd5ce041373c"
+    },
+    {
+      "path": "tests/test_continuation_wave.cpp",
+      "bytes": 6267,
+      "sha256": "81074b75ab0a2794e31593d3217b3bec5812ad8450369a74133b278d4c1e92ac",
+      "git_blob_sha": "94ef147bd03c1966775c0c6b4e9a81edbe4a3087"
+    },
+    {
+      "path": "tests/test_corrosion_advanced.cpp",
+      "bytes": 1172,
+      "sha256": "cb8c5619d8fec904571f93a965b9f99d00827512ee06a5a121c53bd57a09d375",
+      "git_blob_sha": "8d696178bf6707a57104154097dc8aff73d00cfb"
+    },
+    {
+      "path": "tests/test_cst_expansion.cpp",
+      "bytes": 21355,
+      "sha256": "722957c47d8ff5e2416e28ec8c093a2a7ca97c5cd1ac2b45249b33993f86cead",
+      "git_blob_sha": "f1bf048a391a0faca49a385bd599a5d149faeb10"
+    },
+    {
+      "path": "tests/test_cut_cell_electrode.cpp",
+      "bytes": 827,
+      "sha256": "1ab96ef3774b35a7d7740c4cff97238f9317e17b230fe00a7f49842fac2d1ea6",
+      "git_blob_sha": "44d8ba6fafdb0379799532fb793001234bee5b9a"
+    },
+    {
+      "path": "tests/test_cylindrical_multigrid.cpp",
+      "bytes": 461,
+      "sha256": "9bf969d07def017217ad26ae923252f3f55dcbe0877028325a05bc09ac8e37fc",
+      "git_blob_sha": "a39076ba0933e1940550ad8999397317f8843941"
+    },
+    {
+      "path": "tests/test_domain_expansion.cpp",
+      "bytes": 36358,
+      "sha256": "ebd5ca6898956d6f5bcce2b7a8bb28ce1e38c28eac7dc8b97edae2b8b9fd5b11",
+      "git_blob_sha": "acd6bdffa99983889141c88bbb0b33654b3154c4"
+    },
+    {
+      "path": "tests/test_eddy_current_nonlinear.cpp",
+      "bytes": 4639,
+      "sha256": "acc1117b15f5b694f0c51c6d8895aa711f8b6dca19423ab80e09b384f1e4e58d",
+      "git_blob_sha": "673572650218d0e7dc304b96c0410d4f453408a8"
+    },
+    {
+      "path": "tests/test_em_spice_bridge.cpp",
+      "bytes": 707,
+      "sha256": "7e96e3740ec3b990dfabd26544f9ad9f5707d13368d1421dee0eaf792be1fe28",
+      "git_blob_sha": "d56615efce08d823a71e229f3c441e788206d021"
+    },
+    {
+      "path": "tests/test_euler_euler.cpp",
+      "bytes": 3944,
+      "sha256": "fc7dbb15ff7edd8536b97faed87c8c24611046d847eb81be2772b0316c8cf0b8",
+      "git_blob_sha": "3341d27201b6b9ac153cb72c30f67814ce8659b6"
+    },
+    {
+      "path": "tests/test_extensions.cpp",
+      "bytes": 19447,
+      "sha256": "ff445ce65c6b0e311963effca4bae9309144bcd980bebb13c9b3452c63d92d5f",
+      "git_blob_sha": "e0ae4db3546afe2bd8ac54e2873124e3764f2422"
+    },
+    {
+      "path": "tests/test_external_spice_adapter.cpp",
+      "bytes": 837,
+      "sha256": "2f0dbd66c37f695ff1bc5df5f0c5bfcbd0fee8da3c9e569cf3042e6e68317220",
+      "git_blob_sha": "ed0bf78dfa696b1f90ecf42c27e24f37c94edb6f"
+    },
+    {
+      "path": "tests/test_fdtd_emc_sources.cpp",
+      "bytes": 1206,
+      "sha256": "09c94868c8173b5cbdfc2187e543052f2134af185f029cf3dd1acc76f849798b",
+      "git_blob_sha": "e524b8aea89bbbb2e80e8ab8294ac8e47a1fe99e"
+    },
+    {
+      "path": "tests/test_fem_transport_stabilization.cpp",
+      "bytes": 922,
+      "sha256": "e2b932a890512b0b866c39a20b06a0ee866fa989ae43a368abddee65a4071469",
+      "git_blob_sha": "b55333a5213f0a315a9881f5fc5bfc58a5aef1d1"
+    },
+    {
+      "path": "tests/test_gstc_nonlinear_optics.cpp",
+      "bytes": 2565,
+      "sha256": "270dbaf06d8616a1e3533f6606fea5579d54d69e5dfc91f209ce4a3b899f348a",
+      "git_blob_sha": "f86d218442c5a6a5875dd2f90fb4705054ba9f67"
+    },
+    {
+      "path": "tests/test_implicit_pnp.cpp",
+      "bytes": 558,
+      "sha256": "8d1f8bf043993a966885b2e866558d5c4d1be8af87b3810b8538490f685eaaa9",
+      "git_blob_sha": "a52fcbbe9b23c8e03284706033344a3e2c1e7c63"
+    },
+    {
+      "path": "tests/test_integral_equation_extensions.cpp",
+      "bytes": 1899,
+      "sha256": "6196a06dc2975fbcce67e0087a87a0b55a44850e4cc8afae9f38e58f6a6eb402",
+      "git_blob_sha": "e547f05992e64a5f88e58cad218ed005890052c8"
+    },
+    {
+      "path": "tests/test_main.cpp",
+      "bytes": 104778,
+      "sha256": "aa9090efe61ad3a3445fca925576dbcc9d6ada975914353a5fae3e2355aaa5d2",
+      "git_blob_sha": "b07701b7cb65e468dc6d3b44ff93502b5dc8717a"
+    },
+    {
+      "path": "tests/test_mixed_stokes.cpp",
+      "bytes": 749,
+      "sha256": "ae55e2e0717fc6c0f1a86c9e8e2e5054b8913639d3befafb5e2c4e19138d56a4",
+      "git_blob_sha": "6b56bd6d8772328bd1dec084b848c866729a239f"
+    },
+    {
+      "path": "tests/test_mpi.cpp",
+      "bytes": 13526,
+      "sha256": "c528f4ce5631c88e64152131249a835132f8c845dda65297128962a4c7b9443c",
+      "git_blob_sha": "753fdfb15c6421d6e0a552aa9a70aa733daeb2d8"
+    },
+    {
+      "path": "tests/test_multicomponent_pitzer.cpp",
+      "bytes": 574,
+      "sha256": "18af00da160227ef01858d33f61640c67d817d64b97adba947e79a171a5a6294",
+      "git_blob_sha": "d8c026792a6b177d4b5e464d1b779da3ee243e5e"
+    },
+    {
+      "path": "tests/test_multiconductor_tline.cpp",
+      "bytes": 648,
+      "sha256": "b7ea92ab5b8e4a9b3472ed49ca94d8fb90521d07c40b4213b2ace998785647eb",
+      "git_blob_sha": "6462e2abde2dcbb2bb4556d79d56a86671219150"
+    },
+    {
+      "path": "tests/test_multiphysics_pipeline.cpp",
+      "bytes": 2545,
+      "sha256": "82d01f52e433817da982d1aa87c29ec0795fe7b0a10ecddfa9e1c0a1928b7735",
+      "git_blob_sha": "ba7d2ee9d4e13a68040383ac194664047e4f0c6c"
+    },
+    {
+      "path": "tests/test_next_analysis.cpp",
+      "bytes": 32267,
+      "sha256": "da2705f15c77dc624ca602c29d94b2cb24b23efc3bc41ea63435d07fb37cc8e5",
+      "git_blob_sha": "ca1f65461b602f59e7ef0098ac5e754e93365b14"
+    },
+    {
+      "path": "tests/test_nonlinear_triangle.cpp",
+      "bytes": 928,
+      "sha256": "ff8c4872745f21845ae7f500ec5afb6d5b834ab0e787f267b05983634da259ef",
+      "git_blob_sha": "33f7c2f02d3a375f05b16b5d8d81b8ae3b4f1934"
+    },
+    {
+      "path": "tests/test_optical_full_wave.cpp",
+      "bytes": 3131,
+      "sha256": "b2dd67b9b28759128263194fe0c7a07c0f823206339d30d2bf8bb88ef9daf6c3",
+      "git_blob_sha": "bb3f77fe0747658ecf9747e24040b59d6292b9ca"
+    },
+    {
+      "path": "tests/test_optics_interchange.cpp",
+      "bytes": 2065,
+      "sha256": "4a8e5c50c3aba207596496750eb293941125e37490e1e249ba01a5b4645b12da",
+      "git_blob_sha": "60ca61b0ca1662f8f28f253b0debaaedeafb6084"
+    },
+    {
+      "path": "tests/test_osdi.cpp",
+      "bytes": 776,
+      "sha256": "9b5abe79a7dd45a96148f667e500e538d48b09328ae44b6e219a12f0866f1618",
+      "git_blob_sha": "1fac4858c477bb2bf43e5a64b421c74cf64cbdf0"
+    },
+    {
+      "path": "tests/test_osdi_adapter.cpp",
+      "bytes": 1337,
+      "sha256": "f1caff28666853f7d926cf2148520b82c0253b1aa91bbbc542c5e2c8a65e0302",
+      "git_blob_sha": "d24abbc38107faaca8a6d1746aa891cb49b182c9"
+    },
+    {
+      "path": "tests/test_particle_interactions.cpp",
+      "bytes": 3044,
+      "sha256": "84e75336ddb19a374697742061e45ebfd6ef60b5da12fa6ca5ca916177d9db08",
+      "git_blob_sha": "a6dbd962a27f4a1332262a74d45f46e462b05bdc"
+    },
+    {
+      "path": "tests/test_photonic_modes.cpp",
+      "bytes": 3305,
+      "sha256": "da34b3e1b532e0411f426a2b64d31b9656b911bf4e2d5d0c7a77e1caf6488969",
+      "git_blob_sha": "83a27e22db520e99546bb787cf4e40f3d2a006bb"
+    },
+    {
+      "path": "tests/test_porous_electrothermal.cpp",
+      "bytes": 691,
+      "sha256": "c96cb970027a7f8cba35917de1d5984ee67017715be0f2d262dd0947c1616198",
+      "git_blob_sha": "93eb4894c7c2562c27b94291218a0b781cdcef5c"
+    },
+    {
+      "path": "tests/test_python_bindings.py",
+      "bytes": 559,
+      "sha256": "34c0ef652308cf061c6ebf8411cc3d70892a710540b7c538fbaf7f1f84dc2ed2",
+      "git_blob_sha": "3e05940aada16628f4ae38245a8e9ed81b4db910"
+    },
+    {
+      "path": "tests/test_reacting_hooks.cpp",
+      "bytes": 1884,
+      "sha256": "0057bdb0db052584c427e35a2f6744a4e7967c21f9a77cb18e44097986f4a40f",
+      "git_blob_sha": "c1e33dc5c139eba9c0e5a6e5b30c7eee6bfb6c2e"
+    },
+    {
+      "path": "tests/test_real_3d_model.cpp",
+      "bytes": 5507,
+      "sha256": "0c8cb792979a2c062301d3fa0e2d322ff74c8d866b1c29c1edd214cb7cb7c4c6",
+      "git_blob_sha": "5f01ffae52047a969b77895f34d1d33ea6f77184"
+    },
+    {
+      "path": "tests/test_reordering.cpp",
+      "bytes": 1380,
+      "sha256": "06fb1fea2812a30f20fe53de383001afa9f04f62e7503b1b55c925307cb78b3a",
+      "git_blob_sha": "c943160e36d123b3adb5b113b86921df3c3708b1"
+    },
+    {
+      "path": "tests/test_rf_conductor_models.cpp",
+      "bytes": 787,
+      "sha256": "082f0ccae8a29772bb854d9199c6369a5b5eaa7e820d742571bbfdd7b1015e6a",
+      "git_blob_sha": "13af711d0daf1ca991d9725dd8c499e8690e6566"
+    },
+    {
+      "path": "tests/test_rf_modal_port.cpp",
+      "bytes": 1607,
+      "sha256": "306acb2f79019da8cfd46657f4e29585d55bfa311479dafa9794ec3d11d8ac62",
+      "git_blob_sha": "12b2ff25cbd50214da15a9d115f1c6f65909f57d"
+    },
+    {
+      "path": "tests/test_rf_surface_mom.cpp",
+      "bytes": 3507,
+      "sha256": "fce9e5309fec3b3c62e1c80eb95a7dc76aaabca651bdbe39b8a3234771604398",
+      "git_blob_sha": "d8fbbbfacc45c995c635ee357493280730a954b4"
+    },
+    {
+      "path": "tests/test_sanitize_smoke.cpp",
+      "bytes": 13393,
+      "sha256": "0ff462869d644a9d99607732b513798a8c8135cc7925bcfa1d9b2c1e8cafbf02",
+      "git_blob_sha": "9ee50212556f9e6edb154dae0337689f0898aea5"
+    },
+    {
+      "path": "tests/test_spice_compat.cpp",
+      "bytes": 677,
+      "sha256": "4ca7c52c26f39493ff793c5b02b44b0fa30019e20a53ae80214e83204fa55446",
+      "git_blob_sha": "61ff5c87ca4ab1a63965c030b63f5b2e8cb7e79b"
+    },
+    {
+      "path": "tests/test_spice_io.cpp",
+      "bytes": 8211,
+      "sha256": "25602c5b31ae1616d156d88321fd19fd6cbdadcf4b4ba377847a3b9b59c9e50d",
+      "git_blob_sha": "de4ba04c5e791aa55507e767133880550e861089"
+    },
+    {
+      "path": "tests/test_spray.cpp",
+      "bytes": 4307,
+      "sha256": "cf7c38b8e2f9aa185eba80518d38a1aa6df994e7a8903719c1b533e7e0113f16",
+      "git_blob_sha": "3605ac1eae4dba829bb54666d13934bb49e05e7a"
+    },
+    {
+      "path": "tests/test_structured_stencil.cpp",
+      "bytes": 2880,
+      "sha256": "2c6a8c484205316e0f67bb90dafe35e626d14e0fc8c5e6e26271ebee6a5690d5",
+      "git_blob_sha": "29cae955e750acf181ded58629f6bd64a645b79b"
+    },
+    {
+      "path": "tests/test_tcad_advanced_devices.cpp",
+      "bytes": 2103,
+      "sha256": "11973a16dc1a679a3e919e84384108b734c89422738c16a63f01dd12b0863a00",
+      "git_blob_sha": "fb3ff1df655bf164c2ee5ccea1ccfd563ecbcf1c"
+    },
+    {
+      "path": "tests/test_thermoelastic_block.cpp",
+      "bytes": 480,
+      "sha256": "b801b36636cbb8a34b74abab6dbd250ff79e3aedbefda93843d32862ee529b3a",
+      "git_blob_sha": "7a2c1c21c8a70588ee7f26f188caf277a8d0792b"
+    },
+    {
+      "path": "tests/test_thin_film.cpp",
+      "bytes": 3964,
+      "sha256": "47b31ceed624bb2d5896157df971f64d7d1875f5251070c4228ffdab22d9a933",
+      "git_blob_sha": "320fcebc147b7228656735f37d862fd1ca7f8aa7"
+    },
+    {
+      "path": "tests/test_v0100_local_current.cpp",
+      "bytes": 6840,
+      "sha256": "11b8055d2148f4ca2be721341c50594d0d074a7eb6cc7c3ef4f89654bff0856b",
+      "git_blob_sha": "ecf371391a307eeb6b515c61bc26d855aee33676"
+    },
+    {
+      "path": "tests/test_v0101_particle_sorting.cpp",
+      "bytes": 6429,
+      "sha256": "4693603174fc9bd9a7c03da8f8345ee1b07b5cb11bfbd839503e08089e008aa0",
+      "git_blob_sha": "17a95b12609f068736c709a0b4d889e9790371fe"
+    },
+    {
+      "path": "tests/test_v0102_domain_exchange.cpp",
+      "bytes": 5432,
+      "sha256": "1aba31e519860442a79d37fa9f6b9cf11eab98eebec42685a92c00abb5d85cb1",
+      "git_blob_sha": "8dbe4fabf9f06b205e80bdac49e3e9cf6dc0e639"
+    },
+    {
+      "path": "tests/test_v0103_comm_exchange.cpp",
+      "bytes": 5758,
+      "sha256": "aeddf39fd48eb2f7a0dcfbf346727daacc69a9f5bd7d5bb1d6d6049f5c23714e",
+      "git_blob_sha": "0aaf97783e90cc3b31d1761ffbfaf40172b1ddb1"
+    },
+    {
+      "path": "tests/test_v0104_transport.cpp",
+      "bytes": 6371,
+      "sha256": "41e2a5de22b7ff71243802f1e5d39f776813559d926b6daea64644275eac041c",
+      "git_blob_sha": "977fc262b8b3f5cd7b498c26f563cb39fe3dfe63"
+    },
+    {
+      "path": "tests/test_v0105_plasma.cpp",
+      "bytes": 3366,
+      "sha256": "65c95e99c138a8d0eaa381d2963c27c1297a5fd71b3368a5745f6a016c551e82",
+      "git_blob_sha": "f204988345d37675949099e4ddd17a48596222e5"
+    },
+    {
+      "path": "tests/test_v0105_serialized_transport.cpp",
+      "bytes": 9118,
+      "sha256": "b7689ee5bef9f8fd3f87549f2f1793e1af8e3f7ba6f5e0c33dcaa4935ac8418e",
+      "git_blob_sha": "27e0815028d814e263d1b5ad641b237367e25780"
+    },
+    {
+      "path": "tests/test_v0106_distributed_round.cpp",
+      "bytes": 5619,
+      "sha256": "7fd043cb774cefc7c58fa3f63d67767676ba71b38fa8beac5f3c734dd37a324c",
+      "git_blob_sha": "c58013194e34137a13ddb3527ea2042199b1b47a"
+    },
+    {
+      "path": "tests/test_v0107_distributed_step.cpp",
+      "bytes": 5707,
+      "sha256": "a8d70c8d885d57d96b3f0e526f23cbb3e04e58efd091ae1e8bc5806bece6fb08",
+      "git_blob_sha": "9f1b95dc106bb4ace8a33222caf9b7ea2cd63a1b"
+    },
+    {
+      "path": "tests/test_v0108_geant4_transport.cpp",
+      "bytes": 4580,
+      "sha256": "33d854092acba6eb0ff57a13f49acc3f7bf34f73072bbb5784f9b1424196c75c",
+      "git_blob_sha": "f7ca4b681e27edacb75ca8852edd4f24fa0ec1fe"
+    },
+    {
+      "path": "tests/test_v0109_transport_campaign.cpp",
+      "bytes": 5663,
+      "sha256": "80db02926f0f141923c0e0916f59d4eacf120aed247e6131fad75556c784d302",
+      "git_blob_sha": "3b1f1648be3bf74a344c72d2778b532e06eb7e78"
+    },
+    {
+      "path": "tests/test_v0110_campaign_execution.cpp",
+      "bytes": 5604,
+      "sha256": "8ef1a2f87a4aaf6c7b560b77b4b6e98c860442ab0f2d21c46d8b62d1e0e8620f",
+      "git_blob_sha": "4ad6c037bc50f6a9be807a3d1d116373cd7c05c2"
+    },
+    {
+      "path": "tests/test_v0111_local_campaign_runner.cpp",
+      "bytes": 3988,
+      "sha256": "c18ecaf2e5c1fb755ea028415513131d8f7ae99cb74d2d77bbaa2f6afcc260b7",
+      "git_blob_sha": "ba7140b6ea9f5619b6ac48d37f1860036392337c"
+    },
+    {
+      "path": "tests/test_v0112_campaign_control.cpp",
+      "bytes": 4568,
+      "sha256": "fd9cbf3120148ffe8385d822d742a7f86dfb918a9e4f2d954f3e964c6e0b2f89",
+      "git_blob_sha": "23da486d23c063d109a16f93c08cb4a5276c0533"
+    },
+    {
+      "path": "tests/test_v0113_multiserver_deploy.cpp",
+      "bytes": 4729,
+      "sha256": "014d3470771133bb4dee0388811e4bc0ae79cd225f68d2b40d49aff830cef963",
+      "git_blob_sha": "221541ab11ca02c3a4eefc9a1c3dd038e1504d39"
+    },
+    {
+      "path": "tests/test_v0114_multiserver_execution.cpp",
+      "bytes": 4978,
+      "sha256": "5c8a9081aaf45f14be4ebca412db7c2738da0cfd01831495c5f0bcc330d2ef02",
+      "git_blob_sha": "5bdb4c56686bee09274695512fa3ecaa91814cfe"
+    },
+    {
+      "path": "tests/test_v0115_multiserver_supervision.cpp",
+      "bytes": 5017,
+      "sha256": "4b9888fa122f7cc0b620e356251e70ea4601299506ecf36e41527f72bf0b5b80",
+      "git_blob_sha": "2a5bb7074ca0655bfb69fa728c02abc7cbc73ee9"
+    },
+    {
+      "path": "tests/test_v0116_multiserver_controller.cpp",
+      "bytes": 5041,
+      "sha256": "7981a5d146307fa80e203533177c3e687d73f9d9a4ddd8abfc85bac20de77662",
+      "git_blob_sha": "fdca9e988c266e9ee33f72e5e36141d396127a18"
+    },
+    {
+      "path": "tests/test_v0117_controller_dashboard.cpp",
+      "bytes": 5599,
+      "sha256": "519f35c8c99b9820db38cc5cc8c85022c6db4967290f9b3746a83659e0b8cb79",
+      "git_blob_sha": "dfa24931f92169883d2ca0680f612e5e25c1b749"
+    },
+    {
+      "path": "tests/test_v0118_controller_sse.cpp",
+      "bytes": 3175,
+      "sha256": "a9cbb15bc78043549d13cbecef3a5ac708b0400f124ec5394a094b6609960ee0",
+      "git_blob_sha": "aca36b2f1d39a5ed2be9982b8d8f8cfaf6d867a9"
+    },
+    {
+      "path": "tests/test_v0120_production_controller.cpp",
+      "bytes": 2991,
+      "sha256": "6b5bba03c3a32c224577d2618071d83910071f1ba80820ad59adffac7a6f06a3",
+      "git_blob_sha": "7d3790bbf83609baf4ec551cc2149d08c8120e9a"
+    },
+    {
+      "path": "tests/test_v0130_xdmf_python.cpp",
+      "bytes": 1758,
+      "sha256": "1a245d1d38c56d0584ee09634f11e05fe4f1ed6b1c95587e460dbaf2869bc119",
+      "git_blob_sha": "c8ff11701b6b53fe95f8f2d9553d7acd59a2859f"
+    },
+    {
+      "path": "tests/test_v0140_hpc_runtime.cpp",
+      "bytes": 3641,
+      "sha256": "9e2d2c72fddf3b9236af60df073be9915150cc31660f08de741f086fb36809d6",
+      "git_blob_sha": "a6fd71a10feebd0fc0d2fd039a7a92a495b311e0"
+    },
+    {
+      "path": "tests/test_v0141_lbm_les_qcriterion.cpp",
+      "bytes": 14981,
+      "sha256": "31cb6e910bea954bb47d69f657ee39478bb0fd944265707dd245b460f256c5fd",
+      "git_blob_sha": "d892019fc4ba6efd6cdc7fdcbdbdb5e4223b25f0"
+    },
+    {
+      "path": "tests/test_v0142_portability.cpp",
+      "bytes": 5092,
+      "sha256": "727ffeeb8060b7465199348ac0b870d905dbf6edf85379c41e98d86b84e2e74d",
+      "git_blob_sha": "414e10b8f5ad9b5ead42cbadcb622488fc7e71d1"
+    },
+    {
+      "path": "tests/test_v0150_fvm_temporal_pressure.cpp",
+      "bytes": 6912,
+      "sha256": "4ac512c08bbbbf8a220f486e75d069a7723550f44c61f4466e1cad49bf42af40",
+      "git_blob_sha": "f04e4122a879976c8743f82c4f570506613ab222"
+    },
+    {
+      "path": "tests/test_v01510_resident_krylov_scalar.cpp",
+      "bytes": 4926,
+      "sha256": "2fd3fa49b47689856ad37165bf10f0e748373c569322c636571965b298946255",
+      "git_blob_sha": "99da60b813c7f73526e0b6ee97089a8793ca7603"
+    },
+    {
+      "path": "tests/test_v01511_resident_rans.cpp",
+      "bytes": 5416,
+      "sha256": "52b76262367e03c4a91eaa72fe2ac3a5e1958a839e1520ab9a456b958b3b9f70",
+      "git_blob_sha": "e7a311c8d2d49c69bc593ac5b53cf4b31078c3f0"
+    },
+    {
+      "path": "tests/test_v0151_fvm_hdf5_checkpoint.cpp",
+      "bytes": 3400,
+      "sha256": "d3f7c9bec36324b19e2d91fd92a741efce400ec41d658ad2cf9a08643d412c39",
+      "git_blob_sha": "f86215caec54ae7c85e2c85b1eea45969168f06e"
+    },
+    {
+      "path": "tests/test_v0151_thermal_coupling.cpp",
+      "bytes": 4805,
+      "sha256": "293eea758e3906a70585d717c6f90983a3a603774adfa904f113e3a2aa5f86e6",
+      "git_blob_sha": "e0381b10d87961d4e32922a20c6c798e2744d646"
+    },
+    {
+      "path": "tests/test_v0152_rans_transport.cpp",
+      "bytes": 8894,
+      "sha256": "1bca65be24dc94a0fd0a4c6e8968d29bd46a45e411d9cfe2f0e3e33f62e76dc4",
+      "git_blob_sha": "80cd778e5698fbeb8dda3da93ddb49ffec681033"
+    },
+    {
+      "path": "tests/test_v0153_fvm_amr.cpp",
+      "bytes": 5935,
+      "sha256": "dbf0b0b4b6517fa90609707a7a20d82d562e0bf6c747424fe04739570ed7769b",
+      "git_blob_sha": "be88b50a907c9ad4ddc7b1b112183e5f0b50bd35"
+    },
+    {
+      "path": "tests/test_v0154_compressible_weno.cpp",
+      "bytes": 4990,
+      "sha256": "143da7d53ce08cc4a54b50a66b2e595c13400d828ae6b0434f163408d7c56c99",
+      "git_blob_sha": "e2a3615b1a50c787d2beda5139bcfe6a55a1837c"
+    },
+    {
+      "path": "tests/test_v0155_gpu_residency.cpp",
+      "bytes": 4561,
+      "sha256": "a901b1a8bd845b303708e59d64fbfbaf9eb2a5918e8716e9c8483c64d73d64c6",
+      "git_blob_sha": "65ccd031fadbe56d6a21fd3efbeb1fce0873444f"
+    },
+    {
+      "path": "tests/test_v0156_gpu_lbm_multiphysics.cpp",
+      "bytes": 3370,
+      "sha256": "bcd50a4c4256fdea92756a846098178f852459ca7a91360df68783b4fd675504",
+      "git_blob_sha": "0aa8adc15309f89f213ceacfe00d2dc07e8a2198"
+    },
+    {
+      "path": "tests/test_v0157_gpu_fdtd_residency.cpp",
+      "bytes": 2255,
+      "sha256": "295775c753cb0768067aab50b96065e90541e7a8bc92ee8aa3f3be91e463e20d",
+      "git_blob_sha": "6d098120f65b9120b200004420bd40adfdd7f9e1"
+    },
+    {
+      "path": "tests/test_v0158_gpu_fvm_residency.cpp",
+      "bytes": 10168,
+      "sha256": "5fa3f3d3f0c54f5bf6c164c5e9f20d1f2d606529feb69059cb8fdf6de2116f48",
+      "git_blob_sha": "b30e5fe4615f41c27bb5cbdf5dff958c891877e5"
+    },
+    {
+      "path": "tests/test_v0159_resident_incompressible_sycl.cpp",
+      "bytes": 4706,
+      "sha256": "5b74a1ef9fd87350b4aba1b9c1e466eb5f6f8b05273952a14d123dc3c7d6c324",
+      "git_blob_sha": "7c3b996253d0c9f94224cf9786b17cf7e09046e5"
+    },
+    {
+      "path": "tests/test_v0160_multibody_dem.cpp",
+      "bytes": 4056,
+      "sha256": "1817497ff85ee975e8e1d67b4dc8be6529a5280f294d4ebff27b505bccc661e5",
+      "git_blob_sha": "408924ff30defc21997f5d605212d5f0290d2982"
+    },
+    {
+      "path": "tests/test_v0161_contact_maturity.cpp",
+      "bytes": 5909,
+      "sha256": "ef11a4957d757c8dec0c06fea95692eecb57c7ecc45741e3035363051db34974",
+      "git_blob_sha": "51359ef55ad8e0a0f98d39676433e0d40df36aac"
+    },
+    {
+      "path": "tests/test_v0162_resident_dem_sycl.cpp",
+      "bytes": 2956,
+      "sha256": "14c17b676611537fbca9f181a5787c108ce363867b640f9af3cbc2bedb0d9ad1",
+      "git_blob_sha": "f1683b96568be746674978fb0b4dd6cda39d7ad2"
+    },
+    {
+      "path": "tests/test_v0163_bonded_distributed_dem.cpp",
+      "bytes": 6455,
+      "sha256": "5ab16b40dc4435977cff073d347b52d048a6bd529d393640970bf48b93c3c574",
+      "git_blob_sha": "aab62001118c672906a8074d8321af9d249022ec"
+    },
+    {
+      "path": "tests/test_v0164_distributed_contact.cpp",
+      "bytes": 5712,
+      "sha256": "fd0787d56b0834177e2a774fc4d009bf20abdef1c83841d6ea2e4d273c6f86a4",
+      "git_blob_sha": "e6d9928e87d2fcce4d6760725fe5bbae4b57e546"
+    },
+    {
+      "path": "tests/test_v0165_gpu_aware_dem_exchange.cpp",
+      "bytes": 2964,
+      "sha256": "a13c6dbac58deff30704b7b9edc933ffe824d5e9f0abc44c9d95ba5f09e17037",
+      "git_blob_sha": "001cf0d69ee6e05d692768944dd7ebdacd3dd63b"
+    },
+    {
+      "path": "tests/test_v0166_distributed_resident_dem.cpp",
+      "bytes": 9207,
+      "sha256": "4cbeb87ea7c4c77b6dd5f447168521c2431a72ec4c490d8c259aa1ec0e9c602a",
+      "git_blob_sha": "d931aad1e0ff3dd98678a8b6972a1e4ad7761126"
+    },
+    {
+      "path": "tests/test_v0167_cfd_dem_coupling.cpp",
+      "bytes": 7286,
+      "sha256": "7126f4946afaeb1d5a85199aa5b5c01bf99b31bbf7366718cadfca07e0595e0a",
+      "git_blob_sha": "a8c4f88d1483076058e13e656a68c1d9005cab75"
+    },
+    {
+      "path": "tests/test_v0168_advanced_multibody.cpp",
+      "bytes": 6272,
+      "sha256": "11fe7db9fffcf51d57ae609a0d11e05be125e72829e029eac42d817d71461d21",
+      "git_blob_sha": "06bdf98e912075a49c3ac7d249a1d54a2e7f71db"
+    },
+    {
+      "path": "tests/test_v0169_cosserat_rods.cpp",
+      "bytes": 3997,
+      "sha256": "95f7de349b2fe995d1ecf43d146e7fa0dbd6f1ff00fafb12009951f99614f03e",
+      "git_blob_sha": "73d3bcbf8484ce1f1480f3850dc245a5a673c3a8"
+    },
+    {
+      "path": "tests/test_v0170_acoustics.cpp",
+      "bytes": 7285,
+      "sha256": "a2a87a014e22d686a93846399b264dbf13d3a3fdb9f26e1513ca58ae0a2580b6",
+      "git_blob_sha": "18a661ac1e3140c54f3008ec2cd04cb0e6733cc6"
+    },
+    {
+      "path": "tests/test_v0171_acoustic_multiphysics.cpp",
+      "bytes": 6495,
+      "sha256": "742a4ee50be646d62badf1d9a4f00d2fef36b337e87f9391b96a6fb7b2bcbefd",
+      "git_blob_sha": "2501aaf1d25fafd8588376d9c52b0f627bcb88d5"
+    },
+    {
+      "path": "tests/test_v0180_tcad.cpp",
+      "bytes": 6156,
+      "sha256": "8f69ff1aa6f3748481a8fd11606016814142f2949e07aa874b656830c0c8210d",
+      "git_blob_sha": "f8f2fd9cf7aaff578b00481023909ee5ac33bed8"
+    },
+    {
+      "path": "tests/test_v0181_tcad_analysis.cpp",
+      "bytes": 4504,
+      "sha256": "0febfbe5518a39b9720cbd1956192bc14203c6df49c8ede928734a58b8870eed",
+      "git_blob_sha": "927e2c8bb72fdc375188ae915577d84e0343ed1f"
+    },
+    {
+      "path": "tests/test_v0182_tcad_mos.cpp",
+      "bytes": 7802,
+      "sha256": "8a951b904a55284be4dd49aa728395ec1d347dfb537eac79b1c6562a6c4b8b07",
+      "git_blob_sha": "01b819d989a3a518b251824cf1559cffa5a010c5"
+    },
+    {
+      "path": "tests/test_v0183_tcad_bipolar_power.cpp",
+      "bytes": 8588,
+      "sha256": "fa6181883e2f3a7f7cdc01be2d4d559594951a137eac15ac579224b1c3d5a69b",
+      "git_blob_sha": "76c02e10ef39b5601075f40e18818ead17398cc3"
+    },
+    {
+      "path": "tests/test_v0190_battery.cpp",
+      "bytes": 5207,
+      "sha256": "c4356e7bfd2946040a35dabefd1bf02c38d88cb8983e013376b43876ee497c8a",
+      "git_blob_sha": "2383cfde58a525d707d36702269159083240e86d"
+    },
+    {
+      "path": "tests/test_v0191_pack.cpp",
+      "bytes": 5196,
+      "sha256": "61244ece8e8e70a29c3542d0fb22f794680e080ad03ccb4ec7e874fa54958c5c",
+      "git_blob_sha": "152a97e2c5c157e9b7dde4ccac9a8d53154423ea"
+    },
+    {
+      "path": "tests/test_v0192_thermal.cpp",
+      "bytes": 6152,
+      "sha256": "c9726bb5e27b1959bf01c317a6f4c214c2cee561e3de3674f040128481442117",
+      "git_blob_sha": "8c7af759385157931c09a6a8f8bdff31c1fc23d2"
+    },
+    {
+      "path": "tests/test_v0193_dfn.cpp",
+      "bytes": 4670,
+      "sha256": "ee8eec8636c295165918454da04b05eaf32c084de974556dc33a6a96bfc04a3c",
+      "git_blob_sha": "0db86e0da7be2c01c2d04ae1ed24456be33b1fad"
+    },
+    {
+      "path": "tests/test_v091_sanitize.cpp",
+      "bytes": 2432,
+      "sha256": "b344696eb0ef70d8d3926f2d3ae4bc686646f4e6d2474eee64eefe9e96643832",
+      "git_blob_sha": "0a34fce86e6d92bbaf0d0be475f0e760bbe06fb5"
+    },
+    {
+      "path": "tests/test_v092_expansion.cpp",
+      "bytes": 6687,
+      "sha256": "2bc12dfee692738a007c2f52b78ad0c96ea207878a0b0a07083757e5e3c34ed5",
+      "git_blob_sha": "c4d07ab5e0cb6f5d8f959ee191a8ceedefb39335"
+    },
+    {
+      "path": "tests/test_v093_em_pic.cpp",
+      "bytes": 4997,
+      "sha256": "3e8ce3df13a2339d651d6a127dd48d87e069087e02c51517468b995613f6beba",
+      "git_blob_sha": "521a99f3300255f788a057a8e15be6908eba1a39"
+    },
+    {
+      "path": "tests/test_v094_pic2d.cpp",
+      "bytes": 6918,
+      "sha256": "7ee471e011fba10322e0e1d87765ba40f29d0ae74c9fef00e4557b2d437b832e",
+      "git_blob_sha": "4d41fe2407aae368d6751e7e715a61d842b585a5"
+    },
+    {
+      "path": "tests/test_v095_em_pic2d.cpp",
+      "bytes": 4776,
+      "sha256": "4529d1032378fcc4fd34e672815b498c74aefd7064cf8e4081aea77ab3abdb47",
+      "git_blob_sha": "5d8c9dd7fb78b4c21c7652d02ea10d178bd1435c"
+    },
+    {
+      "path": "tests/test_v096_staggered_pic2d.cpp",
+      "bytes": 6517,
+      "sha256": "7def6cc36756c8f0f3f0c7538488e5928317c60b1c16642a9799ef5ced5e0546",
+      "git_blob_sha": "132d94979ccff9096bfd21c329ef923f3de777a5"
+    },
+    {
+      "path": "tests/test_v097_pic3d.cpp",
+      "bytes": 7052,
+      "sha256": "e11d977c5358be5c402721e6982199e6e0243ef4f7428d41f283862849a0713c",
+      "git_blob_sha": "a8c8f503b07218bcdbca9959bee1c4917933db6c"
+    },
+    {
+      "path": "tests/test_v098_em_pic3d.cpp",
+      "bytes": 4863,
+      "sha256": "31a7f4ea1f6a00775f0e4861a9cc835503a243a22b67c9d61cdf59a52594384b",
+      "git_blob_sha": "7e51100290ec557f7380ef44dd765eb6df792d3c"
+    },
+    {
+      "path": "tests/test_v099_staggered_pic3d.cpp",
+      "bytes": 5323,
+      "sha256": "140ed091a7eab7511801c9272af4edf6e7b0119812af64e53f566b1dd53f0456",
+      "git_blob_sha": "58c1ce24ea3b3cfa8160284014f2ea764121e391"
+    }
+  ]
+}

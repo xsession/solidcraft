@@ -1,0 +1,1 @@
+{"solver":"poisson2d","mesh":{"type":"rectangle","nx":20,"ny":16},"diffusivity":1.0,"source":1.0,"boundary":0.0}

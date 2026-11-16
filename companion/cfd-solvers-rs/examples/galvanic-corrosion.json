@@ -1,0 +1,24 @@
+{
+ "solver": "galvanic_corrosion",
+ "reactions": [
+  {
+   "name": "zinc_oxidation",
+   "equilibrium_potential_v": -0.76,
+   "exchange_current_density_a_m2": 0.001,
+   "area_m2": 0.001,
+   "electrons": 1
+  },
+  {
+   "name": "oxygen_reduction",
+   "equilibrium_potential_v": 0.4,
+   "exchange_current_density_a_m2": 1e-09,
+   "area_m2": 0.01,
+   "electrons": 1
+  }
+ ],
+ "polarization": {
+  "start_v": -1.0,
+  "stop_v": 0.5,
+  "points": 151
+ }
+}

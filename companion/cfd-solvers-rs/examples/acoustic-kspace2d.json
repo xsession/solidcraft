@@ -1,0 +1,1 @@
+{"solver":"acoustic_kspace2d","config":{"nx":32,"ny":32,"pml_cells":4},"sound_speed":1500.0,"density":1000.0,"steps":30,"center_x_fraction":0.5,"center_y_fraction":0.5,"sigma":0.0003,"amplitude":1000.0,"sensor_cells":[520,528,536]}

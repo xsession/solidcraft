@@ -619,7 +619,7 @@ pub fn active_is_blank(app: &SolveApp) -> bool {
         && s.doc.features.is_empty()
         && s.doc.params.is_empty()
         && s.doc.components.is_empty()
-        && s.doc.multiphysics.is_empty()
+        && s.doc.multiphysics.is_default()
         && !s.is_dirty()
 }
 

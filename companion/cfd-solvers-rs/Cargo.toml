@@ -1,0 +1,37 @@
+[package]
+name = "cfd-solvers-rs"
+version = "0.7.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "Native Rust numerical solver port with source-pinned parity evidence"
+
+[lib]
+name = "cfd_solvers"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cfd-solve"
+path = "src/bin/cfd-solve.rs"
+
+[features]
+default = []
+parallel = ["dep:rayon"]
+
+[dependencies]
+serde = { version = "=1.0.219", features = ["derive"] }
+serde_json = "=1.0.140"
+num-complex = { version = "=0.4.6", features = ["serde"] }
+nalgebra = { version = "=0.33.2", default-features = false, features = ["std"] }
+rayon = { version = "=1.10.0", optional = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[package.metadata.upstream]
+repository = "https://github.com/xsession/cfd_solvers"
+revision = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a"

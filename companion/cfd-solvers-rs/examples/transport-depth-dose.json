@@ -1,0 +1,37 @@
+{
+ "solver": "particle_transport_slab",
+ "layers": [
+  {
+   "name": "water",
+   "thickness_m": 0.03,
+   "density_kg_m3": 1000,
+   "stopping_power_ev_per_m": 200000000.0,
+   "interaction_length_m": 0.01,
+   "energy_loss_fraction": 0.05,
+   "secondary_energy_fraction": 0.1
+  },
+  {
+   "name": "bone",
+   "thickness_m": 0.01,
+   "density_kg_m3": 1850,
+   "stopping_power_ev_per_m": 360000000.0,
+   "interaction_length_m": 0.006,
+   "energy_loss_fraction": 0.05,
+   "secondary_energy_fraction": 0.1
+  },
+  {
+   "name": "water_distal",
+   "thickness_m": 0.03,
+   "density_kg_m3": 1000,
+   "stopping_power_ev_per_m": 200000000.0,
+   "interaction_length_m": 0.01,
+   "energy_loss_fraction": 0.05,
+   "secondary_energy_fraction": 0.1
+  }
+ ],
+ "beam_energy_ev": 12000000.0,
+ "histories": 2000,
+ "depth_bins": 140,
+ "max_step_m": 0.0005,
+ "energy_cut_ev": 10000.0
+}

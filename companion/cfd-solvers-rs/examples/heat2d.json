@@ -1,0 +1,1 @@
+{"solver":"heat2d","mesh":{"type":"rectangle","nx":14,"ny":14},"config":{"conductivity":1.0,"volumetric_heat_capacity":1.0,"dt":0.001},"steps":30,"output_interval":5,"initial":1.0,"boundary":0.0,"source":0.0}

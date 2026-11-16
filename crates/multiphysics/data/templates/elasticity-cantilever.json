@@ -1,0 +1,22 @@
+{
+  "solver": "elasticity2d",
+  "width_m": 1.0,
+  "height_m": 0.1,
+  "nx": 40,
+  "ny": 4,
+  "youngs_modulus_pa": 200000000000.0,
+  "poisson_ratio": 0.3,
+  "mode": "plane_stress",
+  "density_kg_m3": 7850,
+  "gravity_m_s2": [
+    0,
+    -9.81
+  ],
+  "supports": [
+    {
+      "edge": "left",
+      "ux_m": 0,
+      "uy_m": 0
+    }
+  ]
+}

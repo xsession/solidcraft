@@ -1,0 +1,58 @@
+{
+  "en": {
+    "multiphysics.catalog_templates": "Runnable templates",
+    "multiphysics.catalog_use_template": "Use template",
+    "multiphysics.template_category_all": "All categories",
+    "cmd.multiphysics.study.sweep": "Sweep Multiphysics Study",
+    "cmd.multiphysics.wizard.enclosure": "Multiphysics Enclosure Wizard"
+  },
+  "ar": {
+    "multiphysics.catalog_templates": "قوالب قابلة للتشغيل",
+    "multiphysics.catalog_use_template": "استخدام القالب",
+    "multiphysics.template_category_all": "كل الفئات",
+    "cmd.multiphysics.study.sweep": "مسح دراسة متعددة الفيزياء",
+    "cmd.multiphysics.wizard.enclosure": "معالج حاوية متعددة الفيزياء"
+  },
+  "de": {
+    "multiphysics.catalog_templates": "Ausführbare Vorlagen",
+    "multiphysics.catalog_use_template": "Vorlage verwenden",
+    "multiphysics.template_category_all": "Alle Kategorien",
+    "cmd.multiphysics.study.sweep": "Multiphysik-Studie variieren",
+    "cmd.multiphysics.wizard.enclosure": "Multiphysik-Gehäuseassistent"
+  },
+  "he": {
+    "multiphysics.catalog_templates": "תבניות להרצה",
+    "multiphysics.catalog_use_template": "שימוש בתבנית",
+    "multiphysics.template_category_all": "כל הקטגוריות",
+    "cmd.multiphysics.study.sweep": "סריקת מחקר רב-פיזיקלי",
+    "cmd.multiphysics.wizard.enclosure": "אשף מארז רב-פיזיקלי"
+  },
+  "ja": {
+    "multiphysics.catalog_templates": "実行可能なテンプレート",
+    "multiphysics.catalog_use_template": "テンプレートを使用",
+    "multiphysics.template_category_all": "すべてのカテゴリ",
+    "cmd.multiphysics.study.sweep": "マルチフィジックススタディのスイープ",
+    "cmd.multiphysics.wizard.enclosure": "マルチフィジックス筐体ウィザード"
+  },
+  "ko": {
+    "multiphysics.catalog_templates": "실행 가능한 템플릿",
+    "multiphysics.catalog_use_template": "템플릿 사용",
+    "multiphysics.template_category_all": "모든 범주",
+    "cmd.multiphysics.study.sweep": "멀티피직스 스터디 스윕",
+    "cmd.multiphysics.wizard.enclosure": "멀티피직스 인클로저 마법사"
+  },
+  "vi": {
+    "multiphysics.catalog_templates": "Mẫu có thể chạy",
+    "multiphysics.catalog_use_template": "Dùng mẫu",
+    "multiphysics.template_category_all": "Tất cả danh mục",
+    "cmd.multiphysics.study.sweep": "Quét nghiên cứu đa vật lý",
+    "cmd.multiphysics.wizard.enclosure": "Trình hướng dẫn vỏ máy đa vật lý"
+  },
+  "zh": {
+    "multiphysics.catalog_templates": "可运行的模板",
+    "multiphysics.catalog_use_template": "使用模板",
+    "multiphysics.template_category_all": "所有类别",
+    "cmd.multiphysics.study.sweep": "扫描多物理场研究",
+    "cmd.multiphysics.wizard.enclosure": "多物理场机箱向导"
+  }
+}

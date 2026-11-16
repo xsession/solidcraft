@@ -7,6 +7,12 @@ use solidcraft_multiphysics::{Project, Study, Template, Validation, case_hash};
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct SurfaceInput {
+    pub mesh: solidcraft_multiphysics::mesh_diagnostics::SurfaceMesh,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Empty {}
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -28,6 +34,29 @@ pub struct Update {
     pub question: String,
     pub case: Value,
 }
+/// One study per value, replacing the existing scalar at an RFC 6901 pointer in a copy of
+/// the source study's case.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Sweep {
+    pub id: String,
+    pub pointer: String,
+    pub values: Vec<Value>,
+}
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CompareStudies {
+    #[serde(default)]
+    pub ids: Vec<String>,
+}
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Wizard {
+    pub name: String,
+    #[serde(default)]
+    pub question: String,
+    pub spec: solidcraft_multiphysics::wizard::EnclosureSpec,
+}
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct JobId {
@@ -46,9 +75,77 @@ pub struct ExportResult {
     pub run_id: String,
     pub directory: String,
 }
+/// One retained original VTU or PVD artifact, addressed by saved study and run identity.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InspectResult {
+    pub id: String,
+    pub run_id: String,
+    pub artifact: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ResultInspection {
+    pub id: String,
+    pub run_id: String,
+    pub artifact: String,
+    pub captured_study_revision: u64,
+    pub current_study_revision: u64,
+    pub case_hash: String,
+    pub stale: bool,
+    pub content: ResultInspectionContent,
+}
+
+/// Metadata only: no field arrays, guessed units, or implied physical validation.
+#[derive(Serialize, JsonSchema)]
+#[serde(tag = "format", rename_all = "lowercase")]
+pub enum ResultInspectionContent {
+    Vtu { points: usize, cells: usize, connectivity_indices: usize, cell_types: Vec<u8>, fields: Vec<ResultField> },
+    Pvd { frames: Vec<ResultFrame> },
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ResultField {
+    pub name: String,
+    pub association: String,
+    pub data_type: String,
+    pub components: usize,
+    pub tuples: usize,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ResultFrame {
+    /// Producer coordinate, which may be physical time or iteration; no unit is inferred.
+    pub coordinate: f64,
+    pub file: String,
+    pub part: usize,
+    /// True when the referenced file is retained with this same run.
+    pub retained: bool,
+}
 #[derive(Serialize, JsonSchema)]
 pub struct StudyReply {
     pub study: StudyView,
+}
+/// A new study with a copy of another study's committed case.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CloneStudy {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+}
+#[derive(Serialize, JsonSchema)]
+pub struct CloneReply {
+    pub study: StudyView,
+}
+#[derive(Serialize, JsonSchema)]
+pub struct SweepReply {
+    pub studies: Vec<StudyView>,
+}
+#[derive(Serialize, JsonSchema)]
+pub struct WizardReply {
+    pub study: StudyView,
+    pub report: solidcraft_multiphysics::wizard::WizardReport,
 }
 #[derive(Serialize, JsonSchema)]
 pub struct ProjectReply {

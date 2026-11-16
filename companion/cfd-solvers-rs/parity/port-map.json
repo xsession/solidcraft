@@ -1,0 +1,3522 @@
+{
+ "include/cfd/core/csr_matrix.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/sparse.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/iterative_solvers.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/sparse.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/conjugate_gradient.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/sparse.rs",
+   "tests/upstream_fvm_flow2d_parity.rs"
+  ],
+  "scope": "Jacobi-preconditioned CSR CG plus the upstream matrix-free unpreconditioned CG (matrix_free_conjugate_gradient) with its convergence test and iteration counter.",
+  "limitations": [
+   "matrix_free_conjugate_gradient compared with parity/goldens-fvm-flow2d.json (values and iteration count, including the upstream counter that advances twice per update). ConjugateGradientWorkspace is replaced by internal buffers. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/newton.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/nonlinear.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/nonlinear_system.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/matrix_free.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/dae.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/matrix_free.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/eigen_solvers.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/eigen.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/dual.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/ad.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/core/reverse_ad.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/ad.rs"
+  ],
+  "scope": "CPU numerical methods; distributed and backend-specific specializations are not implemented.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/fem/reference_element.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/reference.rs"
+  ],
+  "scope": "All seven linear element shape functions, quadrature orders 1/2 and isoparametric mappings; upstream pyramid convention retained.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/fem/mesh2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/mesh.rs"
+  ],
+  "scope": "Mesh validation and structured triangle/tetrahedron construction.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/fem/mesh3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/mesh.rs"
+  ],
+  "scope": "Mesh validation and structured triangle/tetrahedron construction.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/fem/assembly.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "P1 triangle Laplace CSR assembly and actual element-by-element matrix-free action.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fem/poisson1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "Native CPU reference method; boundary callbacks use idiomatic Rust functions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fem/poisson2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "Native CPU reference method; boundary callbacks use idiomatic Rust functions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fem/poisson3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "Native CPU reference method; boundary callbacks use idiomatic Rust functions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fem/scalar_diffusion2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "Native CPU reference method; boundary callbacks use idiomatic Rust functions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fem/heat2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/scalar.rs"
+  ],
+  "scope": "Native CPU reference method; boundary callbacks use idiomatic Rust functions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/lbm/d2q9.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/mod.rs"
+  ],
+  "scope": "f32 BGK pull streaming, Taylor-Green, Guo forcing, stationary/moving/Bouzidi walls, Zou-He velocity/pressure reconstruction, diagnostics; optional Rayon cell loop.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fdtd/maxwell1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/maxwell1d.rs"
+  ],
+  "scope": "Yee E/H fields, PEC/Mur/PML/CPML, material loss, Debye/Drude/Lorentz ADE, TFSF and parallel lumped RLC.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fvm/diffusion2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/diffusion.rs"
+  ],
+  "scope": "Structured steady diffusion Jacobi iteration and constant source/Dirichlet conditions.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/solvers/fvm/compressible1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/compressible.rs"
+  ],
+  "scope": "Ideal-gas Euler, MUSCL-minmod and Roe-characteristic WENO5, Rusanov flux, Euler/SSPRK3, positivity rejection, periodic/transmissive boundaries.",
+  "limitations": [
+   "Idiomatic Rust API, no C++ ABI compatibility. GPU/MPI equivalence and application-level validation are not qualified."
+  ]
+ },
+ "include/cfd/rf/network.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/mod.rs"
+  ],
+  "scope": "Two-port Z/S/ABCD conversion/cascade, TEM, microstrip, coax, TE10, stripline, CPW, RI/MA/DB Touchstone S2P.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/ray.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/ray.rs"
+  ],
+  "scope": "Normalization, reflection and Snell refraction/TIR.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/sequential.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/ray.rs"
+  ],
+  "scope": "Planes, spheres, conics, even aspheres, Newton intersection, clipping, tracing and RMS image spot.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/paraxial.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/ray.rs"
+  ],
+  "scope": "Paraxial trace and back focal distance using upstream curvature convention.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/materials.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/materials.rs"
+  ],
+  "scope": "Sellmeier evaluation, N-BK7/fused-silica catalogue and nearest-index search.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/polarization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/wave.rs"
+  ],
+  "scope": "Jones to Stokes, dielectric Fresnel magnitudes and normal-incidence thin-film transfer matrices.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/optics/gaussian_beam.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/wave.rs"
+  ],
+  "scope": "Complex q parameter, ABCD/refraction consistency, propagation, thin lens, radius and curvature.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/chemistry/kinetics.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/kinetics.rs"
+  ],
+  "scope": "Arrhenius, reversible mass action, custom reaction orders, third-body efficiencies, Lindemann falloff, buffer APIs.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/chemistry/thermo.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/thermo.rs"
+  ],
+  "scope": "Ideal gas/solution activities and chemical potentials; thermochemical CSV.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/chemistry/equilibrium.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/thermo.rs"
+  ],
+  "scope": "Binary salt precipitation/dissolution closed-form equilibrium.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/chemistry/implicit_reactor.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/reactor.rs"
+  ],
+  "scope": "Isothermal constant-volume backward Euler, positivity-preserving Newton, step-doubling LTE, transactional state update.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/acoustics/kspace2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/acoustics/mod.rs"
+  ],
+  "scope": "FFT k-space correction, heterogeneous media, split PML, nonlinearity, power-law absorption, point/plane/delayed sources, sensors and time reversal.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/spectral/fft.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/algebra.rs",
+   "src/acoustics/mod.rs"
+  ],
+  "scope": "Radix-2 1D/2D FFT, wave numbers, periodic spectral derivatives and fractional operators.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/io/mesh_io.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/io/mod.rs",
+   "tests/upstream_lbm_parity.rs",
+   "tests/upstream_python_parity.rs"
+  ],
+  "scope": "VTU triangle/tetrahedron writers, generalized cell/point field exports, and OBJ/ASCII STL triangle-surface readers. Inline-XML XDMF writer (write_xdmf_inline, byte-identical, checked through parity/goldens-python.json). Gmsh and VTU readers and HDF5 output are not ported.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/fem/elasticity2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/structural.rs"
+  ],
+  "scope": "P1 plane stress/strain, component constraints, body forces and one-way thermal strain. Library API only; no JSON case adapter yet.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/fem/modal_bar1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/structural.rs"
+  ],
+  "scope": "Fixed-free axial bar consistent-mass generalized eigenmodes. Library API only; no JSON case adapter yet.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/solvers/fem/piezoelectric_bar1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/structural.rs"
+  ],
+  "scope": "Coupled displacement/potential FEM, open-circuit receive and voltage-driven transmit. Library API only; no JSON case adapter yet.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/fem/material_laws.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/materials.rs"
+  ],
+  "scope": "Linear elasticity, bilinear return mapping, principal-stretch compressible Neo-Hookean law and penalty contact pressure.",
+  "limitations": [
+   "Idiomatic Rust API; no C++ ABI compatibility. Source-reference tests do not imply production physical qualification, complete backend parity, or complete application workflows."
+  ]
+ },
+ "include/cfd/core/block_csr.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/block.rs"
+  ],
+  "scope": "Fixed-size dense block CSR assembly, validation, multiplication, scalar conversion and block diagonal extraction.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/core_extended.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/core/block_solver.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/block.rs"
+  ],
+  "scope": "Pivoted dense block Jacobi and restarted block GMRES with measured residuals.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/core_extended.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/core/complex_sparse.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/complex_sparse.rs"
+  ],
+  "scope": "Complex sparse assembly, native real block embedding, ILU(0)/GMRES and unpreconditioned retry.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/core_extended.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/core/geometric_multigrid.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/multigrid.rs"
+  ],
+  "scope": "2D Poisson V cycles, red/black smoothing, full-weight restriction and upstream cross-only prolongation.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "The pinned prolongation omits diagonal quarter-weights; its convention is retained and tested, not silently replaced."
+  ],
+  "tests": [
+   "tests/core_extended.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/core/grid.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/structured.rs"
+  ],
+  "scope": "Validated Grid2D coordinates and checked indexing.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/core_extended.rs"
+  ]
+ },
+ "include/cfd/core/structured_stencil.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/structured.rs"
+  ],
+  "scope": "Serial seven-point 3D stencil, fused residual and algorithmic traffic estimates.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Weighted parallel execution and native SIMD policies are not ported. The pinned C++ header references parallel_for_weighted/parallel_sum_weighted absent from pinned parallel.hpp; this unit is tested against independently assembled CSR, not a compiled C++ oracle."
+  ],
+  "tests": [
+   "tests/core_extended.rs"
+  ]
+ },
+ "include/cfd/fvm/poly_mesh.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/poly_mesh.rs"
+  ],
+  "scope": "Validated face-centred general PolyMesh, adjacency, patch lookup and Cartesian/sheared hexa geometry.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Like the upstream PolyMesh, face geometry has no vertex connectivity. General polyhedra cannot be exported as invented hexahedra; JSON cases generate real Cartesian/sheared hexa connectivity."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/poly_cli.rs"
+  ]
+ },
+ "include/cfd/fvm/operators.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/operators.rs"
+  ],
+  "scope": "Gauss scalar gradient/vector divergence, weighted least-squares gradient, orthogonal and corrected Laplacians and normal gradients.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Boundary arrays, when present, have one entry per face."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/pressure_velocity.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/pressure_velocity.rs"
+  ],
+  "scope": "Velocity/pressure boundaries, orthogonal face decomposition, corrected Rhie\u2013Chow flux and continuity norms.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/schemes.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/schemes.rs"
+  ],
+  "scope": "Linear, upwind, bounded-linear, Minmod and Van Leer scalar/vector interpolation, convection divergence and CFL bound.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "The upstream CFL convention sums all absolute face fluxes for a cell."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/runtime_schemes.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/schemes.rs"
+  ],
+  "scope": "Runtime face-scheme selection, aliases and reusable scalar scheme workspace with allocation diagnostics.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/fv_matrix.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/transport.rs"
+  ],
+  "scope": "FV scalar CSR matrix and source assembly.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs"
+  ]
+ },
+ "include/cfd/fvm/temporal.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/transport.rs"
+  ],
+  "scope": "BDF2 derivative, Crank\u2013Nicolson update and validated off-centering weight; integrated into scalar, solid, flow and RANS paths.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/rans.rs"
+  ]
+ },
+ "include/cfd/solvers/fvm/scalar_transport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/transport.rs"
+  ],
+  "scope": "Implicit polyhedral upwind advection/diffusion, sources and patch conditions, cached operator, Euler/BDF2/CN with history and linear diagnostics.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Fixed-step reference solve; no nonlinear source linearization or automatic non-orthogonal diffusion correction in this solver's assembled operator."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/cli.rs"
+  ]
+ },
+ "include/cfd/solvers/fvm/collocated_incompressible.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/collocated.rs"
+  ],
+  "scope": "SIMPLE, PISO and PIMPLE with implicit momentum, Rhie\u2013Chow pressure flux, non-orthogonal correctors, pressure gauge, Euler/BDF2/CN, Krylov/fixed-point momentum and external preconditioner callback.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Pinned momentum assembly uses upwind regardless of its convection selector; native Rust explicitly rejects other selectors when convection is enabled. External AMG requires a supplied callback and is not a built-in AMG backend. Native pressure iteration counts correct the pinned unpreconditioned CG double-increment and report actual solve calls. Linear convergence is separate from SIMPLE steady convergence."
+  ],
+  "tests": [
+   "tests/poly_fvm.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/poly_cli.rs",
+   "tests/cli.rs"
+  ]
+ },
+ "include/cfd/solvers/fvm/thermal_transport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/thermal.rs"
+  ],
+  "scope": "Explicit mass-enthalpy convection/conduction, material and heat-release callbacks, reactive/radiative source composition, energy diagnostic and Boussinesq force.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "The upstream diagnostic uses rho*cp(T)*T, not an integral of variable heat capacity. Transport stability estimate excludes nonlinear-source stiffness; JSON uses constant material properties and prescribed velocity, library callbacks are richer."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/cli.rs"
+  ]
+ },
+ "include/cfd/solvers/fvm/solid_heat.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/thermal.rs"
+  ],
+  "scope": "Implicit constant-property 3D solid heat with fixed/adiabatic patches, volumetric sources and Euler/BDF2/CN.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs",
+   "tests/cli.rs"
+  ]
+ },
+ "include/cfd/fvm/advanced_models.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/models.rs"
+  ],
+  "scope": "Local SA/k-epsilon/SST eddy closures, DES length, Boussinesq stress, mushy enthalpy, drift slip, Euler\u2013Euler drag and thin-film flux.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "These helpers do not themselves constitute coupled multiphase/phase-change solvers."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/turbulence.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/models.rs"
+  ],
+  "scope": "Laminar, mixing-length, Smagorinsky and WALE local kinematic eddy viscosities from least-squares velocity gradients.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "These are local closures; transport equations are provided by the separate RANS unit, with no automatic LES-flow coupling."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/radiation.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/models.rs"
+  ],
+  "scope": "Gray two-surface heat exchange, optically thin volumetric radiation and source model composition.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "No photon/particle/radiative-transfer solver is inferred from the local source model."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/radiation_network.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/models.rs"
+  ],
+  "scope": "Dense gray radiosity solution, irradiation and net surface heat for user-supplied view factors.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "View-factor rows are validated; geometric generation and automatic reciprocity enforcement are absent, as in the source routine."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/derived_fields.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/postprocess.rs"
+  ],
+  "scope": "Vorticity, Q, lambda2, enstrophy, wall y+, patch pressure force and nearest-cell probe.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "Gradient-based diagnostics use cell-centred fields; pressure-force input must be physical pressure when physical force is wanted."
+  ],
+  "tests": [
+   "tests/thermal_models.rs",
+   "tests/upstream_fvm_parity.rs"
+  ]
+ },
+ "include/cfd/fvm/function_objects.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/postprocess.rs"
+  ],
+  "scope": "Solver report callbacks and residual history; JSON workers also write per-step diagnostics.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification."
+  ],
+  "tests": [
+   "tests/thermal_models.rs"
+  ]
+ },
+ "include/cfd/solvers/fvm/rans_transport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/rans.rs"
+  ],
+  "scope": "Spalart\u2013Allmaras, k-epsilon, k-omega SST with DES None/F1/F2 shielding, six-stress LRR/epsilon transport, realizability projection, variable diffusion and Euler/BDF2/CN.",
+  "limitations": [
+   "Idiomatic safe Rust CPU API; no C++ ABI, GPU/MPI, arbitrary-input or whole-application qualification.",
+   "RANS equations accept prescribed velocity and flux; no automatic two-way eddy-viscosity feedback to the collocated momentum solver is implemented. Model wall distance/grid scale are supplied, not generated. SA set_grid_scale is declared but not defined in pinned C++ and is not exposed as an ignored option. Rust commits all equations only after successful solves."
+  ],
+  "tests": [
+   "tests/rans.rs",
+   "tests/cli.rs"
+  ]
+ },
+ "include/cfd/multiphysics/bioheat.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/bioheat.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "SAR from RMS field, voxel tissue SAR and mass-averaged peak, exposure checks, temperature feedback, SAR projection and 2-D Pennes bioheat stepping.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/block_system.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/block_system.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Block-coupled sparse systems assembled per field pair and solved with ILU(0) GMRES.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/cht.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/interface.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Conjugate interface heat flux from two-sided conductances.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/deformation_optics.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/interface.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Axial deformation of a sequential optical system.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/electro_thermal.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/electro_thermal.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "One-way Joule heating: DC conduction to transient FEM heat with configurable electrical and thermal boundaries.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/electrochemical_heat.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/interface.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Irreversible and reversible electrochemical heat source.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/em_spice_bridge.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/coupling.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Relaxed EM port / circuit fixed-point iteration.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/field_registry.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/fields.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Field registry with location, topology and SI unit signatures.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/partitioned.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/coupling.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Partitioned fixed-point coupling with Aitken dynamic relaxation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/pipeline.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/pipeline.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Staged field pipelines.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/porous_electrothermal.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/interface.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Lumped porous electro-thermal flow state advance.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/projection.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/projection.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "FEM-node/FVM-cell and structured-grid projections with trilinear sampling.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multiphysics/transfer.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multiphysics/transfer.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "Conservative 1-D cell remap and face-flux-to-cell-rate transfer.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/electromagnetics2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/electromagnetics.rs",
+   "tests/multiphysics.rs",
+   "tests/upstream_multiphysics_parity.rs"
+  ],
+  "scope": "2-D electrostatics and DC conduction on triangles with element field/current recovery.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multiphysics.json from parity/oracle_multiphysics.cpp built against the pinned upstream revision; analytic checks in tests/multiphysics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/compressible_vof.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/film.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_flow2d_parity.rs"
+  ],
+  "scope": "Barotropic two-phase VOF: conservative fraction and mixture-mass transport, bisection pressure recovery.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-flow2d.json from parity/oracle_fvm_flow2d.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/dense_particle_rheology.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/particles.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_particles_parity.rs"
+  ],
+  "scope": "Dense-phase hindered drag with regularised mu(I) granular pressure and viscosity.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-particles.json from parity/oracle_fvm_particles.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/euler_euler.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/euler_euler.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_particles_parity.rs"
+  ],
+  "scope": "Explicit two-fluid transport with upwind phase fluxes, interphase drag and body forces.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-particles.json from parity/oracle_fvm_particles.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/flame_models.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/combustion.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "Premixed and non-premixed (Gaussian stoichiometric window) flame-model interfaces.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/incompressible2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/periodic2d.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_flow2d_parity.rs"
+  ],
+  "scope": "Periodic staggered incompressible Navier-Stokes with CG projection and Taylor-Green error.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-flow2d.json from parity/oracle_fvm_flow2d.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/particle_interactions.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/particles.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_particles_parity.rs"
+  ],
+  "scope": "Deterministic cell-linked collision, coalescence and Weber breakup with statistics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-particles.json from parity/oracle_fvm_particles.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/particles.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/particles.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_particles_parity.rs"
+  ],
+  "scope": "Stokes-drag particle cloud with two-way source, Saffman lift, virtual mass, collision, coalescence, breakup, D^2 evaporation and volume fraction.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-particles.json from parity/oracle_fvm_particles.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/premixed_flame1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/combustion.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "Fisher-KPP progress-variable laminar flame with stability-bounded explicit stepping.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/projection2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/periodic2d.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_flow2d_parity.rs"
+  ],
+  "scope": "Periodic staggered pressure projection with matrix-free CG.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-flow2d.json from parity/oracle_fvm_flow2d.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/reacting.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/combustion.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "Per-cell reaction source terms from a kinetics network.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/soot_radiation.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/combustion.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "One-equation soot with optically thin radiation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/species_transport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/combustion.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "Multi-species scalar transport on prescribed face fluxes.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/spray.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/spray.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_particles_parity.rs"
+  ],
+  "scope": "Injected spray parcels with drag, D^2 evaporation, thermal relaxation and carrier sources.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-particles.json from parity/oracle_fvm_particles.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/thin_film.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/film.rs",
+   "tests/fvm_multiphase.rs",
+   "tests/upstream_fvm_flow2d_parity.rs"
+  ],
+  "scope": "Capillary/body-force lubrication film with optional boundary pressure.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-flow2d.json from parity/oracle_fvm_flow2d.cpp built against the pinned upstream revision; analytic and conservation checks in tests/fvm_multiphase.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fvm/vof.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/vof.rs",
+   "tests/fvm_reacting.rs",
+   "tests/upstream_fvm_reacting_parity.rs"
+  ],
+  "scope": "Bounded compressive VOF, CSF surface tension and contact-angle wall normal.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-reacting.json from parity/oracle_fvm_reacting.cpp built against the pinned upstream revision; analytic checks in tests/fvm_reacting.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/descriptors.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/descriptors.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "D2Q9 in-place, D3Q19 and D3Q27 descriptors with opposite-pair and weight-sum checks.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/diagnostics.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/diagnostics.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Momentum-exchange force/torque on D2Q9 solid links; Darcy-Forchheimer acceleration.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/voxelize.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/voxelize.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Ray-parity voxelization of closed triangle surfaces and Rodrigues rigid transforms.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/advanced_d2q9.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/advanced.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Periodic D2Q9 regularized, cumulant and MRT collision solvers with mass and kinetic energy.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/passive_scalar.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/scalar.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Periodic D2Q5 BGK advection-diffusion (ThermalD2Q5 alias).",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/free_surface.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/free_surface.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Periodic 3-D VOF classification, conservative advection with CFL guard, normals, curvature and CSF acceleration.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/particles.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/ib_particles.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Periodic trilinear interpolation and immersed-boundary point particles with two-way spreading. Particle validity is checked for the whole set before any particle is advanced.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/visualization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/visualization.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_parity.rs"
+  ],
+  "scope": "Legacy VTK 2-D/3-D, atomic JSON live state, vorticity, Q-criterion, slices, streamlines, PGM and offline HTML viewer, written with iostream %.Ng number formatting.",
+  "limitations": [
+   "Compared with parity/goldens-lbm.json from parity/oracle_lbm.cpp built against the pinned upstream revision (values, and byte-for-byte for the file writers); analytic and conservation checks in tests/lbm_extended.rs. Serial CPU only. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/esoteric_pull.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_pull_parity.rs"
+  ],
+  "scope": "Single-lattice Esoteric-Pull BGK for D2Q9/D3Q19/D3Q27 with Guo forcing, per-cell acceleration, Smagorinsky LES, mid-link bounce-back solids, logical/raw population access and diagnostics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-pull.json from parity/oracle_lbm_pull.cpp built against the pinned upstream revision; analytic checks in tests/lbm_extended.rs. Serial CPU only (upstream parallel_for is replaced by in-order loops). Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/one_step_pull.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_pull_parity.rs"
+  ],
+  "scope": "Two-lattice pull-stream/collide BGK and TRT (odd relaxation time) with Guo forcing for D2Q9/D3Q19/D3Q27.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-pull.json from parity/oracle_lbm_pull.cpp built against the pinned upstream revision; analytic checks in tests/lbm_extended.rs. Serial CPU only (upstream parallel_for is replaced by in-order loops). Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/compressed_pull.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_pull_parity.rs"
+  ],
+  "scope": "IEEE half, bfloat16, weight-shifted half and packed int16 deviation codecs; 16-bit-population two-lattice BGK pull.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-pull.json from parity/oracle_lbm_pull.cpp built against the pinned upstream revision; analytic checks in tests/lbm_extended.rs. Serial CPU only (upstream parallel_for is replaced by in-order loops). Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/lbm/precision_pull.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "tests/lbm_extended.rs",
+   "tests/upstream_lbm_pull_parity.rs"
+  ],
+  "scope": "Precision-generic two-lattice BGK pull for f32 and f64.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-pull.json from parity/oracle_lbm_pull.cpp built against the pinned upstream revision; analytic checks in tests/lbm_extended.rs. Serial CPU only (upstream parallel_for is replaced by in-order loops). Not full API/backend qualification.",
+   "Upstream long double instantiation has no Rust equivalent; mass is accumulated in f64 rather than long double."
+  ]
+ },
+ "include/cfd/solvers/fem/brinkman2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "P1 Brinkman with effective viscosity and Darcy drag, Jacobi PCG per component.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/stokes2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Velocity-only penalty Stokes with Dirichlet boundary velocity and divergence L2 norm.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/mixed_stokes.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "P1/P1 mixed Stokes local block with pressure-mass stabilization.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/thermoelastic_block.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Local [u_x,u_y,T] thermoelastic block.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/transport_stabilization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "SUPG time scale and element Peclet number; DG upwind plus penalty flux.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/dynamic_bar1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Fixed-free axial bar with consistent mass and implicit Newmark integration; kinetic and strain energy.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/eddy_current2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Time-harmonic A_z eddy currents in real block form with ILU(0) GMRES.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification.",
+   "Upstream GMRES stalls for some strongly contrasting reluctivity/conductivity combinations (e.g. 60 Hz, nu ratio 20, sigma 0.2 on the parity mesh); the parity case uses 5 Hz."
+  ]
+ },
+ "include/cfd/solvers/fem/darcy2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/flow.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Saturated Darcy pressure with per-patch conditions and element velocity including gravity.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification.",
+   "Linear solves use the shared absolute floor max(rms(rhs),1); SI-scaled mobilities (~1e-9) should be nondimensionalized, otherwise the solve stops early in both implementations."
+  ]
+ },
+ "include/cfd/solvers/fem/axisymmetric_elasticity.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/solid_em.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Small-strain axisymmetric elasticity with 2 pi r measure, hoop strain and per-component Dirichlet data.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/magnetostatics2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/solid_em.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "A_z magnetostatics, Picard nonlinear B-H, piecewise-linear B-H curve, stranded coil flux linkage/inductance and Maxwell-stress force/torque.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fem/nonlinear_poisson2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/solid_em.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "P1 Newton solve of -div(k grad u) + beta u^3 = f with Dirichlet boundary.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/fem/nonlinear_geometry.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/solid_em.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Green-Lagrange truss and total-Lagrangian St. Venant-Kirchhoff triangle.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/fem/phase_change.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/solid_em.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Mushy-zone enthalpy, effective heat capacity, enthalpy inversion and porous mixture conductivity.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/physics/material.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/physics.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Shared material record and validation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-batch.json from parity/oracle_fem_batch.cpp built against the pinned upstream revision; analytic checks in tests/fem_batch.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/physics/material_bridge.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/physics.rs",
+   "tests/fdtd_extended.rs",
+   "tests/fem_batch.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/upstream_fem_batch_parity.rs"
+  ],
+  "scope": "Shared material record bridges to FEM conductivity, optical index and FDTD anisotropic permittivity.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/dg/advection1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/dg.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Legendre-Gauss-Lobatto nodes and periodic nodal DG advection with upwind flux and SSP-RK3.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/dg/high_order_fem.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/dg.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Chebyshev-Lobatto nodal basis, barycentric derivative matrix, interval bisection AMR and sum-factorized derivative action.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/kinetic/vlasov1d1v.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/kinetic.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Positivity-preserving first-order upwind 1x1v Vlasov transport.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/kinetic/vlasov_poisson1d1v.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/kinetic.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Periodic electrostatic Vlasov-Poisson with direct-DFT field solve, charge density and field energy.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/atomistics/md1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/atomistics.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Periodic harmonic chain with velocity Verlet and energy accounting.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/atomistics/neighbor_list.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/atomistics.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Periodic neighbor list with skin, truncated Lennard-Jones forces/virial, velocity-rescaling thermostat and isotropic barostat (as free functions).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/acoustics/postprocess.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/acoustics/postprocess.rs",
+   "tests/small_physics.rs",
+   "tests/upstream_small_parity.rs"
+  ],
+  "scope": "Plane-wave intensity, radiation pressure, absorption heating and delay-and-sum beamforming.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-small.json from parity/oracle_small.cpp built against the pinned upstream revision; analytic checks in tests/small_physics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/hybrid_dae_graph.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/dae_graph.rs",
+   "tests/power_workflow.rs",
+   "tests/upstream_core_power_parity.rs"
+  ],
+  "scope": "Equation-based hybrid DAE graph with claimed residual rows, acausal connections and implicit-Euler integration with events.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-power.json from parity/oracle_core_power.cpp built against the pinned upstream revision; analytic checks in tests/power_workflow.rs. Not full API/backend qualification.",
+   "Rows are validated for the whole component before any are claimed (upstream claims rows one by one and may leave a partial claim after an error)."
+  ]
+ },
+ "include/cfd/power/ac_power_flow.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/power.rs",
+   "tests/power_workflow.rs",
+   "tests/upstream_core_power_parity.rs"
+  ],
+  "scope": "Two-bus polar PQ load flow with analytic Jacobian action and matrix-free Newton.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-power.json from parity/oracle_core_power.cpp built against the pinned upstream revision; analytic checks in tests/power_workflow.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/power/multibus_power.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/power.rs",
+   "tests/power_workflow.rs",
+   "tests/upstream_core_power_parity.rs"
+  ],
+  "scope": "Multi-bus PQ load flow with continuation, swing-network transients through the hybrid DAE graph, and greedy quadratic dispatch.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-power.json from parity/oracle_core_power.cpp built against the pinned upstream revision; analytic checks in tests/power_workflow.rs. Not full API/backend qualification.",
+   "The reference bus is SwingLine endpoint None instead of the invalid_power_index sentinel."
+  ]
+ },
+ "include/cfd/workflow/runner.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/runner.rs",
+   "tests/power_workflow.rs",
+   "tests/upstream_core_power_parity.rs"
+  ],
+  "scope": "Parameter sweep, compass-search inversion and a restartable checkpointed DAG of actions.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-power.json from parity/oracle_core_power.cpp built against the pinned upstream revision; analytic checks in tests/power_workflow.rs. Not full API/backend qualification.",
+   "Actions return Result; a failing action stops the run with the checkpoint holding every earlier completion."
+  ]
+ },
+ "include/cfd/acoustics/coupling.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/acoustics/coupling.rs",
+   "tests/power_workflow.rs",
+   "tests/upstream_core_power_parity.rs"
+  ],
+  "scope": "Pressure-to-structure boundary loads, bar driving, acoustic heating of Pennes tissue, Eckart streaming acceleration, sensor misfit and coordinate-search parameter fitting.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-power.json from parity/oracle_core_power.cpp built against the pinned upstream revision; analytic checks in tests/power_workflow.rs. Not full API/backend qualification.",
+   "The boundary patch is an Option instead of the -1 sentinel; simulator misfit errors count as an infinite objective."
+  ]
+ },
+ "include/cfd/porous/thmc1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/porous.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Periodic explicit THMC slice with diagnostics, and explicit periodic Allen-Cahn with free energy.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/porous/fractured_darcy_thmc.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/porous.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Graph finite-volume fractured two-phase THMC network with conservative edge fluxes and diagnostics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/porous/cahn_hilliard_calphad.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/porous.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Tabular binary CALPHAD free energy and conservative periodic Cahn-Hilliard with nucleation seeding.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification.",
+   "The CALPHAD table is owned by the solver instead of borrowed through a pointer."
+  ]
+ },
+ "include/cfd/chemistry/aqueous_equilibrium.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/aqueous.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Ideal dilute polyprotic acid/base speciation by log[H+] charge-balance bisection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/electrochemistry/electrochemistry.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/basics.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Nernst potential, Butler-Volmer current, Faradaic molar flux and corrosion penetration rate.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/electrochemistry/implicit_pnp.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/basics.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Backward-Euler lumped concentration/double-layer electrode cell with 2x2 Newton.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/electrochemistry/corrosion_models.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/corrosion.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Reaction quotients, ORR/HER with limiting current, charge-transfer resistance, Randles/Warburg impedance, double layer, passivation, product layers, recession, cathodic protection, Bruggeman, Marcus and MHC kinetics, Bikerman/modified PNP flux, immersed and cut-cell interfaces, BV mass-transfer coupling, acid-speciation redox potential, pitting, stress-assisted kinetics and 1-D/2-D phase-field corrosion.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/electrochemistry/corrosion1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/corrosion.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Butler-Volmer plus ohmic electrolyte corrosion cell by bracketed bisection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/electrochemistry/mixed_potential.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/corrosion.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Mixed potential of several Butler-Volmer reactions at a target net current.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/electrochemistry/nernst_planck1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/transport.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "Explicit conservative 1-D Nernst-Planck with periodic or no-flux boundaries.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification.",
+   "Multi-species steps are transactional: an unstable species leaves every species unchanged."
+  ]
+ },
+ "include/cfd/solvers/electrochemistry/nernst_planck_poly.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/electrochemistry/transport.rs",
+   "tests/porous_echem.rs",
+   "tests/upstream_porous_echem_parity.rs"
+  ],
+  "scope": "PolyMesh Nernst-Planck with centered or Scharfetter-Gummel migration, species/potential patch conditions including Butler-Volmer, electroneutral and Poisson potentials, ionic current and charge.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-porous-echem.json from parity/oracle_porous_echem.cpp built against the pinned upstream revision; analytic checks in tests/porous_echem.rs. Not full API/backend qualification.",
+   "Multi-species steps are transactional: an unstable species leaves every species unchanged."
+  ]
+ },
+ "include/cfd/chemistry/reaction_path.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/advanced.rs",
+   "tests/upstream_chemistry_parity.rs",
+   "tests/chemistry_advanced.rs"
+  ],
+  "scope": "Species-to-species reaction flux graph with cutoff.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-chemistry.json from parity/oracle_chemistry.cpp built against the pinned upstream revision; analytic checks in tests/chemistry_advanced.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/chemistry/reactor_network.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/advanced.rs",
+   "tests/upstream_chemistry_parity.rs",
+   "tests/chemistry_advanced.rs"
+  ],
+  "scope": "Operator-split well-stirred reactor network: explicit symmetric mixing and implicit isothermal chemistry per reactor.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-chemistry.json from parity/oracle_chemistry.cpp built against the pinned upstream revision; analytic checks in tests/chemistry_advanced.rs. Not full API/backend qualification.",
+   "Validation is transactional per reactor where upstream throws mid-update; a mixing step that would go below -1e-14 returns an error."
+  ]
+ },
+ "include/cfd/chemistry/speciation_block.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/advanced.rs",
+   "tests/upstream_chemistry_parity.rs",
+   "tests/chemistry_advanced.rs"
+  ],
+  "scope": "Monolithic log-concentration speciation block solved with matrix-free Newton-Krylov.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-chemistry.json from parity/oracle_chemistry.cpp built against the pinned upstream revision; analytic checks in tests/chemistry_advanced.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/chemistry/advanced_thermo.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/advanced.rs",
+   "tests/upstream_chemistry_parity.rs",
+   "tests/chemistry_advanced.rs"
+  ],
+  "scope": "NASA-7 and Shomate polynomials, 1:1 Pitzer, multicomponent Pitzer, Davies and SIT activity models, closed-form binary ideal Gibbs minimum, Langmuir coverage and binary ion exchange.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-chemistry.json from parity/oracle_chemistry.cpp built against the pinned upstream revision; analytic checks in tests/chemistry_advanced.rs. Not full API/backend qualification.",
+   "The activity models are a trait (`ActivityModel`) instead of a virtual base class."
+  ]
+ },
+ "include/cfd/chemistry/database_io.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/chemistry/advanced.rs",
+   "tests/upstream_chemistry_parity.rs",
+   "tests/chemistry_advanced.rs"
+  ],
+  "scope": "PHREEQC SOLUTION_MASTER_SPECIES and Cantera-YAML subset readers, and the external-equilibrium adapter seam.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-chemistry.json from parity/oracle_chemistry.cpp built against the pinned upstream revision; analytic checks in tests/chemistry_advanced.rs. Not full API/backend qualification.",
+   "Bug-compatible with upstream: the `A:` lookup is a substring search, so a later `Ea:` line also overwrites the pre-exponential factor on multi-line rate constants. Case folding is ASCII-only so slicing never panics on non-ASCII input. The Reaktoro seam takes a caller-supplied closure; no Reaktoro library is linked."
+  ]
+ },
+ "include/cfd/fem/adaptivity.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fem/adaptivity.rs",
+   "tests/upstream_fem_adaptivity_parity.rs",
+   "tests/fem_adaptivity.rs"
+  ],
+  "scope": "Residual/jump P1 Poisson error estimator, Dorfler marking and conforming longest-edge Tri3 refinement with boundary patches.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fem-adaptivity.json from parity/oracle_fem_adaptivity.cpp built against the pinned upstream revision; analytic checks in tests/fem_adaptivity.rs. Not full API/backend qualification.",
+   "Marks are `Vec<bool>`. Dorfler ordering uses a stable sort, so ties between equal indicators may pick a different element than upstream's unstable `std::sort`; non-finite indicators are rejected before sorting."
+  ]
+ },
+ "include/cfd/optics/analysis.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Spot diagram, tangential ray fan and distortion.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/optics/diffraction.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "1-D Fraunhofer far field, normalised PSF and MTF by direct DFT.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/optics/wavefront.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Zernike polynomials, least-squares Zernike fit, wavefront RMS and longitudinal chromatic shift.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "Radial orders above 64 are rejected instead of overflowing the factorials."
+  ]
+ },
+ "include/cfd/optics/birefringence.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Uniaxial extraordinary index, retardance and linear retarder Jones operator.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/optics/nonlinear_polarization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Scalar isotropic Kerr polarization with optional saturation (constitutive hook).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "Complex division uses the textbook formula rather than libgcc's scaled `__divdc3`; agreement is to about 1e-15 relative."
+  ]
+ },
+ "include/cfd/optics/transform.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Rigid Euler-XYZ transforms of points, vectors and rays.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/optics/system_models.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Field, wavelength and aperture models.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "`primary_nm` returns an error for an empty model instead of throwing."
+  ]
+ },
+ "include/cfd/optics/freeform.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/analysis.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Polynomial XY freeform surface: sag, normal and Newton ray intersection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "`intersect` returns `Option<(point, normal)>` instead of a bool with output references."
+  ]
+ },
+ "include/cfd/optics/interchange.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/design.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "ZMX / CODE V SEQ / OSLO LEN sequential-subset export and import.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "Exports match upstream byte for byte. The importer accepts finite decimal tokens (and inf/nan words); hexadecimal floats that `std::stod` would accept are not recognised."
+  ]
+ },
+ "include/cfd/optics/serialization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/design.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Sequential-system JSON writer and the layout-exact reader.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "The reader replaces `std::regex` with an equivalent hand-written matcher for the same record layout."
+  ]
+ },
+ "include/cfd/optics/nonsequential.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/design.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Planar non-sequential scene with reflect/refract/scatter splitting, stray-light summary and ghost ranking.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "Ghost ranking uses a stable sort, so equal-power paths keep trace order (upstream's `std::sort` leaves ties unspecified)."
+  ]
+ },
+ "include/cfd/optics/optimization.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/optics/design.rs",
+   "src/core/stdrand.rs",
+   "tests/upstream_optics_parity.rs",
+   "tests/optics_design.rs"
+  ],
+  "scope": "Coordinate descent, seeded differential evolution, finite-difference sensitivity, Monte-Carlo tolerancing and forward-mode derivative.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-optics.json from parity/oracle_optics.cpp built against the pinned upstream revision; analytic checks in tests/optics_design.rs. Not full API/backend qualification.",
+   "Seeded runs reproduce GCC libstdc++ exactly: `core::Mt19937_64`, `uniform_index` (GCC 11+ Lemire) and `StdNormal` (Marsaglia polar) are bit-exact replicas, checked by tests/upstream_stdrand_parity.rs; other standard libraries (MSVC, libc++) produce different sequences. `autodiff_derivative` uses `core::Dual<1>`."
+  ]
+ },
+ "include/cfd/solvers/fdtd/maxwell3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/maxwell3d.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "3-D Cartesian Yee FDTD with PEC/PMC walls, diagonal anisotropy, Gaussian initialisation, soft sources, energy and peak field.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "Serial loops; upstream may run them with OpenMP, which changes only the energy summation order."
+  ]
+ },
+ "include/cfd/solvers/fdtd/vtk_io.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/maxwell3d.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Legacy ASCII VTK writer for Maxwell3D E and H fields.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "Output matches upstream byte for byte; `maxwell3d_vtk_ascii` also returns the text without touching the file system."
+  ]
+ },
+ "include/cfd/solvers/fdtd/hdf5_xdmf.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/fdtd/maxwell3d.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "HDF5/XDMF availability query and writer seam.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "No HDF5 library is linked in the offline build, so behaviour matches an upstream build without CFD_ENABLE_HDF5: availability is false and the writer returns `Unsupported`. Use the VTK writer instead."
+  ]
+ },
+ "include/cfd/solvers/fdtd/cylindrical_tm.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/cylindrical.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Axisymmetric m=0 TM(r,z) FDTD with the analytic axis update, energy and peak field.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fdtd/cylindrical_multigrid.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/cylindrical.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Cylindrical multigrid level hierarchy.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fdtd/monitor.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/monitor.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Monotone time probes and trapezoidal single-frequency DFT monitors.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/solvers/fdtd/port.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/monitor.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "1-D TEM wave-port decomposition and S11/S21.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "`sample` checks time monotonicity before updating either monitor, so a rejected sample leaves both spectra unchanged."
+  ]
+ },
+ "include/cfd/solvers/fdtd/postprocess.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/postprocess.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Near-to-far-field transform, local SAR and 1 g / 10 g mass-averaged SAR.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "Complex division and multiplication use textbook formulas instead of libgcc's scaled helpers; agreement is to about 1e-15 relative."
+  ]
+ },
+ "include/cfd/solvers/fdtd/multiconductor_tline.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/postprocess.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Diagonal multiconductor LC line step.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification.",
+   "All inputs are validated before the state is updated (upstream can partially update before throwing)."
+  ]
+ },
+ "include/cfd/solvers/fdtd/emc_sources.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fdtd/postprocess.rs",
+   "tests/upstream_fdtd_parity.rs",
+   "tests/fdtd_extended.rs"
+  ],
+  "scope": "Graded axes, thin-wire subcell deposition, Huygens equivalent sources, impedance sheets and EMC transfer interpolation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fdtd.json from parity/oracle_fdtd.cpp built against the pinned upstream revision; analytic checks in tests/fdtd_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/rf/nport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/nport.rs",
+   "tests/upstream_rf_parity.rs",
+   "tests/rf_network.rs"
+  ],
+  "scope": "Dense complex N-port matrices, real and power-wave Z/S conversion and renormalisation, Touchstone SnP read/write, reference-plane shifts, return loss/VSWR, stability metrics and circles, transducer gain, noise factor and circles, load-pull grids, passivity check and enforcement, broadband causality, adaptive sweeps, fixed-pole rational fitting, mixed-mode transform and L-matching.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf.json from parity/oracle_rf.cpp built against the pinned upstream revision; analytic checks in tests/rf_network.rs. Not full API/backend qualification.",
+   "The N-port `z_to_s`/`s_to_z` overloads are named `nport_z_to_s`/`nport_s_to_z` because Rust has no overloading and the two-port versions keep their names. Touchstone text is passed as `&str`; the writer reproduces upstream's 6-significant-digit stream output byte for byte. Numeric tokens follow `istream >> double` closely (stopping at a partially numeric token); hexadecimal floats are not recognised."
+  ]
+ },
+ "include/cfd/rf/peec.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/peec.rs",
+   "tests/upstream_rf_parity.rs",
+   "tests/rf_network.rs"
+  ],
+  "scope": "PEEC filament resistance, partial self/mutual inductance, coefficient-of-potential and capacitance extraction, skin-effect impedance, branch-current solve and coupled-inductor SPICE export.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf.json from parity/oracle_rf.cpp built against the pinned upstream revision; analytic checks in tests/rf_network.rs. Not full API/backend qualification.",
+   "SPICE text matches upstream byte for byte."
+  ]
+ },
+ "include/cfd/rf/conductor_models.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/peec.rs",
+   "tests/upstream_rf_parity.rs",
+   "tests/rf_network.rs"
+  ],
+  "scope": "Finite-ground reflection, round-wire proximity factor and rectangular PEEC cross-section subdivision.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf.json from parity/oracle_rf.cpp built against the pinned upstream revision; analytic checks in tests/rf_network.rs. Not full API/backend qualification.",
+   "`finite_ground_reflection` is value-compatible with upstream, whose transmitted-angle term makes TE ~0 and TM angle-independent; `fresnel_ground_reflection` is an added physically correct Fresnel variant."
+  ]
+ },
+ "include/cfd/rf/modal_elements.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/peec.rs",
+   "tests/upstream_rf_parity.rs",
+   "tests/rf_network.rs"
+  ],
+  "scope": "Series/shunt modal discontinuity ABCD elements and their S parameters.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf.json from parity/oracle_rf.cpp built against the pinned upstream revision; analytic checks in tests/rf_network.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/em/wave_port.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/circuits.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Analytic rectangular PEC waveguide TE/TM port modes with 1 W normalisation, transverse fields and power quadrature.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/em/cable.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/circuits.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Multiconductor RLCG cable telegrapher solve with Pade cascading and full load termination, frequency sweeps, shield transfer impedance and field-to-cable coupling.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/em/metasurface_gstc.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/circuits.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Normal-incidence scalar GSTC metasurface reflection/transmission/absorption.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/em/frequency_domain.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/circuits.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Driven 1-D PEC frequency-domain Maxwell and PEC cavity eigenmodes (Jacobi).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "The uniform-permittivity overload is `pec_cavity_eigenmodes_1d_uniform`. Grids are capped (20 000 driven points, 2 000 eigen points) because both solvers are dense."
+  ]
+ },
+ "include/cfd/em/system.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/circuits.rs",
+   "src/core/special.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "NRZ eye metrics with Q-function BER, decoupling impedance, PDN parallel impedance and greedy decap optimisation, Gauss-Seidel PDN IR drop, double-exponential and damped-sine pulses, probe metrics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "`erfc` is the pure-Rust `core::erfc` (series plus continued fraction, ~1e-14 relative against glibc), since no libm binding is allowed under `forbid(unsafe_code)`."
+  ]
+ },
+ "include/cfd/em/edge_fem2d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/edge.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Lowest-order Nedelec Tri3 geometry/basis/curl and the driven 2-D in-plane Maxwell solve with PEC edges.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "Dense LU as upstream, capped at 4 000 edges."
+  ]
+ },
+ "include/cfd/em/edge_fem3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/edge.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Nedelec Tet4 geometry/basis/curl, driven 3-D curl-curl Maxwell with anisotropic permittivity, volume sources and edge current ports (complex sparse ILU-GMRES), Thevenin extraction and resonator Q with wall loss.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "Upstream scales the conductivity term by the permittivity-weighted mass (sigma is effectively multiplied by eps); that is kept by default for parity and `physical_conductivity_term: true` assembles the physical term. The volume source is `Option<&dyn Fn>` instead of an empty std::function."
+  ]
+ },
+ "include/cfd/em/adaptivity3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/edge.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Tangential E/H face-jump indicators, Dorfler marking and conforming longest-edge Tet4 edge-star bisection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "Dorfler ordering uses a stable sort, so ties may select differently from upstream's `std::sort`."
+  ]
+ },
+ "include/cfd/em/photonic_modes.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/em/photonic.rs",
+   "tests/upstream_em_parity.rs",
+   "tests/em_extended.rs"
+  ],
+  "scope": "Scalar photonic Bloch band modes (with dispersive fixed-point) and Dirichlet waveguide modes via a dense complex Jacobi eigensolver.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-em.json from parity/oracle_em.cpp built against the pinned upstream revision; analytic checks in tests/em_extended.rs. Not full API/backend qualification.",
+   "Grids are limited to 256 cells as upstream; the dispersion callback is `Option<Box<dyn Fn(usize, f64) -> f64>>`."
+  ]
+ },
+ "include/cfd/core/backend.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Runtime backend names, availability, parsing and auto-selection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Availability reflects this build: serial always, CPU threads with the `parallel` (rayon) feature, MPI and SYCL never \u2014 the same answers as an upstream build without those backends."
+  ]
+ },
+ "include/cfd/core/parallel.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "CPU thread capacity, worthwhile-parallelism test, parallel_for/sum/max.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Uses rayon with the `parallel` feature; serial results are bit-identical to upstream's serial build, while parallel sums reorder additions as OpenMP does. `set_cpu_threads` is advisory because rayon's global pool is fixed after first use."
+  ]
+ },
+ "include/cfd/core/decomposition.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Balanced 1-D slab partitions with halo width.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/device_residency.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Host/device transfer and synchronisation accounting.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/distributed_csr.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Owned CSR row blocks with sorted halo columns and halo-aware multiply.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/distributed_sparse_assembly.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Owner-routed triplet assembly with deterministic duplicate summation and global reference build.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/mixed_precision.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Mixed-precision iterative refinement with f32 Jacobi inner corrections.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/profiler.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Thread-safe named timing counters and scoped profiles.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "`ScopedProfile` borrows its profiler; `Profiler::global()` is a process-wide instance."
+  ]
+ },
+ "include/cfd/core/scratch_arena.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Bump scratch arena with reset/reserve.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Typed per arena and returns index ranges instead of raw spans, so several allocations can be live at once without `unsafe`."
+  ]
+ },
+ "include/cfd/core/simd.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Fixed-width lane packs with element-wise arithmetic and horizontal sum.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/soa_field.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Static structure-of-arrays fields.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Storage is a plain `Vec` (see aligned_allocator)."
+  ]
+ },
+ "include/cfd/core/task_graph.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Dependency task graph with depth-first topological order, serial or threaded execution.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Tasks return `Result`; threaded runs execute one dependency level at a time on scoped threads and report the first error (a panicking task becomes an error)."
+  ]
+ },
+ "include/cfd/core/mesh_partition.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Weighted contiguous Tri3 element partitioning with owned, halo and shared node lists.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Unowned nodes are `None` instead of a SIZE_MAX sentinel."
+  ]
+ },
+ "include/cfd/core/reverse_ad_distributed.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Per-partition reverse-mode objectives with gradients scattered and summed globally.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/amg_adapter.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "External AMG V-cycle wrapped as a `Preconditioner`.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/core/autotune.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/core/devices.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Kernel tuning database (TSV load/save, upsert, lookup, autotune).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "The TSV text matches upstream byte for byte. There is no SYCL device-key query because SYCL is not linked."
+  ]
+ },
+ "include/cfd/core/aligned_allocator.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "`AlignedVector<T>` alias.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Safe Rust cannot request 64-byte allocation alignment without `unsafe`, which the crate forbids, so this is `Vec<T>` with the type's natural alignment."
+  ]
+ },
+ "include/cfd/core/numa.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/devices.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "CPU-list parsing, /sys NUMA discovery, compact/spread/explicit thread-placement plans and first-touch initialisation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "Thread affinity binding needs OS FFI, which `forbid(unsafe_code)` rules out: `bind_current_thread_to_cpu` returns false, and the allowed-CPU set is `0..available_parallelism` rather than the sched_getaffinity mask. `plan_numa_thread_placement_on` plans against a caller-supplied topology."
+  ]
+ },
+ "include/cfd/core/sycl_sparse.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/devices.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "CPU reference of the SYCL CSR facade: multiply, value update, CG and BiCGSTAB.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification.",
+   "No SYCL device is used; device-pointer entry points are not provided."
+  ]
+ },
+ "include/cfd/distributed/repartition.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/distributed/mod.rs",
+   "tests/upstream_core_runtime_parity.rs",
+   "tests/core_runtime.rs"
+  ],
+  "scope": "Weighted contiguous repartitioning, migration segments and the repartition decision rule.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-core-runtime.json from parity/oracle_core_runtime.cpp built against the pinned upstream revision; analytic checks in tests/core_runtime.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/fvm/adaptive_mesh.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/adaptive_mesh.rs",
+   "tests/upstream_fvm_amr_parity.rs",
+   "tests/fvm_amr.rs"
+  ],
+  "scope": "Octree hexahedral AMR with marked refinement, sibling coarsening, 2:1 balancing, exact overlap maps, conservative remap, jump indicators, Dorfler marking, combined adapt step and polyhedral export.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-amr.json from parity/oracle_fvm_amr.cpp built against the pinned upstream revision; analytic checks in tests/fvm_amr.rs. Not full API/backend qualification.",
+   "Marks are `Vec<bool>`; every topology operation returns `Result`. Neighbour searches are O(n^2), as upstream."
+  ]
+ },
+ "include/cfd/fvm/combustion.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/utilities.rs",
+   "tests/upstream_fvm_amr_parity.rs",
+   "tests/fvm_amr.rs"
+  ],
+  "scope": "Constant-cp ideal-gas mixture state and temperature from mixture enthalpy.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-amr.json from parity/oracle_fvm_amr.cpp built against the pinned upstream revision; analytic checks in tests/fvm_amr.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/fvm/field.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/utilities.rs",
+   "tests/upstream_fvm_amr_parity.rs",
+   "tests/fvm_amr.rs"
+  ],
+  "scope": "Dimension exponents, dimensioned fields, time-level history, BDF2 and Crank-Nicolson weights.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-amr.json from parity/oracle_fvm_amr.cpp built against the pinned upstream revision; analytic checks in tests/fvm_amr.rs. Not full API/backend qualification.",
+   "Dimension constants are associated constants (`Dimensions::LENGTH`, ...)."
+  ]
+ },
+ "include/cfd/fvm/mesh_motion.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/utilities.rs",
+   "tests/upstream_fvm_amr_parity.rs",
+   "tests/fvm_amr.rs"
+  ],
+  "scope": "Rigid mesh rotation/translation, ALE swept face fluxes and conservative nearest remap.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-amr.json from parity/oracle_fvm_amr.cpp built against the pinned upstream revision; analytic checks in tests/fvm_amr.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/fvm/reordering.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/fvm/utilities.rs",
+   "tests/upstream_fvm_amr_parity.rs",
+   "tests/fvm_amr.rs"
+  ],
+  "scope": "Morton (Z-order) cell ordering, mesh cell renumbering and field reordering.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-fvm-amr.json from parity/oracle_fvm_amr.cpp built against the pinned upstream revision; analytic checks in tests/fvm_amr.rs. Not full API/backend qualification.",
+   "Morton ordering uses a stable sort, so cells with equal codes keep index order (upstream's `std::sort` leaves ties unspecified)."
+  ]
+ },
+ "include/cfd/io/checkpoint.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/io/formats.rs",
+   "tests/upstream_io_parity.rs",
+   "tests/io_formats.rs"
+  ],
+  "scope": "Versioned little-endian binary field checkpoints with name and finiteness validation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-io.json from parity/oracle_io.cpp built against the pinned upstream revision; analytic checks in tests/io_formats.rs. Not full API/backend qualification.",
+   "Byte images match upstream exactly. `encode_checkpoint`/`decode_checkpoint` also work in memory; declared lengths are checked against the remaining bytes before allocating."
+  ]
+ },
+ "include/cfd/io/openfoam_io.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/io/formats.rs",
+   "tests/upstream_io_parity.rs",
+   "tests/io_formats.rs"
+  ],
+  "scope": "OpenFOAM ASCII polyMesh reader (points, faces, owner, neighbour, boundary) and volScalarField read/write plus volVectorField write.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-io.json from parity/oracle_io.cpp built against the pinned upstream revision; analytic checks in tests/io_formats.rs. Not full API/backend qualification.",
+   "The regular expressions are replaced by equivalent hand-written scanners. `parse_*` entry points accept file contents. Writers reproduce upstream's 6-significant-digit stream output byte for byte."
+  ]
+ },
+ "include/cfd/io/xdmf_contract.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/io/formats.rs",
+   "tests/upstream_io_parity.rs",
+   "tests/io_formats.rs"
+  ],
+  "scope": "XDMF identifier validation and Tri3 mesh/scalar contract.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-io.json from parity/oracle_io.cpp built against the pinned upstream revision; analytic checks in tests/io_formats.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/io/fvm_checkpoint.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/io/formats.rs",
+   "tests/upstream_io_parity.rs",
+   "tests/io_formats.rs"
+  ],
+  "scope": "FVM HDF5 checkpoint seam with upstream input validation.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-io.json from parity/oracle_io.cpp built against the pinned upstream revision; analytic checks in tests/io_formats.rs. Not full API/backend qualification.",
+   "No HDF5 library is linked: availability is false and read/write return `Unsupported` after validation, matching an upstream build without CFD_ENABLE_HDF5. Use the binary checkpoint plus the serde PolyMesh for restart files."
+  ]
+ },
+ "include/cfd/battery/lithium_ion.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/battery/cell.rs",
+   "tests/upstream_battery_parity.rs",
+   "tests/battery.rs"
+  ],
+  "scope": "Spherical diffusion particles, graphite/NMC OCV, Butler-Volmer, SPM with degradation (SEI, plating, active-material loss, cracking) and lumped/external thermal, SPMe with electrolyte transport and potentials, 1-D thermal slab, drive-cycle integration and equivalent-circuit EIS.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-battery.json from parity/oracle_battery.cpp built against the pinned upstream revision; analytic checks in tests/battery.rs. Not full API/backend qualification.",
+   "Steps are transactional (upstream mutates before throwing). Complex tanh in the Warburg term uses an overflow-free form so high frequencies stay finite."
+  ]
+ },
+ "include/cfd/battery/dfn.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/battery/dfn.rs",
+   "tests/upstream_battery_parity.rs",
+   "tests/battery.rs"
+  ],
+  "scope": "Pseudo-2D Doyle-Fuller-Newman reference: per-node particles, exchange-current-weighted reaction partition, conservative electrolyte diffusion, electrolyte/solid potentials, Nernst polarization and lithium inventory.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-battery.json from parity/oracle_battery.cpp built against the pinned upstream revision; analytic checks in tests/battery.rs. Not full API/backend qualification.",
+   "Steps are transactional (upstream mutates before throwing)."
+  ]
+ },
+ "include/cfd/battery/pack.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/battery/pack.rs",
+   "tests/upstream_battery_parity.rs",
+   "tests/battery.rs"
+  ],
+  "scope": "Series SPMe pack with passive bleed balancing, voltage/temperature cutoffs, transactional steps, external temperatures and charge/energy accounting.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-battery.json from parity/oracle_battery.cpp built against the pinned upstream revision; analytic checks in tests/battery.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/battery/thermal3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/battery/pack.rs",
+   "tests/upstream_battery_parity.rs",
+   "tests/battery.rs"
+  ],
+  "scope": "Anisotropic voxel conduction grid with harmonic face conductances, convective boundaries, implicit matrix-free CG step with energy balance, and partitioned electrothermal pack coupling.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-battery.json from parity/oracle_battery.cpp built against the pinned upstream revision; analytic checks in tests/battery.rs. Not full API/backend qualification.",
+   "CG iteration counts may differ from upstream by one at round-off level."
+  ]
+ },
+ "include/cfd/rf/thin_wire_mom.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/thin_wire.rs",
+   "tests/upstream_rf_mom_parity.rs",
+   "tests/rf_mom.rs"
+  ],
+  "scope": "Pulse-basis/point-matched thin-wire EFIE with the dyadic free-space kernel: arbitrarily oriented coupled wires, endpoint junctions (KCL saddle point), PEC ground image, conductor/dielectric/lumped/transmission-line losses, radiation efficiency, multiport Z/S extraction and the parallel/center-fed wrappers.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf-mom.json from parity/oracle_rf_mom.cpp built against the pinned upstream revision; analytic checks in tests/rf_mom.rs. Not full API/backend qualification.",
+   "As upstream, this is a readable reference: feed reactance is far from textbook dipole values and point matching is reciprocal only for congruent ports. Center feed is `segment: None` instead of size_t::max()."
+  ]
+ },
+ "include/cfd/rf/antenna.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/antenna.rs",
+   "tests/upstream_rf_mom_parity.rs",
+   "tests/rf_mom.rs"
+  ],
+  "scope": "Hertzian and sinusoidal dipoles (pattern, radiated power, radiation resistance, directivity), shielding effectiveness, array factor, Stokes polarization metrics, match metrics and bounded pattern-search optimization.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf-mom.json from parity/oracle_rf_mom.cpp built against the pinned upstream revision; analytic checks in tests/rf_mom.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/rf/surface_mom.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/surface_mom.rs",
+   "tests/upstream_rf_mom_parity.rs",
+   "tests/rf_mom.rs"
+  ],
+  "scope": "Dense RWG EFIE for open/closed PEC triangle surfaces with plane-wave and delta-gap excitation, residual, feed impedance and radiation-integral far field.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf-mom.json from parity/oracle_rf_mom.cpp built against the pinned upstream revision; analytic checks in tests/rf_mom.rs. Not full API/backend qualification.",
+   "Same explicit three-point rule and finite self regularization as upstream (no singular quadrature). The TriangleSurface overload is `solve_pec_surface_mom_from_surface`; boundary basis functions use `minus_triangle: None`."
+  ]
+ },
+ "include/cfd/rf/integral_equation_extensions.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/surface_mom.rs",
+   "tests/upstream_rf_mom_parity.rs",
+   "tests/rf_mom.rs"
+  ],
+  "scope": "Scalar normal-polarization dielectric SIE reference, direct Helmholtz interaction sum and a monopole kd-treecode.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf-mom.json from parity/oracle_rf_mom.cpp built against the pinned upstream revision; analytic checks in tests/rf_mom.rs. Not full API/backend qualification.",
+   "Treecode recursion depth is capped at 1024."
+  ]
+ },
+ "include/cfd/rf/asymptotic.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/rf/asymptotic.rs",
+   "tests/upstream_rf_mom_parity.rs",
+   "tests/rf_mom.rs"
+  ],
+  "scope": "Physical-optics lit-face currents, far field and RCS; shooting-and-bouncing-rays specular tracing with optical path and phase.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-rf-mom.json from parity/oracle_rf_mom.cpp built against the pinned upstream revision; analytic checks in tests/rf_mom.rs. Not full API/backend qualification.",
+   "`minimum_power` is accepted but unused, as upstream."
+  ]
+ },
+ "include/cfd/tcad/semiconductor1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/tcad/semiconductor.rs",
+   "tests/upstream_tcad_parity.rs",
+   "tests/tcad.rs"
+  ],
+  "scope": "Scharfetter-Gummel 1-D drift-diffusion: Varshni/temperature scaling, SRH/Auger/radiative recombination, Caughey-Thomas and high-field mobility, ohmic/Schottky/gate/insulating contacts, equilibrium and DC Gummel iteration, IV sweeps, backward-Euler transients with displacement current, quasi-static small-signal and C-V, Joule heating and PN/PIN doping helpers.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-tcad.json from parity/oracle_tcad.cpp built against the pinned upstream revision; analytic checks in tests/tcad.rs. Not full API/backend qualification.",
+   "Solves are transactional on error (upstream may leave partial state when it throws). The doping-callback overload is `set_net_doping_fn`."
+  ]
+ },
+ "include/cfd/tcad/mos.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/tcad/mos.rs",
+   "src/tcad/mod.rs",
+   "tests/upstream_tcad_parity.rs",
+   "tests/tcad.rs"
+  ],
+  "scope": "Fermi-Dirac F1/2 and inverse, incomplete ionization, analytic MOS capacitor C-V, long-channel charge-sheet MOSFET with body effect and a [D,G,S,B] static SPICE evaluator.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-tcad.json from parity/oracle_tcad.cpp built against the pinned upstream revision; analytic checks in tests/tcad.rs. Not full API/backend qualification.",
+   "The static-device evaluator types live in `tcad` until the circuit stack is ported. The unused private MosCapacitor1D::make_device is not reproduced."
+  ]
+ },
+ "include/cfd/tcad/bipolar_power.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/tcad/devices.rs",
+   "tests/upstream_tcad_parity.rs",
+   "tests/tcad.rs"
+  ],
+  "scope": "Diffusion-derived Ebers-Moll BJT (NPN/PNP, temperature scaling, doping profile), IGBT with conductivity modulation, tail current and thermal RC, and [C,B,E]/[C,G,E] evaluators.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-tcad.json from parity/oracle_tcad.cpp built against the pinned upstream revision; analytic checks in tests/tcad.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/tcad/advanced_devices.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/tcad/devices.rs",
+   "tests/upstream_tcad_parity.rs",
+   "tests/tcad.rs"
+  ],
+  "scope": "Gummel-Poon BJT with Early effect and high injection, MOS level 2/3 with subthreshold, VDMOS with body diode and rate-dependent tanh hysteretic core.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-tcad.json from parity/oracle_tcad.cpp built against the pinned upstream revision; analytic checks in tests/tcad.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/constitutive3d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Compressible Neo-Hookean (energy, first Piola, tangent action) and small-strain radial-return J2 with linear hardening and consistent tangent.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/finite_strain_j2.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Objective multiplicative finite-strain J2 in principal logarithmic strain with Jacobi spectral decomposition, polar split and finite-difference tangent actions.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/finite_strain_j2_calibration.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Material-point audit: positive state, superposed rotation, hydrostatic response and tangent step convergence.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/finite_strain_tet4.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Single-point total-Lagrangian Tet4 internal force, energy and matrix-free tangent action.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/finite_strain_tet4_plastic.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Plastic total-Lagrangian Tet4 bridge to the finite-strain J2 state.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/finite_strain_tri3_plastic.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/constitutive.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Plane-strain total-Lagrangian Tri3 with F_zz = 1 embedding.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/continuum_baselines.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/continuum.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Cubic-hardening total-Lagrangian bar solved by matrix-free Newton-Krylov, bond-based peridynamic bar with bond breaking, penalty impact.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification.",
+   "Broken bonds are stored as a sparse set instead of an n^2 bitmap."
+  ]
+ },
+ "include/cfd/mechanics/meshfree_neighbor_graph.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/meshfree.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Uniform-cell linked-list CSR neighbor graph with sorted rows and MPI-free halo classification.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/phase_field_fracture1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/phase_field.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Quasi-static AT2 phase-field fracture with history field, notch and energy diagnostics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification.",
+   "No-notch is `notch_cell: None`."
+  ]
+ },
+ "include/cfd/mechanics/phase_field_fracture_operator1d.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/phase_field.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Coupled displacement/damage residual and analytic tangent action with frozen history.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/mechanics/cosserat_rods.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/mechanics/cosserat.rs",
+   "src/multibody/math.rs",
+   "tests/upstream_mechanics_parity.rs",
+   "tests/mechanics.rs"
+  ],
+  "scope": "Stable Cosserat rod with alternating stretch/shear and bend/twist relaxation, damping, external loads, diagnostics and checksum.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-mechanics.json from parity/oracle_mechanics.cpp built against the pinned upstream revision; analytic checks in tests/mechanics.rs. Not full API/backend qualification.",
+   "Steps are transactional on error."
+  ]
+ },
+ "include/cfd/multibody/math.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/math.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Vector and quaternion helpers with the exact upstream arithmetic (normalization, rotation, axis-angle, orientation integration, perpendiculars).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "Reuses the core Quaternion/Vec3 storage; `div` replaces the C++ `operator/` because core `Vec3 / f64` multiplies by the reciprocal."
+  ]
+ },
+ "include/cfd/multibody/rigid_body.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/rigid.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Rigid bodies with diagonal body-frame inertia, world inverse-inertia products, impulses and semi-implicit Euler/velocity-Verlet integration with gyroscopic torque.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "Static-world references use `Option<usize>` instead of `invalid_body`."
+  ]
+ },
+ "include/cfd/multibody/constraints.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/rigid.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Distance, spherical, revolute, prismatic, fixed and gear joints, bounded linear/angular motors and projected Gauss-Seidel constraint rows.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "Joints are a Rust enum instead of std::variant."
+  ]
+ },
+ "include/cfd/multibody/contact.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/rigid.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Sweep-and-prune, BVH and cell-linked broad phases, sphere/sphere, sphere/plane and sphere/triangle-mesh contact, GJK/EPA convex hulls, penalty, Hertz-Mindlin (with persistent tangential history and rolling resistance), sequential impulses and damaging bonded particles.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "The BVH emits every overlapping pair; upstream drops pairs whose lower index lands in the right subtree."
+  ]
+ },
+ "include/cfd/multibody/system.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/rigid.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Rigid-body system (penalty or impulse contact, joints) and explicit DEM with planes, meshes, bonds and Stokes drag.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "Steps are transactional."
+  ]
+ },
+ "include/cfd/multibody/advanced_dynamics.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/advanced.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Implicit Newmark/generalized-alpha/HHT integrator with finite-difference Newton, reduced-coordinate articulated trees and a floating-frame flexible-body interface.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "Integrator and articulated steps are transactional on error."
+  ]
+ },
+ "include/cfd/multibody/cfd_dem_coupling.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/multibody/coupling.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Resolved surface-traction integration with sphere quadrature and unresolved volume-averaged drag, pressure-gradient and Saffman lift with conservative fluid sources.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/multibody/distributed_dem.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/multibody/distributed_dem.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "Slab ownership and ghost planning, lower-id pair ownership for contacts and bonds with remote reactions, force accumulation and integration.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "MpiDemDomainExchange (MPI transport) is not ported; the transport-agnostic layers are verified with emulated ranks."
+  ]
+ },
+ "include/cfd/multibody/resident_dem_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/multibody/rigid.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "CPU reference: ExplicitDemSystem provides the same Hertz-Mindlin DEM physics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "SYCL device residency, packed device buffers and neighbor bucketing kernels are not available offline."
+  ]
+ },
+ "include/cfd/multibody/resident_cfd_dem_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/multibody/coupling.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "CPU reference: unresolved_cfd_dem_coupling.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "SYCL device-resident coupling buffers are not available offline."
+  ]
+ },
+ "include/cfd/multibody/mpi_resident_dem_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/multibody/distributed_dem.rs",
+   "tests/upstream_multibody_parity.rs",
+   "tests/multibody.rs"
+  ],
+  "scope": "CPU reference: distributed DEM planning, interaction and integration layers.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-multibody.json from parity/oracle_multibody.cpp built against the pinned upstream revision; analytic checks in tests/multibody.rs. Not full API/backend qualification.",
+   "MPI plus SYCL resident exchange is not available offline."
+  ]
+ },
+ "include/cfd/distributed/cartesian.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "Process-grid selection, rank/coordinate maps, balanced axis partitions, bricks, neighbor tags and periodic/non-periodic neighbor ranks.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "Non-periodic missing neighbors are `None` (upstream -1)."
+  ]
+ },
+ "include/cfd/distributed/halo_grid.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "Width-1 component-major halo SoA grid with 26-direction pack/unpack.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "Element access is bounds-checked (`get`/`set`)."
+  ]
+ },
+ "include/cfd/distributed/selective_halo.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "Lattice-selective halo: crossing populations, send/receive entry maps, selective pack/unpack and traffic statistics.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "Descriptor population count is checked at run time instead of by static_assert."
+  ]
+ },
+ "include/cfd/distributed/device_assignment.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "Local-rank device assignment, multi-device groups and work slicing.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "SYCL device/queue enumeration helpers are not available offline."
+  ]
+ },
+ "include/cfd/distributed/mpi_runtime.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "CPU reference: exchange_halos_in_process reproduces the 26-neighbor Cartesian halo exchange between in-process bricks.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "MPI environment, Cartesian communicator and nonblocking exchange are not available offline."
+  ]
+ },
+ "include/cfd/distributed/mpi_selective_halo.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "src/lbm/distributed_pull.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "CPU reference: selective pack/unpack and virtual_selective_exchange.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "MPI transport is not available offline."
+  ]
+ },
+ "include/cfd/distributed/mpi_sparse.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/core/runtime.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "CPU reference: DistributedCsrPartition row/halo planning.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "MPI distributed CSR operator and CG are not available offline."
+  ]
+ },
+ "include/cfd/distributed/mpi_sycl_halo.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/distributed/cartesian.rs",
+   "tests/upstream_distributed_parity.rs",
+   "tests/distributed_halo.rs"
+  ],
+  "scope": "CPU reference: in-process halo exchange.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-distributed.json from parity/oracle_distributed.cpp built against the pinned upstream revision; analytic checks in tests/distributed_halo.rs. Not full API/backend qualification.",
+   "GPU-aware MPI/SYCL halo exchange is not available offline."
+  ]
+ },
+ "include/cfd/solvers/lbm/distributed_pull.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/lbm/distributed_pull.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "Brick-decomposed BGK/Guo pull LBM with interior/boundary split, full and selective virtual exchange, gather and CFDCHK3 checkpoints.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "Kernels run sequentially; checkpoints are written little-endian (upstream native order)."
+  ]
+ },
+ "include/cfd/solvers/lbm/distributed_sycl_pull.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/lbm/distributed_pull.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: DistributedPullBlock with virtual exchange.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device residency and MPI transport are not available offline."
+  ]
+ },
+ "include/cfd/solvers/lbm/d2q9_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/lbm/mod.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: D2Q9Solver.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device kernels are not available offline."
+  ]
+ },
+ "include/cfd/solvers/lbm/esoteric_pull_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: in-place esoteric-pull LBM.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device kernels are not available offline."
+  ]
+ },
+ "include/cfd/solvers/lbm/voxelize_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/lbm/voxelize.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: voxelization.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device kernels are not available offline."
+  ]
+ },
+ "include/cfd/solvers/lbm/resident_multiphysics_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/lbm/pull.rs",
+   "src/lbm/scalar.rs",
+   "src/lbm/free_surface.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: pull LBM with scalar transport and free-surface modules.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device-resident multiphysics kernels are not available offline."
+  ]
+ },
+ "include/cfd/fvm/resident_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/fvm/pressure_velocity.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: SIMPLE/PISO/PIMPLE pressure-velocity solvers.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device-resident FVM is not available offline."
+  ]
+ },
+ "include/cfd/fvm/resident_rans_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/fvm/rans.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: RANS models.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device-resident RANS is not available offline."
+  ]
+ },
+ "include/cfd/solvers/fdtd/resident_sycl.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/fdtd/maxwell3d.rs",
+   "tests/upstream_lbm_distributed_parity.rs"
+  ],
+  "scope": "CPU reference: 3-D Yee Maxwell solver.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-lbm-dist.json from parity/oracle_lbm_dist.cpp built against the pinned upstream revision; analytic checks in . Not full API/backend qualification.",
+   "SYCL device-resident FDTD is not available offline."
+  ]
+ },
+ "include/cfd/workflow/schema.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/schema.rs",
+   "src/workflow/text.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "Unit-tagged CaseConfig with rule validation and sorted %.17g JSON, MaterialDatabase, and the upstream regex readers for JSON items and `key: number unit` YAML lines (reimplemented without a regex engine, same leftmost/whole-line semantics).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification.",
+   "Numbers are read like std::stod (longest numeric prefix); hexadecimal floats are not accepted."
+  ]
+ },
+ "include/cfd/workflow/provenance.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/schema.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "ResultProvenance, UTC timestamp formatting from SystemTime, JSON writer with sorted metadata.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification.",
+   "The timestamp comes from SystemTime without a time-zone database (UTC only, as upstream)."
+  ]
+ },
+ "include/cfd/workflow/validation_catalog.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/schema.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "The six upstream validation cases as a static table.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/workflow/campaign.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/campaign.rs",
+   "src/workflow/text.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "Factorial and Latin-hypercube DOE with the upstream LCG, IF/ENDIF placeholder templates, case folders with doe rows and manifest, TSV registry, native/Docker/Apptainer/Slurm command plans, runtime doctor, output discovery, local process launch with log capture, residual/performance log parsing and finite-difference gradient descent.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification.",
+   "Processes are launched with std::process::Command (no fork/exec); a launcher that cannot be spawned is recorded as exit code 127. Unlike upstream, the registry reader accepts the infinite objective that the local runner writes for unlaunchable cases."
+  ]
+ },
+ "include/cfd/workflow/campaign_control.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/campaign_control.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "File-based stop/extend/checkpoint/flush directives gated by adapter capability, directive discovery, Slurm queue parsing, scheduler and output-driven registry refresh.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification.",
+   "Directive discovery returns an error for an unknown action name instead of throwing."
+  ]
+ },
+ "include/cfd/workflow/deploy.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/workflow/deploy.rs",
+   "tests/workflow.rs",
+   "tests/upstream_workflow_parity.rs"
+  ],
+  "scope": "Multi-server placement and SSH/rsync command plans, supervised launch/status/cancel/fetch scripts, retry and tail plans with secret redaction, dashboard/status/event JSON, the generated Python controller with HTML/JS/CSS dashboard, OpenAPI, systemd and Caddy examples, and the Docker/Compose scaffold; every generated text is byte-identical to upstream.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-workflow.json from parity/oracle_workflow.cpp built against the pinned upstream revision; analytic checks in tests/workflow.rs. Not full API/backend qualification.",
+   "Generation only: nothing is executed remotely and no network connection is made."
+  ]
+ },
+ "include/cfd/circuit/spice.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/spice.rs",
+   "src/circuit/parser.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "MNA kernel with R/C/L/K, independent and controlled sources, ideal transformer, diode, MOS level 1, Ebers-Moll BJT, JFET, hysteretic switch, interpolated N-ports and TEM/microstrip/stripline/CPW/TE10 lines, static, charge-based dynamic and electrothermal compact devices, B sources; DC Newton with pnjlim and source/gmin homotopy, sparse CSR+ILU(0)-GMRES path, AC, DC/temperature sweeps, BE/trapezoidal/BDF2 and step-doubling adaptive transient, output noise; SPICE reader with expressions, .PARAM/.FUNC, .SUBCKT flattening, .INCLUDE/.LIB, PULSE/SIN/PWL, POLY(1)/TABLE sources, .MODEL, .IC/.NODESET.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification.",
+   "Upstream iterates unordered maps when matching subcircuit definitions and evaluating default parameters; the port uses declaration order, which only differs for ambiguous netlists. Complex division rounds like num-complex rather than libstdc++, so AC results agree to ~1e-15 relative rather than bit for bit."
+  ]
+ },
+ "include/cfd/circuit/analysis.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/analysis.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "Two-port and N-port S extraction, DC sensitivity, five-point distortion, Fourier/THD, mt19937_64 resistor Monte Carlo, parameter/temperature sweeps, dominant pole, rational pole/zero fit, shooting-by-settling PSS, integrated noise spectrum and pnjlim.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/circuit/raw.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/raw.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "ASCII SPICE RAW writer/reader and transient/AC dataset builders, byte-identical text.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/circuit/spice_compat.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/adapters.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "Portable SPICE interchange profile.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/circuit/osdi_adapter.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/adapters.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "OSDI descriptor stamping adapter (also usable as a static-device evaluator) and the OpenVAF compile plan.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/circuit/external_spice_adapter.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/circuit/adapters.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "ngspice/Xyce cross-validation command plans (never executed).",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/circuit/osdi_loader.hpp": {
+  "status": "native_partial",
+  "native_files": [
+   "src/circuit/adapters.rs",
+   "tests/circuit.rs",
+   "tests/upstream_circuit_parity.rs"
+  ],
+  "scope": "OSDI ABI discovery: reads OSDI_VERSION_MAJOR/MINOR, OSDI_NUM_DESCRIPTORS and OSDI_DESCRIPTORS from an ELF64 little-endian module without loading it.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-circuit.json from parity/oracle_circuit.cpp built against the pinned upstream revision; analytic checks in tests/circuit.rs. Not full API/backend qualification.",
+   "dlopen-ing a module needs unsafe code, which the crate forbids; PE/Mach-O modules and the in-memory descriptor pointer are not available."
+  ]
+ },
+ "include/cfd/particle/electromagnetic.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/pusher.rs",
+   "src/particle/pic1d.rs",
+   "src/particle/pic2d.rs",
+   "src/particle/pic3d.rs",
+   "src/particle/pic3d_domain.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "Boris, relativistic Boris and Vay pushers, field-sampled tracking, null-collision Monte-Carlo elastic/ionization collisions, secondary-electron yield and absorbing/reflecting box walls; 1-D, 2-D and 3-D CIC deposition, spectral Poisson and spectral/local charge-conserving currents; electrostatic, collocated and Yee-staggered electromagnetic PIC with electric-wall/sponge field boundaries, particle walls and cell sorting; 3-D domain grids, guard halos, particle migration and scalar/EM guard exchange, rank topology, in-memory transport, the little-endian envelope serializer and the serialized distributed exchange round and staggered step.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification.",
+   "The optional MPI entry point exchange_pic_serialized_envelopes_mpi_3d (compiled upstream only with CFD_HAS_MPI) is not ported; its serialized envelopes are produced and consumed by the ported functions, so any transport can carry them."
+  ]
+ },
+ "include/cfd/particle/cross_sections.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/nuclear.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "Piecewise-linear cross-section tables and multi-species neutron/photon depletion.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/particle/monte_carlo.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/nuclear.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "1-D slab Monte-Carlo transport with mt19937_64 sampling matching libstdc++.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/particle/plasma.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/plasma.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "Plasma charge density, transactional mass-action chemistry with substeps, Paschen breakdown and parallel-plate multipactor estimates.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/particle/wakefield.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/wakefield.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "Resonator longitudinal wake, bunch wake potential convolution and wake impedance.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification."
+  ]
+ },
+ "include/cfd/particle/transport.hpp": {
+  "status": "native_reference",
+  "native_files": [
+   "src/particle/transport.rs",
+   "tests/particle.rs",
+   "tests/upstream_particle_parity.rs"
+  ],
+  "scope": "Condensed-history transport worlds with box regions, materials, continuous/discrete/absorber processes, physics lists, the LCG stochastic interaction sampler, region BVH, sensitive-detector hits, dose grids, SAR and Pennes-2D projection.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-particle.json from parity/oracle_particle.cpp built against the pinned upstream revision; analytic checks in tests/particle.rs. Not full API/backend qualification.",
+   "The BVH median split uses select_nth_unstable_by instead of std::nth_element, so leaf order can differ; lookups agree for regions that do not overlap."
+  ]
+ },
+ "include/cfd/python/c_api.h": {
+  "status": "native_partial",
+  "native_files": [
+   "src/python.rs",
+   "src/io/mod.rs",
+   "tests/python_api.rs",
+   "tests/upstream_python_parity.rs"
+  ],
+  "scope": "Safe Rust counterparts of the two exported functions: cfd_solvers_version (with the pinned upstream version as UPSTREAM_VERSION) and write_xdmf_tri3, which builds the triangle mesh and writes byte-identical inline XDMF through io::write_xdmf_inline.",
+  "limitations": [
+   "Compared value-by-value with parity/goldens-python.json from parity/oracle_python.cpp built against the pinned upstream revision; analytic checks in tests/python_api.rs. Not full API/backend qualification.",
+   "The extern \"C\" symbols themselves (raw pointers, caller error buffer, integer status codes) are not exported, because a C ABI needs unsafe code and #[no_mangle]; a thin FFI shim over these functions provides it where required."
+  ]
+ }
+}

@@ -1,0 +1,9 @@
+{
+ "solver": "landau_damping1d",
+ "spatial_cells": 64,
+ "velocity_cells": 128,
+ "wavenumber": 0.5,
+ "amplitude": 0.01,
+ "dt": 0.02,
+ "steps": 1500
+}

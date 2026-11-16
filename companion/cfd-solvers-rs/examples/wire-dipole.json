@@ -1,0 +1,12 @@
+{
+ "solver": "wire_antenna",
+ "length_m": 0.48,
+ "radius_m": 0.001,
+ "segments": 41,
+ "sweep": {
+  "start_hz": 240000000.0,
+  "stop_hz": 360000000.0,
+  "points": 49
+ },
+ "reference_impedance_ohm": 75
+}

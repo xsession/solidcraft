@@ -1,0 +1,1 @@
+{"solver":"scalar_diffusion2d","mesh":{"type":"rectangle","nx":20,"ny":14},"diffusivity":1.0,"reaction":0.0,"source":0.0,"boundaries":[{"patch":0,"type":"dirichlet","value":1.0},{"patch":1,"type":"robin","value":5.0,"alpha":2.0},{"patch":2,"type":"neumann","value":0.0},{"patch":3,"type":"neumann","value":0.0}]}

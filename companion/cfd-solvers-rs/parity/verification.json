@@ -1,0 +1,76 @@
+{
+  "schema": "cfd-solvers-rs/verification/1",
+  "version": "0.2.0",
+  "upstream_revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+  "complete_clone": false,
+  "public_units": 285,
+  "native_reference_units": 53,
+  "partially_covered_units": 11,
+  "unported_units": 221,
+  "retrieved_upstream_files_checked_against_git_tree": 686,
+  "retrieved_upstream_files_rechecked_sha256": 686,
+  "native_source_files": 48,
+  "native_source_lines": 15276,
+  "rust_source_tree_sha256": "e04ca9dcd8a2ff566130c0f01f30fab38f9d61d7e50a60c765e0c36a361ec9e5",
+  "rust_source_tree_hash_method": "SHA256 of sorted relative source paths, NUL separator, and file bytes",
+  "platform": {
+    "system": "Linux",
+    "architecture": "x86_64",
+    "host_libc": [
+      "glibc",
+      "2.41"
+    ]
+  },
+  "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)",
+  "tests": {
+    "integration_test_count": 93,
+    "integration_test_files": 14,
+    "debug_all_features": "passed",
+    "release_all_features": "passed",
+    "rayon_serial_lbm_equivalence": "passed",
+    "cpp_scenarios": 78,
+    "cpp_numeric_values": 14185,
+    "cpp_fixture_regeneration_check": {
+      "baseline": "passed",
+      "fvm_core_rans": "passed"
+    },
+    "cli_examples_executed": 23,
+    "exported_cli_vtu_files_parsed": 61,
+    "vtk_reader": {
+      "version": "9.3.1",
+      "cli_files_read_and_values_compared": 61,
+      "thermoelastic_files_read_and_values_compared": 1
+    },
+    "additional_thermoelastic_example": "executed_and_vtu_parsed",
+    "cargo_fmt_check": "passed",
+    "coverage_ledger_check": "passed",
+    "offline_check_with_empty_cargo_home_and_fresh_target": "passed",
+    "offline_optimized_build_all_features": "passed"
+  },
+  "not_executed": [
+    "Windows native runtime",
+    "remote GitHub Actions jobs",
+    "MPI",
+    "SYCL/GPU",
+    "ParaView application/filter runtime",
+    "full physical/mesh/time-step convergence qualification"
+  ],
+  "vendored_crates": 32,
+  "prebuilt": {
+    "version": "0.2.0",
+    "target": "x86_64-unknown-linux-gnu",
+    "minimum_glibc": "2.35",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)",
+    "features": [
+      "parallel"
+    ],
+    "sha256": "8e11166e360604cbccaab767c1e988b60b1f612539c2a6b101f3da16176bd8e8",
+    "bytes": 3664392,
+    "runtime_libraries": [
+      "libgcc_s.so.1",
+      "libm.so.6",
+      "libc.so.6"
+    ],
+    "solver_ffi": false
+  }
+}

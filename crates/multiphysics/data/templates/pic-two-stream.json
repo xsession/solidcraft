@@ -1,0 +1,12 @@
+{
+  "solver": "pic_two_stream1d",
+  "length_m": 10.26,
+  "grid_points": 64,
+  "particles_per_beam": 2000,
+  "drift_velocity_m_s": 1.0,
+  "plasma_frequency_rad_s": 1.0,
+  "dt_s": 0.1,
+  "steps": 400,
+  "perturbation": 0.001,
+  "mode": 1
+}

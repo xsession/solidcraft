@@ -1,0 +1,1 @@
+{"solver":"diffusion2d","config":{"nx":32,"ny":24,"diffusivity":1.0},"iterations":1500,"source":1.0,"boundary":[0.0,0.0,0.0,0.0]}

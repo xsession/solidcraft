@@ -1,0 +1,32 @@
+{
+ "solver": "spice_circuit",
+ "netlist": "* RC low-pass with a diode clamp\nV1 in 0 PULSE(0 5 0 1u 1u 0.5m 1m) AC 1\nR1 in out 1k\nC1 out 0 100n\nD1 out clamp DCLAMP\nVclamp clamp 0 DC 3\n.model DCLAMP D(IS=1e-14 N=1.8)\n",
+ "analyses": [
+  {
+   "type": "op"
+  },
+  {
+   "type": "ac",
+   "start_hz": 10,
+   "stop_hz": 1000000.0,
+   "points": 61
+  },
+  {
+   "type": "transient",
+   "dt_s": 5e-06,
+   "steps": 600,
+   "method": "trapezoidal"
+  },
+  {
+   "type": "dc_sweep",
+   "source": "V1",
+   "start_v": 0,
+   "stop_v": 5,
+   "points": 26
+  }
+ ],
+ "probes": [
+  "in",
+  "out"
+ ]
+}

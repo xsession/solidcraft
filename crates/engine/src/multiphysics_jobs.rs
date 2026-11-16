@@ -153,7 +153,8 @@ impl Session {
         }
         let host = self.multiphysics_jobs.host.clone().ok_or_else(|| {
             EngineError::Other(
-                "Configure SOLIDCRAFT_CFD_SOLVE with the cfd-solvers-rs 0.2.0 companion; this host currently supports preparation only".into(),
+                "Configure SOLIDCRAFT_CFD_SOLVE with a compatible cfd-solvers-rs companion; obstacle airflow requires 0.3.0 or later, fan curves and porous zones 0.4.0 or later, conjugate heat 0.5.0 or later, surface bodies, goals and natural convection 0.6.0 or later, and the circuit, device, battery, antenna, mechanics, particle, kinetic and coupled domain cases 0.7.0"
+                    .into(),
             )
         })?;
         if self.multiphysics_jobs.entries.iter().filter(|entry| entry.snapshot.active()).count() >= MAX_LIVE

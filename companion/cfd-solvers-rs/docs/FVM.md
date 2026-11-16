@@ -1,0 +1,41 @@
+# Native finite-volume methods
+
+Version 0.2.0 adds 24 public-unit implementations or partial implementations to the existing port. Numerical reference scope is distinct from general application qualification. The new worker cases can be used without the original C++ code or a C++ compiler.
+
+## Geometry and operators
+
+`PolyMesh::new` accepts cell centres/volumes, owner-oriented face centres/area vectors and named boundary patches. Validation checks finite geometry, positive volumes, owner/neighbour/patch indices and consistent adjacency. Cartesian and affinely sheared hexahedron builders preserve upstream face and cell ordering. `PolyMesh` has no vertices in the source API; the JSON worker therefore generates a matching real eight-corner mesh for its structured case geometry. General imported face-based meshes remain library inputs, without an invented hexahedral export.
+
+Gauss gradient/divergence, regularized weighted least-squares gradients, orthogonal/corrected Laplacians and normal gradients are native. Optional boundary arrays have one entry per face. Linear, upwind, bounded-linear, Minmod and Van Leer interpolation are available separately, including conservative convective divergences and reusable scalar workspaces. CFL uses the source's sum of absolute face fluxes.
+
+## Flow and temporal schemes
+
+`CollocatedIncompressible` implements segregated SIMPLE, PISO and PIMPLE, implicit momentum, H-by-A mobility, corrected Rhie–Chow flux, pressure non-orthogonal corrections, closed-domain pressure gauge and open pressure patches. Pressure preconditioning can be identity, Jacobi or a caller-supplied callback. A callback does not supply an AMG algorithm by itself.
+
+Euler, BDF2 (Euler bootstrap) and off-centred Crank–Nicolson history paths are implemented in scalar, solid, collocated and RANS transport. CN's implicit weight is `1 / (1 + off_centering)`. The scalar assembled operator is upwind plus orthogonal diffusion, with cache invalidation for changed boundary conditions/flux/source. Corrected diffusion is available as a separate operator.
+
+The source collocated configuration declares a convection-scheme selector but assembles upwind momentum regardless. Rust explicitly rejects other selectors when convection is enabled. This avoids accepting a setting with no numerical effect. The legacy fixed-point momentum path is also implemented; its residual and convergence are measured rather than copied from source zero-filled bookkeeping. Native pressure CG counts normal iterations rather than retaining the source's double increment. Reported pressure solves count actual calls.
+
+Fixed-step flow completion is not a claim of a steady solution. `solve_simple` evaluates linear convergence, velocity change and continuity. The JSON worker runs the requested iteration budget and records `steady_state_converged` separately. `steady_iterations.pvd` uses iteration number; physical time does not advance for SIMPLE. Transient flow PVD uses physical seconds. The native flow library retains the source's clock advancement convention on returned transient pressure non-convergence, so callers must inspect convergence; the worker rejects such a run before writing a success manifest.
+
+## Turbulence
+
+`SpalartAllmarasTransport` solves nu-tilde with production, destruction and gradient terms. `KEpsilonTransport` solves both fields with bounded eddy viscosity and production limiting. `KOmegaSSTTransport` includes F1/F2 blending, cross diffusion and DES dissipation with None/F1/F2 shielding. `ReynoldsStressTransport` solves six stresses plus epsilon with LRR pressure-strain terms, user sources and realizability projection. Shared transport assembles harmonic variable diffusion, implicit sinks and upwind fluxes, supports all three time schemes, and commits all fields only after every solve succeeds.
+
+These equations take velocity and face flux as inputs. Automatic two-way turbulent-viscosity feedback into the collocated momentum solver remains unimplemented. The CLI keeps velocity prescribed and labels it accordingly. Wall distance and DES grid scale are supplied. SA's C++ header declares grid-scale setters that have no definition in the pinned source; Rust does not expose an ignored grid-scale setting for SA.
+
+Laminar/mixing-length/Smagorinsky/WALE local closures are separate utilities. The advanced-model functions for drift slip, drag, mushy enthalpy and thin-film flux are local constitutive helpers, not complete coupled multiphase solvers.
+
+## Heat, radiation and diagnostics
+
+Solid heat wraps implicit scalar diffusion with conductivity divided by volumetric heat capacity. Fluid thermal transport uses explicit upwind mass-enthalpy flux, harmonic conductivity, material callbacks and volumetric heat-release callbacks. Optically thin radiation can be composed with chemical heat release. Gray exchange and enclosure radiosity take user-provided material/view-factor inputs. View-factor geometry is not generated by the solver.
+
+The fluid sensible-energy diagnostic retains the source's rho*cp(T)*T convention; it is not the integral of a variable heat capacity. The optional transport time-step bound covers advection/conduction and excludes nonlinear source stiffness. The JSON worker checks that transport bound with constant material properties. Incoming thermal flow should have a physically appropriate temperature boundary.
+
+Flow outputs include velocity, kinematic pressure, vorticity, Q, lambda2 and enstrophy. Library diagnostics include wall y+, pressure force, nearest-cell probes, residual history and callback function objects. Force input is physical pressure if force in newtons is desired; the flow solver stores kinematic pressure. Every worker step records diagnostics even when snapshots are written less often.
+
+## Evidence
+
+The FVM/core/RANS C++ oracle contains 46 scenarios and 8,079 numeric outputs, generated from verified pinned source files. Independent tests add geometry closure, conservation, discrete time-mode/decay solutions, physical model limits, failure rollback and real VTU hexahedral centres/volumes. Numerical comparisons use stated tolerances; they do not establish arbitrary-mesh robustness or experimental validation.
+
+One pinned structured-stencil header fails to compile against its own parallel header because weighted helper names are absent. Its serial native action and fused residual are tested against independent CSR assembly, and its unit remains partial. The multigrid port deliberately retains the source's cross-only prolongation, which omits diagonal quarter-weights. Neither detail is hidden by claiming full method parity.

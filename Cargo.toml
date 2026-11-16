@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
 # Third-party code kept with local fixes (vendor/), and the vendored SolidCore kernel (solidcore/);
 # neither is linted as ours. See CONTRIBUTING.md, "How the code is laid out".
-exclude = ["solidcore", "vendor"]
+exclude = ["companion/cfd-solvers-rs", "solidcore", "vendor"]
 
 [workspace.package]
 version = "0.40.0-rc.3"

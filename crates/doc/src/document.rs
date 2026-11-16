@@ -3251,7 +3251,7 @@ pub struct Document {
     #[serde(default, skip_serializing_if = "crate::render_settings::RenderSettings::is_empty")]
     pub render: std::sync::Arc<crate::render_settings::RenderSettings>,
     /// Independent numerical studies and portable retained evidence. No active process handles.
-    #[serde(default, skip_serializing_if = "solidcraft_multiphysics::Project::is_empty")]
+    #[serde(default, skip_serializing_if = "solidcraft_multiphysics::Project::is_default")]
     pub multiphysics: std::sync::Arc<solidcraft_multiphysics::Project>,
     #[serde(default = "default_format")]
     pub format: String,

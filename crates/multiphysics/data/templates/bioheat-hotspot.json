@@ -1,0 +1,15 @@
+{
+  "solver": "pennes_bioheat2d",
+  "nx": 64,
+  "ny": 64,
+  "width_m": 0.1,
+  "height_m": 0.1,
+  "peak_sar_w_kg": 40,
+  "hotspot_center_m": [
+    0.05,
+    0.05
+  ],
+  "hotspot_radius_m": 0.01,
+  "dt_s": 5,
+  "steps": 360
+}

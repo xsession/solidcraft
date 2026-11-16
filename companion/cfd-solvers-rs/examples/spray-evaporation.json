@@ -1,0 +1,36 @@
+{
+ "solver": "spray_injection",
+ "size_m": [
+  0.4,
+  0.1,
+  0.1
+ ],
+ "cells": [
+  20,
+  5,
+  5
+ ],
+ "carrier_velocity_m_s": [
+  2,
+  0,
+  0
+ ],
+ "carrier_temperature_k": 400,
+ "nozzle_m": [
+  0.02,
+  0.05,
+  0.05
+ ],
+ "injection_velocity_m_s": [
+  10,
+  0,
+  0
+ ],
+ "droplet_diameter_m": 5e-05,
+ "mass_flow_rate_kg_s": 0.0001,
+ "injection_duration_s": 0.05,
+ "evaporation_constant_m2_s": 1e-08,
+ "dt_s": 0.0001,
+ "steps": 1500,
+ "frames": 10
+}

@@ -4,6 +4,7 @@
     "cmd.multiphysics.catalog": "Multiphysics Catalogue",
     "cmd.multiphysics.preflight": "Check Multiphysics Study",
     "cmd.multiphysics.result.export": "Export Multiphysics Results",
+    "cmd.multiphysics.result.inspect": "Inspect Multiphysics Result",
     "cmd.multiphysics.run.cancel": "Cancel Multiphysics Run",
     "cmd.multiphysics.run.keep": "Keep Multiphysics Result",
     "cmd.multiphysics.run.start": "Run Multiphysics Case",
@@ -11,6 +12,7 @@
     "cmd.multiphysics.study.create": "Create Multiphysics Study",
     "cmd.multiphysics.study.list": "List Multiphysics Studies",
     "cmd.multiphysics.study.remove": "Remove Multiphysics Study",
-    "cmd.multiphysics.study.update": "Apply Multiphysics Study"
+    "cmd.multiphysics.study.update": "Apply Multiphysics Study",
+    "cmd.multiphysics.surface.inspect": "Inspect Multiphysics Surface"
   }
 }

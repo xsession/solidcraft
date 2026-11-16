@@ -1,0 +1,7 @@
+/target/
+/results/
+/dist/
+/bin/
+/sample-results/
+__pycache__/
+*.tmp

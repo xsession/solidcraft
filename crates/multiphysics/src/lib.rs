@@ -13,13 +13,22 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+pub mod airflow;
+pub mod mesh_diagnostics;
+mod obstacles;
+pub mod results;
+pub mod setup;
 mod templates;
+pub mod vtk;
+pub mod wizard;
 
 pub use templates::templates;
 
 /// Pinned producer whose case and run schemas this initial adapter understands.
-pub const SOLVER_VERSION: &str = "0.2.0";
+pub const SOLVER_VERSION: &str = "0.7.0";
 pub const SOLVER_REVISION: &str = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a";
+/// Variants one sweep may create.
+pub const MAX_SWEEP_VARIANTS: usize = 16;
 pub const MAX_STUDIES: usize = 64;
 pub const MAX_RUNS: usize = 12;
 pub const MAX_CASE_BYTES: usize = 2 * 1024 * 1024;
@@ -74,6 +83,9 @@ pub struct Study {
     pub case: Value,
     #[serde(default)]
     pub runs: Vec<RunEvidence>,
+    /// Geometry-based selections and assignments; not yet consumed by a numerical adapter.
+    #[serde(default, skip_serializing_if = "setup::Setup::is_empty")]
+    pub setup: setup::Setup,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -113,6 +125,11 @@ impl Project {
     pub fn is_empty(&self) -> bool {
         self.studies.is_empty()
     }
+    /// Only a pristine project may be omitted from a saved design. An empty
+    /// project can still reserve study identities used before its last removal.
+    pub fn is_default(&self) -> bool {
+        self.studies.is_empty() && self.next_id == 1
+    }
     pub fn study(&self, id: &str) -> Option<&Study> {
         self.studies.iter().find(|study| study.id == id)
     }
@@ -123,20 +140,35 @@ impl Project {
 
     fn create_with_budget(&mut self, template: &str, name: &str, budget: usize) -> Result<Study> {
         self.validate_with_budget(budget)?;
+        let template =
+            templates()?.into_iter().find(|item| item.id == template).ok_or_else(|| Error::Invalid(format!("unknown case template {template}")))?;
+        let study = self.create_case_with_budget(&template.profile, name, "", template.case, budget)?;
+        Ok(study)
+    }
+
+    /// Create a study from an authored case, such as a wizard result. The profile is the
+    /// solver's catalogue profile; the case must pass the same bounded checks as an edit.
+    pub fn create_from_case(&mut self, name: &str, question: &str, case: Value) -> Result<Study> {
+        let solver = case.get("solver").and_then(Value::as_str).unwrap_or_default();
+        let profile = profile_for_solver(solver).ok_or_else(|| Error::Invalid(format!("no native case adapter for solver {solver:?}")))?;
+        self.create_case_with_budget(profile, name, question, case, MAX_PROJECT_BYTES)
+    }
+
+    fn create_case_with_budget(&mut self, profile: &str, name: &str, question: &str, case: Value, budget: usize) -> Result<Study> {
+        self.validate_with_budget(budget)?;
         if self.studies.len() >= MAX_STUDIES {
             return Err(Error::Limit("too many studies".into()));
         }
-        let template =
-            templates()?.into_iter().find(|item| item.id == template).ok_or_else(|| Error::Invalid(format!("unknown case template {template}")))?;
         let next_id = self.next_id.checked_add(1).ok_or_else(|| Error::Limit("study identifiers exhausted".into()))?;
         let study = Study {
             id: format!("mp-study-{}", self.next_id),
             name: name.trim().into(),
-            question: String::new(),
-            profile: template.profile,
+            question: question.into(),
+            profile: profile.into(),
             revision: 1,
-            case: template.case,
+            case,
             runs: vec![],
+            setup: setup::Setup::default(),
         };
         validate_study(&study)?;
         let mut candidate = self.clone();
@@ -145,6 +177,59 @@ impl Project {
         candidate.validate_with_budget(budget)?;
         *self = candidate;
         Ok(study)
+    }
+
+    /// Copy a study's committed case, question, profile and geometry setup into a new study
+    /// (a cloned project). Retained runs stay with the source: they are evidence of its case.
+    pub fn clone_study(&mut self, source: &str, name: &str) -> Result<Study> {
+        let base = self.study(source).ok_or_else(|| Error::NotFound(source.into()))?.clone();
+        let name = if name.trim().is_empty() { format!("{} (copy)", base.name) } else { name.trim().to_string() };
+        let mut candidate = self.clone();
+        let mut study = candidate.create_case_with_budget(&base.profile, &name, &base.question, base.case.clone(), MAX_PROJECT_BYTES)?;
+        if !base.setup.is_empty() {
+            study.setup = base.setup.clone();
+            if let Some(slot) = candidate.studies.iter_mut().find(|candidate| candidate.id == study.id) {
+                slot.setup = base.setup;
+            }
+            validate_study(&study)?;
+            candidate.validate_with_budget(MAX_PROJECT_BYTES)?;
+        }
+        *self = candidate;
+        Ok(study)
+    }
+
+    /// Create one study per value by replacing the existing scalar at `pointer` (RFC 6901)
+    /// in a copy of the source study's case. All variants are checked and committed
+    /// together, or none is. The source study and its runs are unchanged.
+    pub fn sweep(&mut self, source: &str, pointer: &str, values: &[Value]) -> Result<Vec<Study>> {
+        if values.is_empty() || values.len() > MAX_SWEEP_VARIANTS {
+            return Err(Error::Invalid(format!("a sweep needs 1 to {MAX_SWEEP_VARIANTS} values")));
+        }
+        let base = self.study(source).ok_or_else(|| Error::NotFound(source.into()))?.clone();
+        if !pointer.starts_with('/') || pointer == "/solver" {
+            return Err(Error::Invalid("sweep pointer must be a JSON pointer below the case root, not /solver".into()));
+        }
+        let current = base.case.pointer(pointer).ok_or_else(|| Error::Invalid(format!("the case has no value at {pointer}")))?;
+        let mut candidate = self.clone();
+        let mut created = Vec::with_capacity(values.len());
+        for value in values {
+            let compatible = matches!(
+                (current, value),
+                (Value::Number(_), Value::Number(_)) | (Value::String(_), Value::String(_)) | (Value::Bool(_), Value::Bool(_))
+            );
+            if !compatible {
+                return Err(Error::Invalid(format!("sweep value {value} does not match the type of the value at {pointer}")));
+            }
+            let mut case = base.case.clone();
+            if let Some(slot) = case.pointer_mut(pointer) {
+                *slot = value.clone();
+            }
+            let name = format!("{} · {pointer} = {value}", base.name);
+            let question = format!("Sweep of {pointer} from study {}", base.id);
+            created.push(candidate.create_case_with_budget(&base.profile, &name, &question, case, MAX_PROJECT_BYTES)?);
+        }
+        *self = candidate;
+        Ok(created)
     }
 
     /// Apply one authored revision atomically. Existing immutable runs become historical.
@@ -173,6 +258,48 @@ impl Project {
         candidate.validate_with_budget(budget)?;
         *self = candidate;
         Ok(proposed)
+    }
+
+    /// Apply a geometry setup atomically after re-resolving it against the current exact
+    /// geometry. Missing or ambiguous references block Apply; coverage gaps do not, and stay
+    /// visible in the returned report. Existing runs become historical, as for other edits.
+    pub fn apply_setup(
+        &mut self,
+        id: &str,
+        expected_revision: u64,
+        setup: setup::Setup,
+        snapshot: &setup::TopologySnapshot,
+    ) -> Result<(Study, setup::SetupReport)> {
+        self.validate()?;
+        let current = self.study(id).ok_or_else(|| Error::NotFound(id.into()))?;
+        if current.revision != expected_revision {
+            return Err(Error::Stale);
+        }
+        let mut setup = setup;
+        setup.geometry_revision = snapshot.geometry_revision;
+        let report = setup::audit(&setup, snapshot);
+        if !report.applicable {
+            let reasons: Vec<&str> = report
+                .issues
+                .iter()
+                .filter(|issue| matches!(issue.code.as_str(), "invalid" | "unresolved_reference"))
+                .map(|issue| issue.message.as_str())
+                .collect();
+            return Err(Error::Invalid(format!("setup cannot be applied: {}", reasons.join("; "))));
+        }
+        if current.setup == setup {
+            return Ok((current.clone(), report));
+        }
+        let mut proposed = current.clone();
+        proposed.setup = setup;
+        proposed.revision = proposed.revision.checked_add(1).ok_or_else(|| Error::Limit("study revisions exhausted".into()))?;
+        validate_study(&proposed)?;
+        let mut candidate = self.clone();
+        let target = candidate.studies.iter_mut().find(|study| study.id == id).ok_or_else(|| Error::NotFound(id.into()))?;
+        *target = proposed.clone();
+        candidate.validate()?;
+        *self = candidate;
+        Ok((proposed, report))
     }
 
     pub fn remove(&mut self, id: &str) -> Result<Study> {
@@ -280,6 +407,8 @@ pub fn validate_case(case: &Value) -> Result<()> {
     if !case.is_object() {
         return Err(Error::Invalid("case must be a JSON object".into()));
     }
+    obstacles::validate(case)?;
+    airflow::validate(case)?;
     let mut cell_bound = 1u64;
     let mut step_bound = 1u64;
     let mut stack = vec![case];
@@ -389,6 +518,32 @@ pub fn profile_for_solver(solver: &str) -> Option<&'static str> {
         "optics_sequential" => "optical-rays",
         "chemistry_batch" => "chemical-reactors",
         "acoustic_kspace2d" => "acoustic-kspace2d",
+        "spice_circuit" => "spice-circuit",
+        "tcad_diode1d" => "tcad-devices",
+        "battery_cell" => "battery-cell-pack",
+        "wire_antenna" => "rf-integral",
+        "maxwell3d" => "fdtd-em",
+        "edge_cavity3d" => "rf-fem",
+        "pdn_ir_drop" => "si-pi-emc",
+        "galvanic_corrosion" => "electrochem-corrosion",
+        "elasticity2d" | "bar_modes1d" => "structural-fem",
+        "j2_uniaxial" => "nonlinear-mechanics",
+        "phase_field_fracture1d" => "peridynamics-fracture",
+        "cosserat_cantilever" => "cosserat-rods",
+        "dem_granular" => "multibody-dem",
+        "pic_two_stream1d" => "pic-plasma",
+        "particle_transport_slab" => "particle-transport",
+        "pennes_bioheat2d" => "bioheat-sar",
+        "joule_heating2d" => "multiphysics-transfer",
+        "cahn_hilliard1d" => "phase-field",
+        "dg_advection1d" => "dg-high-order",
+        "landau_damping1d" => "kinetic-vlasov",
+        "lennard_jones_md1d" => "atomistics-md",
+        "photonic_waveguide" => "optical-waves",
+        "thmc_column1d" => "porous-thmc",
+        "power_network" => "power-network",
+        "multiphase_box" => "fvm-multiphase",
+        "spray_injection" => "fvm-spray",
         _ => return None,
     })
 }
@@ -423,7 +578,48 @@ fn validate_authoring(study: &Study) -> Result<()> {
     if study.revision == 0 {
         return Err(Error::Invalid("study revision must be positive".into()));
     }
+    study.setup.validate()?;
     validate_case(&study.case)
+}
+
+/// Admit the explicitly supported producer protocols and mesh capabilities.
+/// The upstream revision identifies the source baseline, not a checksum of the executable.
+pub fn validate_producer(manifest: &Value, input_case: &Value) -> Result<()> {
+    for (key, expected) in [("schema", "cfd-solvers-rs/run/1"), ("upstream_revision", SOLVER_REVISION), ("backend", "native_rust_serial_cpu")] {
+        if manifest.get(key).and_then(Value::as_str) != Some(expected) {
+            return Err(Error::Invalid(format!("unsupported run {key}")));
+        }
+    }
+    let version = manifest.get("rust_port_version").and_then(Value::as_str);
+    if !matches!(version, Some("0.2.0" | "0.3.0" | "0.4.0" | "0.5.0" | "0.6.0" | SOLVER_VERSION)) {
+        return Err(Error::Invalid("unsupported run rust_port_version".into()));
+    }
+    let capabilities = match manifest.get("capabilities") {
+        None => None,
+        Some(Value::Array(values)) if values.len() <= 32 => {
+            let mut names = BTreeSet::new();
+            for value in values {
+                let name = value.as_str().ok_or_else(|| Error::Invalid("producer capability must be text".into()))?;
+                check_text(name, "producer capability", 80, false)?;
+                if !names.insert(name) {
+                    return Err(Error::Invalid("duplicate producer capability".into()));
+                }
+            }
+            Some(names)
+        }
+        Some(_) => return Err(Error::Invalid("producer capabilities must be an array of at most 32 names".into())),
+    };
+    for requirement in airflow::requirements(input_case) {
+        let version_ok = version.is_some_and(|version| requirement.versions.contains(&version));
+        if !version_ok || capabilities.as_ref().is_none_or(|names| !names.contains(requirement.capability)) {
+            return Err(Error::Invalid(format!(
+                "this case requires producer {} with the {} capability",
+                requirement.versions.join(" or "),
+                requirement.capability
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_run_structure(run: &RunEvidence) -> Result<()> {
@@ -440,16 +636,7 @@ fn validate_run_structure(run: &RunEvidence) -> Result<()> {
     }
     validate_json(&run.manifest, MAX_CASE_BYTES + 256 * 1024)?;
     let manifest = &run.manifest;
-    for (key, expected) in [
-        ("schema", "cfd-solvers-rs/run/1"),
-        ("rust_port_version", SOLVER_VERSION),
-        ("upstream_revision", SOLVER_REVISION),
-        ("backend", "native_rust_serial_cpu"),
-    ] {
-        if manifest.get(key).and_then(Value::as_str) != Some(expected) {
-            return Err(Error::Invalid(format!("unsupported run {key}")));
-        }
-    }
+    validate_producer(manifest, &run.input_case)?;
     if manifest.get("execution_completed").and_then(Value::as_bool) != Some(true)
         || manifest.get("complete_clone").and_then(Value::as_bool) != Some(false)
     {

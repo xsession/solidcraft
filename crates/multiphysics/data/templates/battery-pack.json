@@ -1,0 +1,16 @@
+{
+  "solver": "battery_cell",
+  "model": "spme",
+  "cells_in_series": 4,
+  "protocol": [
+    {
+      "current_a": 0.25,
+      "duration_s": 1800
+    },
+    {
+      "current_a": -0.1,
+      "duration_s": 900
+    }
+  ],
+  "dt_s": 10
+}

@@ -1,0 +1,817 @@
+{
+  "revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+  "count": 90,
+  "meaning": "Exact upstream command presets are not reproduced by the new JSON case runner. Similar underlying methods are tracked separately.",
+  "cases": [
+    {
+      "name": "lbm-d2q9-cpu",
+      "path": "apps/cfd-solve.cpp",
+      "line": 966,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L966",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d2q9-inplace-cpu",
+      "path": "apps/cfd-solve.cpp",
+      "line": 967,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L967",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d3q19-cpu",
+      "path": "apps/cfd-solve.cpp",
+      "line": 970,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L970",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d3q27-cpu",
+      "path": "apps/cfd-solve.cpp",
+      "line": 973,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L973",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-poiseuille",
+      "path": "apps/cfd-solve.cpp",
+      "line": 976,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L976",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-cavity",
+      "path": "apps/cfd-solve.cpp",
+      "line": 977,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L977",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-channel-io",
+      "path": "apps/cfd-solve.cpp",
+      "line": 978,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L978",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d2q9-sycl",
+      "path": "apps/cfd-solve.cpp",
+      "line": 980,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L980",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d2q9-inplace-sycl",
+      "path": "apps/cfd-solve.cpp",
+      "line": 981,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L981",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d3q19-sycl",
+      "path": "apps/cfd-solve.cpp",
+      "line": 984,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L984",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-d3q27-sycl",
+      "path": "apps/cfd-solve.cpp",
+      "line": 987,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L987",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-diffusion2d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 991,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L991",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-operators3d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 992,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L992",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-projection2d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 993,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L993",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-taylor-green2d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 994,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L994",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-collocated-channel",
+      "path": "apps/cfd-solve.cpp",
+      "line": 995,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L995",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-collocated-cavity",
+      "path": "apps/cfd-solve.cpp",
+      "line": 996,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L996",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-collocated-skew",
+      "path": "apps/cfd-solve.cpp",
+      "line": 997,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L997",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-scalar-transport",
+      "path": "apps/cfd-solve.cpp",
+      "line": 998,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L998",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-euler-weno1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 999,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L999",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-poisson1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1000,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1000",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-poisson3d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1001,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1001",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-nonlinear-poisson",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1002,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1002",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-darcy",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1003,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1003",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-magnetostatic",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1004,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1004",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fem-modal-bar",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1005,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1005",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-maxwell1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1006,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1006",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-mur1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1007,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1007",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-dispersive1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1008,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1008",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-port-vtk",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1009,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1009",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-cpml-tfsf",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1010,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1010",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-lumped-rlc",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1011,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1011",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "multiphysics-coupling",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1012,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1012",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "multiphysics-electrothermal",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1013,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1013",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "optics-snell",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1014,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1014",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "optics-lens",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1015,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1015",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "electrochem-corrosion1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1016,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1016",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "electrochem-pnp1d",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1017,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1017",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "electrochem-pnp-poly",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1018,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1018",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "electrochem-galvanic",
+      "path": "apps/cfd-solve.cpp",
+      "line": 1019,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/cfd-solve.cpp#L1019",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "lbm-trt",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1028,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1028",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fdtd-pml1d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1029,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1029",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "chemistry-reactor",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1030,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1030",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "chemistry-equilibrium",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1031,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1031",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "optics-gaussian",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1032,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1032",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "multiphysics-thermoelastic",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1033,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1033",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "fvm-workspace",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1034,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1034",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "em-frequency1d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1035,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1035",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "em-edge2d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1036,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1036",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "em-edge3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1037,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1037",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "em-waveport",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1038,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1038",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-pic1d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1039,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1039",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-em-pic1d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1040,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1040",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-pic2d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1041,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1041",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-em-pic2d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1042,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1042",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-staggered-em-pic2d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1043,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1043",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-pic3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1044,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1044",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-em-pic3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1045,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1045",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-staggered-em-pic3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1046,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1046",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-local-current3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1047,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1047",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-sort-halo3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1048,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1048",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-domain-exchange3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1049,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1049",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-comm-exchange3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1050,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1050",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-transport3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1051,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1051",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-serialized-transport3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1052,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1052",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-distributed-round3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1053,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1053",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-field-guards3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1054,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1054",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-distributed-step3d",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1055,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1055",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-geant4-transport",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1056,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1056",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-transport-dose-bvh",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1057,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1057",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-campaign-doe",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1058,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1058",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-campaign-execution",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1059,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1059",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-campaign-local-runner",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1060,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1060",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-campaign-control",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1061,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1061",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-multiserver-deploy",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1062,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1062",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-multiserver-execution",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1063,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1063",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-multiserver-supervision",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1064,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1064",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-multiserver-controller",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1065,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1065",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-multiserver-dashboard",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1066,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1066",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-plasma-chemistry",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1067,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1067",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "particle-breakdown-threshold",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1068,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1068",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "bioheat-sar",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1069,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1069",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "rf-dipole",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1070,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1070",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "rf-microstrip",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1071,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1071",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "spice-rc",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1072,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1072",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "spice-diode",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1073,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1073",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "spice-adaptive",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1074,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1074",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "spice-pss-pz",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1075,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1075",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "rf-multiwire",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1076,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1076",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    },
+    {
+      "name": "battery-dfn",
+      "path": "apps/continuation_cases.cpp",
+      "line": 1077,
+      "source_url": "https://github.com/xsession/cfd_solvers/blob/7cceaaaddafaf2515e01a86406e13d6037fdbf9a/apps/continuation_cases.cpp#L1077",
+      "case_kind": "named C++ reference dispatch; no general case-file loader",
+      "rust_cli_compatibility": "not_implemented",
+      "equivalence_qualified": false
+    }
+  ]
+}

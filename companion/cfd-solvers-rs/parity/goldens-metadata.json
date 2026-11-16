@@ -1,0 +1,9 @@
+{
+  "revision": "7cceaaaddafaf2515e01a86406e13d6037fdbf9a",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "cases": 32,
+  "numeric_values": 6106,
+  "fixture_sha256": "d0740cc7ab62b35f75756b30b389a01ad2fa9a5dcc18d21acd766f260c795861",
+  "oracle_sha256": "c33a58e7167596f42883b28c75f4030ca0e4eaceb924433d3993fd784b548c8c",
+  "method": "C++20 -O2 serial CPU; original sources compiled separately; no C++ code linked into Rust."
+}

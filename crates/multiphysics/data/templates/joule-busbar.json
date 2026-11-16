@@ -1,0 +1,13 @@
+{
+  "solver": "joule_heating2d",
+  "width_m": 0.1,
+  "height_m": 0.02,
+  "nx": 40,
+  "ny": 8,
+  "voltage_v": 0.01,
+  "electrical_conductivity_s_m": 58000000.0,
+  "thermal_conductivity_w_mk": 400,
+  "volumetric_heat_capacity_j_m3k": 3450000.0,
+  "dt_s": 0.5,
+  "steps": 200
+}

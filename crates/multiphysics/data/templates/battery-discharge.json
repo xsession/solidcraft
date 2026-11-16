@@ -1,0 +1,18 @@
+{
+  "solver": "battery_cell",
+  "model": "spme",
+  "protocol": [
+    {
+      "current_a": 0.25,
+      "duration_s": 5400
+    },
+    {
+      "current_a": 0.0,
+      "duration_s": 900
+    }
+  ],
+  "dt_s": 10,
+  "cutoff_low_v": 2.8,
+  "cutoff_high_v": 4.25,
+  "ambient_k": 298.15
+}

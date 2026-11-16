@@ -10,7 +10,7 @@
     "multiphysics.case_export": "Portable case",
     "multiphysics.case_path": "Export the committed case JSON to an explicit local path. The numerical companion can run this file.",
     "multiphysics.case_ready": "Case structure is ready for worker validation.",
-    "multiphysics.case_scope": "23 bounded numerical templates are available. Their supported methods and dimensions are explicit in each case.",
+    "multiphysics.case_scope": "56 bounded numerical templates are available. Their supported methods and dimensions are explicit in each case.",
     "multiphysics.case_settings": "Numerical case settings",
     "multiphysics.catalog": "Solver catalogue",
     "multiphysics.catalog_execution": "Source capability record. Only the methods exposed by the runnable case templates are connected here.",

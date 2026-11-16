@@ -1,0 +1,19 @@
+{
+  "solver": "multiphase_box",
+  "model": "compressible_vof",
+  "size_m": [
+    0.6,
+    0.5,
+    0.1
+  ],
+  "cells": [
+    24,
+    20,
+    1
+  ],
+  "dt_s": 0.001,
+  "steps": 1500,
+  "frames": 10,
+  "initial_height_fraction": 0.35,
+  "stir_speed_m_s": 0.3
+}

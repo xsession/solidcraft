@@ -1,0 +1,9 @@
+{
+  "solver": "bar_modes1d",
+  "length_m": 1.0,
+  "area_m2": 0.0001,
+  "youngs_modulus_pa": 200000000000.0,
+  "density_kg_m3": 7850,
+  "elements": 80,
+  "modes": 4
+}

@@ -4517,6 +4517,7 @@ dependencies = [
 name = "solidcraft-multiphysics"
 version = "0.40.0-rc.3"
 dependencies = [
+ "quick-xml",
  "schemars",
  "serde",
  "serde_json",

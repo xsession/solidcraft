@@ -6,6 +6,17 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+#[test]
+fn surface_inspection_command_reports_connectivity_and_rejects_bad_indices() {
+    let mut session = Session::default();
+    let mesh = json!({"vertices":[[0.,0.,0.],[1.,0.,0.],[0.,1.,0.]],"triangles":[[0,1,2]]});
+    let report = session.execute("multiphysics.surface.inspect", &json!({"mesh":mesh})).unwrap();
+    assert_eq!(report["boundary_edges"], 3);
+    assert_eq!(report["indexed_edge_pairing_complete"], false);
+    let bad = json!({"vertices":[[0.,0.,0.]],"triangles":[[0,1,2]]});
+    assert!(session.execute("multiphysics.surface.inspect", &json!({"mesh":bad})).is_err());
+}
+
 #[derive(Default)]
 struct FakeHost {
     requests: Arc<Mutex<Vec<FrozenRun>>>,
@@ -225,6 +236,49 @@ fn command_replies_keep_authoring_and_run_metadata_without_dataset_bytes() {
     update(&mut session, &id);
     let listing = session.execute("multiphysics.study.list", &json!({})).unwrap();
     assert_eq!(listing["project"]["studies"][0]["runs"][0]["stale"], true);
+}
+
+#[test]
+fn retained_result_inspection_reports_original_field_associations_without_dataset_bytes() {
+    let (mut session, host, id) = setup();
+    let job = session.execute("multiphysics.run.start", &json!({"id":id})).unwrap();
+    let request = host.requests.lock().unwrap().last().unwrap().clone();
+    let mut run = evidence(&request);
+    let vtu = r#"<VTKFile type="UnstructuredGrid"><UnstructuredGrid><Piece NumberOfPoints="2" NumberOfCells="1"><PointData><DataArray type="Float64" Name="potential" format="ascii">0 0.25</DataArray></PointData><CellData><DataArray type="Float64" Name="flux" NumberOfComponents="2" format="ascii">2 3</DataArray></CellData><Points><DataArray type="Float64" NumberOfComponents="3" format="ascii">0 0 0 1 0 0</DataArray></Points><Cells><DataArray type="Int64" Name="connectivity" format="ascii">0 1</DataArray><DataArray type="Int64" Name="offsets" format="ascii">2</DataArray><DataArray type="UInt8" Name="types" format="ascii">3</DataArray></Cells></Piece></UnstructuredGrid></VTKFile>"#;
+    let pvd = r#"<VTKFile type="Collection"><Collection><DataSet timestep="2.5" part="0" file="solution.vtu"/><DataSet timestep="3.5" part="1" file="missing.vtu"/></Collection></VTKFile>"#;
+    run.artifacts.push(Artifact { name: "solution.vtu".into(), text: vtu.into() });
+    run.artifacts.push(Artifact { name: "series.pvd".into(), text: pvd.into() });
+    run.artifacts.push(Artifact { name: "invalid.vtu".into(), text: "<invalid/>".into() });
+    run.manifest["files"] = json!(["solution.csv", "manifest.json", "solution.vtu", "series.pvd", "invalid.vtu"]);
+    run.artifacts.iter_mut().find(|artifact| artifact.name == "manifest.json").unwrap().text = serde_json::to_string_pretty(&run.manifest).unwrap();
+    *host.outcome.lock().unwrap() = Some(Outcome::Completed(run));
+    session.poll_multiphysics_jobs();
+    session.execute("multiphysics.run.keep", &json!({"job_id":job["id"]})).unwrap();
+    let history = session.undo.len();
+    let inspect = |artifact: &str| json!({"id":id,"run_id":job["id"],"artifact":artifact});
+    let grid = session.execute("multiphysics.result.inspect", &inspect("solution.vtu")).unwrap();
+    assert_eq!(grid["content"]["format"], "vtu");
+    assert_eq!(grid["content"]["points"], 2);
+    assert_eq!(grid["content"]["cells"], 1);
+    assert_eq!(grid["content"]["cell_types"], json!([3]));
+    assert_eq!(grid["content"]["fields"][0]["association"], "point");
+    assert_eq!(grid["content"]["fields"][1]["association"], "cell");
+    assert_eq!(grid["content"]["fields"][1]["components"], 2);
+    assert_eq!(grid["content"]["fields"][1]["tuples"], 1);
+    assert!(grid["content"]["fields"][0].get("values").is_none());
+    assert!(grid["content"]["fields"][0].get("units").is_none());
+    let collection = session.execute("multiphysics.result.inspect", &inspect("series.pvd")).unwrap();
+    assert_eq!(collection["content"]["frames"][0]["coordinate"], 2.5);
+    assert_eq!(collection["content"]["frames"][0]["retained"], true);
+    assert_eq!(collection["content"]["frames"][1]["retained"], false);
+    assert!(session.execute("multiphysics.result.inspect", &inspect("invalid.vtu")).is_err());
+    assert!(session.execute("multiphysics.result.inspect", &inspect("solution.csv")).is_err());
+    assert!(session.execute("multiphysics.result.inspect", &inspect("missing.vtu")).is_err());
+    assert_eq!(session.undo.len(), history, "inspection is read-only");
+    update(&mut session, &id);
+    let historical = session.execute("multiphysics.result.inspect", &inspect("solution.vtu")).unwrap();
+    assert_eq!(historical["stale"], true);
+    assert_eq!(historical["captured_study_revision"], request.study.revision);
 }
 
 #[test]

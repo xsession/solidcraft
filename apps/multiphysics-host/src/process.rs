@@ -8,15 +8,16 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
-use solidcraft_engine::multiphysics::{Artifact, RunEvidence, validate_artifact_name, validate_evidence};
+use solidcraft_engine::multiphysics::{Artifact, RunEvidence, validate_artifact_name, validate_evidence, validate_producer};
 use solidcraft_engine::multiphysics_jobs::{FrozenRun, Host, Job, Outcome};
 
-const MAX_MANIFEST_BYTES: usize = 1 << 20;
+// The manifest embeds the authored case and can be pretty-printed. Bound the raw
+// file by the domain artifact limit; validate_evidence checks its compact JSON
+// and all other semantic limits after parsing.
+const MAX_MANIFEST_BYTES: usize = solidcraft_engine::multiphysics::MAX_ARTIFACT_BYTES;
 const MAX_ARTIFACT_BYTES: usize = 16 << 20;
 const MAX_ARTIFACTS: usize = 128;
 const MAX_STDERR_BYTES: usize = 16 << 10;
-const PORT_VERSION: &str = "0.2.0";
-const UPSTREAM_REVISION: &str = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a";
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(1);
 
 /// Host configuration is application state, never a field in an imported study.
@@ -118,8 +119,8 @@ impl ProcessHost {
         let case_path = directory.0.join("case.json");
         let output = directory.0.join("results");
         let case_bytes = serde_json::to_vec(&request.study.case).map_err(|error| format!("cannot encode frozen case: {error}"))?;
-        if case_bytes.len() > MAX_MANIFEST_BYTES {
-            return Err("frozen case exceeds the 1 MiB companion input limit".into());
+        if case_bytes.len() > solidcraft_engine::multiphysics::MAX_CASE_BYTES {
+            return Err("frozen case exceeds the 2 MiB authoring limit".into());
         }
         solidcraft_engine::io::safe_write::write_atomic_no_follow(&case_path, &case_bytes)
             .map_err(|error| format!("cannot write frozen case: {error}"))?;
@@ -305,16 +306,9 @@ fn read_evidence(output: &Path, request: &FrozenRun) -> Result<RunEvidence, Stri
     }
     let text = read_file(&root, "manifest.json", MAX_MANIFEST_BYTES)?;
     let manifest: Value = serde_json::from_str(&text).map_err(|error| format!("invalid companion manifest: {error}"))?;
-    for (key, expected) in [
-        ("schema", "cfd-solvers-rs/run/1"),
-        ("rust_port_version", PORT_VERSION),
-        ("upstream_revision", UPSTREAM_REVISION),
-        ("backend", "native_rust_serial_cpu"),
-    ] {
-        if manifest.get(key).and_then(Value::as_str) != Some(expected) {
-            return Err(format!("unsupported companion {key}: expected {expected}"));
-        }
-    }
+    // Use the same capability/version admission for live execution and retained evidence.
+    // A legacy executable must not satisfy an obstacle case merely by exiting successfully.
+    validate_producer(&manifest, &request.study.case).map_err(|error| format!("unsupported companion: {error}"))?;
     let names = manifest.get("files").and_then(Value::as_array).ok_or("companion manifest has no artifact list")?;
     if names.is_empty() || names.len() > MAX_ARTIFACTS {
         return Err("companion artifact count is outside 1..128".into());

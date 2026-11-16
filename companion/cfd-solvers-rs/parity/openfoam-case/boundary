@@ -1,0 +1,13 @@
+// comment
+4
+(
+    left { type patch; nFaces 1; startFace 1; }
+    right
+    {
+        type wall;
+        nFaces 1;
+        startFace 2;
+    }
+    walls { type wall; inGroups 1(wall); nFaces 4; startFace 3; }
+    frontBack { type empty; nFaces 4; startFace 7; }
+)

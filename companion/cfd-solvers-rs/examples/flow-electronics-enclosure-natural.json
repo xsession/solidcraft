@@ -1,0 +1,217 @@
+{
+  "solver": "collocated_flow3d",
+  "method": "piso",
+  "mesh": {
+    "dimensions": [
+      20,
+      12,
+      8
+    ],
+    "lengths": {
+      "x": 0.2,
+      "y": 0.12,
+      "z": 0.08
+    }
+  },
+  "obstacles": [
+    {
+      "name": "pcb_block",
+      "min": [
+        2,
+        1,
+        1
+      ],
+      "max": [
+        18,
+        11,
+        2
+      ]
+    },
+    {
+      "name": "processor_block",
+      "min": [
+        5,
+        3,
+        2
+      ],
+      "max": [
+        8,
+        6,
+        5
+      ]
+    },
+    {
+      "name": "power_block",
+      "min": [
+        11,
+        7,
+        2
+      ],
+      "max": [
+        15,
+        10,
+        4
+      ]
+    }
+  ],
+  "config": {
+    "dt": 0.05,
+    "density": 1.2,
+    "kinematic_viscosity": 1.5e-05,
+    "pressure_preconditioner": "jacobi",
+    "pressure_iterations": 4000,
+    "pressure_tolerance": 1e-13
+  },
+  "output": {
+    "steps": 4000,
+    "output_interval": 500
+  },
+  "velocity_boundaries": [
+    {
+      "patch": "left",
+      "kind": "fixed_value"
+    },
+    {
+      "patch": "right",
+      "kind": "fixed_value"
+    },
+    {
+      "patch": "bottom",
+      "kind": "fixed_value"
+    },
+    {
+      "patch": "top",
+      "kind": "fixed_value"
+    },
+    {
+      "patch": "front",
+      "kind": "fixed_value"
+    },
+    {
+      "patch": "back",
+      "kind": "fixed_value"
+    }
+  ],
+  "pressure_boundaries": [],
+  "thermal": {
+    "fluid": {
+      "specific_heat_j_per_kg_k": 1006.0,
+      "conductivity_w_per_m_k": 0.026
+    },
+    "inflow_temperature_k": 298.15,
+    "solids": [
+      {
+        "obstacle": "pcb_block",
+        "conductivity_w_per_m_k": [
+          20.0,
+          20.0,
+          0.4
+        ],
+        "power_w": 0.2,
+        "max_temperature_k": 378.15
+      },
+      {
+        "obstacle": "processor_block",
+        "conductivity_w_per_m_k": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "power_w": 1.0,
+        "max_temperature_k": 358.15
+      },
+      {
+        "obstacle": "power_block",
+        "conductivity_w_per_m_k": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "power_w": 0.6,
+        "max_temperature_k": 373.15
+      }
+    ],
+    "boundaries": [
+      {
+        "patch": "left",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      },
+      {
+        "patch": "right",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      },
+      {
+        "patch": "bottom",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      },
+      {
+        "patch": "top",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      },
+      {
+        "patch": "front",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      },
+      {
+        "patch": "back",
+        "condition": {
+          "kind": "convection",
+          "h_w_per_m2_k": 8.0,
+          "ambient_k": 298.15
+        }
+      }
+    ],
+    "buoyancy": {
+      "gravity_m_per_s2": [
+        0.0,
+        0.0,
+        -9.81
+      ],
+      "expansion_per_k": 0.003354,
+      "reference_temperature_k": 298.15
+    }
+  },
+  "goals": [
+    {
+      "name": "processor_max",
+      "kind": "solid_max_temperature",
+      "target": "processor_block"
+    },
+    {
+      "name": "power_max",
+      "kind": "solid_max_temperature",
+      "target": "power_block"
+    },
+    {
+      "name": "top_heat",
+      "kind": "patch_heat_out",
+      "target": "top"
+    }
+  ],
+  "goal_control": {
+    "window_steps": 100,
+    "relative_tolerance": 0.001,
+    "stop_when_converged": true,
+    "min_steps": 400
+  }
+}

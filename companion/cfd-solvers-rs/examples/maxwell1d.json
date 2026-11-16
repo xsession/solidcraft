@@ -1,0 +1,1 @@
+{"solver":"maxwell1d","config":{"cells":256,"boundary":"cpml","pml_cells":20,"courant":0.9},"steps":180,"center_fraction":0.3,"width_fraction":0.04}

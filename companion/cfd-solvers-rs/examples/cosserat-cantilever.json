@@ -1,0 +1,13 @@
+{
+ "solver": "cosserat_cantilever",
+ "length_m": 1.0,
+ "nodes": 21,
+ "dt_s": 0.001,
+ "steps": 3000,
+ "gravity_m_s2": [
+  0,
+  -9.81,
+  0
+ ],
+ "damping": 2.0
+}

@@ -1048,6 +1048,15 @@ pub(crate) fn cancel_entry_fit(app: &mut SolveApp) {
     app.render_workspace.entry_fit = None;
 }
 
+/// Independent camera pages must not cancel a pending product framing request.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn preserve_entry_fit_during<R>(app: &mut SolveApp, action: impl FnOnce(&mut SolveApp) -> R) -> R {
+    let original = app.render_workspace.entry_fit.take();
+    let result = action(app);
+    app.render_workspace.entry_fit = original;
+    result
+}
+
 /// The first Render frame can still carry Design's measured floating-panel bounds.
 /// Only this exact automatic entry fit waits for two matching Render measurements.
 pub(crate) fn wait_entry_fit_layout(app: &mut SolveApp) -> bool {

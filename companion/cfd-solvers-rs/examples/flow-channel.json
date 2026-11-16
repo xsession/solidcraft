@@ -1,0 +1,15 @@
+{
+  "solver": "collocated_flow3d",
+  "method": "piso",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 1.0, "y": 0.5, "z": 0.1}},
+  "config": {"dt": 0.002, "kinematic_viscosity": 0.02, "pressure_preconditioner": "jacobi", "pressure_tolerance": 1e-10},
+  "output": {"steps": 12, "output_interval": 4},
+  "initial_velocity": {"x": 0.05, "y": 0.0, "z": 0.0},
+  "velocity_boundaries": [
+    {"patch": "left", "kind": "fixed_value", "value": {"x": 0.05, "y": 0.0, "z": 0.0}},
+    {"patch": "right", "kind": "zero_gradient"},
+    {"patch": "bottom", "kind": "fixed_value"}, {"patch": "top", "kind": "fixed_value"},
+    {"patch": "front", "kind": "slip"}, {"patch": "back", "kind": "slip"}
+  ],
+  "pressure_boundaries": [{"patch": "right", "kind": "fixed_value", "value": 0.0}]
+}

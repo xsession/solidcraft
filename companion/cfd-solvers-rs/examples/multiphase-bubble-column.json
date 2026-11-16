@@ -1,0 +1,25 @@
+{
+ "solver": "multiphase_box",
+ "model": "euler_euler",
+ "size_m": [
+  0.2,
+  0.6,
+  0.05
+ ],
+ "cells": [
+  10,
+  30,
+  1
+ ],
+ "dt_s": 0.001,
+ "steps": 2000,
+ "frames": 10,
+ "initial_height_fraction": 0.3,
+ "dispersed_fraction": 0.1,
+ "drag_coefficient": 50.0,
+ "dispersed_acceleration_m_s2": [
+  0,
+  9.81,
+  0
+ ]
+}

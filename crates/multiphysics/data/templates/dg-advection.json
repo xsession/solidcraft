@@ -1,0 +1,8 @@
+{
+  "solver": "dg_advection1d",
+  "elements": 16,
+  "order": 4,
+  "profile": "gaussian",
+  "dt": 0.001,
+  "steps": 1000
+}

@@ -8397,6 +8397,17 @@ fn cold_render_entry_fit_keeps_shot_switch_clean_without_updating_saved_cameras(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn independent_camera_navigation_preserves_render_entry_fit() {
+    let mut h = cold_render_entry_fixture();
+    h.app.preferences.render_legacy_image_defaults = true;
+    enter(&mut h.app, true).unwrap();
+    let name = h.app.render_workspace.entry_fit.as_ref().unwrap().name.clone();
+    preserve_entry_fit_during(&mut h.app, |app| app.cancel_view_animation());
+    assert_eq!(h.app.render_workspace.entry_fit.as_ref().unwrap().name, name);
+}
+
 #[test]
 fn render_entry_fit_preserves_real_camera_and_numeric_draft_confirmation() {
     for kind in ["camera", "numeric"] {

@@ -1,0 +1,12 @@
+{
+  "solver": "phase_field_fracture1d",
+  "cells": 200,
+  "length_m": 1.0,
+  "youngs_modulus_pa": 1.0,
+  "fracture_energy_j_m2": 0.001,
+  "length_scale_m": 0.02,
+  "notch_cell": 100,
+  "notch_damage": 0.5,
+  "max_end_displacement_m": 0.25,
+  "load_steps": 250
+}

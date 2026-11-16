@@ -1,0 +1,17 @@
+{
+ "solver": "photonic_waveguide",
+ "nx": 16,
+ "ny": 12,
+ "width_m": 2e-06,
+ "height_m": 1.5e-06,
+ "core_m": [
+  7.5e-07,
+  1.25e-06,
+  6.25e-07,
+  8.75e-07
+ ],
+ "core_permittivity": 12.11,
+ "cladding_permittivity": 2.085,
+ "wavelength_m": 1.55e-06,
+ "modes": 2
+}

@@ -1,0 +1,47 @@
+{
+ "solver": "pdn_ir_drop",
+ "nx": 24,
+ "ny": 24,
+ "pitch_m": 0.001,
+ "segment_resistance_ohm": 0.005,
+ "sources": [
+  {
+   "node": [
+    0,
+    0
+   ],
+   "voltage_v": 1.0
+  },
+  {
+   "node": [
+    23,
+    0
+   ],
+   "voltage_v": 1.0
+  },
+  {
+   "node": [
+    0,
+    23
+   ],
+   "voltage_v": 1.0
+  },
+  {
+   "node": [
+    23,
+    23
+   ],
+   "voltage_v": 1.0
+  }
+ ],
+ "loads": [
+  {
+   "node": [
+    12,
+    12
+   ],
+   "current_a": 1.5
+  }
+ ],
+ "uniform_load_a": 2.0
+}

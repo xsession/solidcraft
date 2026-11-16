@@ -1,0 +1,14 @@
+{
+  "solver": "dem_granular",
+  "radius_m": 0.005,
+  "density_kg_m3": 2500,
+  "count": [
+    5,
+    5,
+    5
+  ],
+  "container_width_m": 0.08,
+  "dt_s": 5e-05,
+  "steps": 8000,
+  "frames": 20
+}

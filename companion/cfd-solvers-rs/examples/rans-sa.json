@@ -1,0 +1,8 @@
+{
+  "solver": "rans_transport3d",
+  "mesh": {"dimensions": [8, 6, 2], "lengths": {"x": 1.0, "y": 0.6, "z": 0.1}},
+  "output": {"steps": 15, "output_interval": 5},
+  "velocity": {"x": 0.1, "y": 0.0, "z": 0.0},
+  "velocity_gradient": [0.0, 0.1, 0.0, -0.03, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "turbulence": {"model": "spalart_allmaras", "nu_tilde": 0.00002, "wall_distance": 0.05, "config": {"transport": {"dt": 0.001, "temporal_scheme": "backward_bdf2"}}}
+}

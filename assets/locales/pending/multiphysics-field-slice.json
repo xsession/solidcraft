@@ -1,0 +1,30 @@
+{
+  "en": {
+    "multiphysics.result_continuity": "Continuity L2",
+    "multiphysics.result_converged": "Converged",
+    "multiphysics.result_excluded_cells": "Excluded solid cells",
+    "multiphysics.result_fluid_cells": "Fluid cells",
+    "multiphysics.result_flux_imbalance": "Relative boundary flux imbalance",
+    "multiphysics.result_linear": "Linear solver",
+    "multiphysics.result_not_converged": "Not converged",
+    "multiphysics.result_scope": "Numerical execution and conservation checks are separate from physical validation.",
+    "multiphysics.result_steady": "Steady-state assessment",
+    "multiphysics.result_summary": "Run summary",
+    "multiphysics.result_time": "Final physical time (s)",
+    "multiphysics.result_unreported": "Not reported",
+    "multiphysics.retained_view": "Viewing retained results; configure a worker to start a new run.",
+    "multiphysics.slice_cells": "Visible cells",
+    "multiphysics.slice_frame_coordinate": "Frame coordinate from retained PVD",
+    "multiphysics.slice_layer": "Layer index",
+    "multiphysics.slice_magnitude": "Vector magnitude",
+    "multiphysics.slice_metadata": "Dataset metadata",
+    "multiphysics.slice_plane": "Slice plane",
+    "multiphysics.slice_scalar": "Cell scalar",
+    "multiphysics.slice_scope": "Axis-aligned cell slice. Blank areas contain no cells; values are not interpolated.",
+    "multiphysics.slice_title": "Spatial cell field",
+    "multiphysics.slice_units": "Units follow producer field names; coordinate units are not inferred.",
+    "multiphysics.slice_unsupported": "Export this dataset for a general scientific viewer; it cannot use this bounded slice preview.",
+    "multiphysics.slice_value_range": "Dataset value range",
+    "multiphysics.source_artifact": "Artifact source text"
+  }
+}

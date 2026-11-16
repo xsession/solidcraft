@@ -1,0 +1,30 @@
+{
+  "en": {
+    "multiphysics.materials_acknowledge": "I reviewed the source, material grade, conditions and omitted properties.",
+    "multiphysics.materials_choose": "Select a reference to inspect its properties and sources.",
+    "multiphysics.materials_conditions": "Conditions",
+    "multiphysics.materials_count": "{count} matching references",
+    "multiphysics.materials_create": "Create in design",
+    "multiphysics.materials_create_requirements": "Review a reference, enter a bounded name, and finish or discard any current material edit.",
+    "multiphysics.materials_created": "Created {name} in this design. No bodies or solver inputs were assigned.",
+    "multiphysics.materials_design": "Design materials",
+    "multiphysics.materials_design_hint": "Create, duplicate or edit a design-owned material. Saved definitions follow document Undo and save/reopen. Body assignment is separate.",
+    "multiphysics.materials_finish_edit": "Finish or discard the current design-material edit before creating another reference copy.",
+    "multiphysics.materials_invalid_plan": "The reference did not produce an allowed material creation plan.",
+    "multiphysics.materials_name": "Design material name",
+    "multiphysics.materials_native_card": "Native material card",
+    "multiphysics.materials_no_matches": "No references match this search.",
+    "multiphysics.materials_omissions": "Omissions and limitations",
+    "multiphysics.materials_original": "Original reported value",
+    "multiphysics.materials_properties": "Reference properties in SI units",
+    "multiphysics.materials_qualifier": "Qualifier",
+    "multiphysics.materials_receipts": "Source receipts",
+    "multiphysics.materials_references": "Internal references",
+    "multiphysics.materials_scope": "Reference data and editable design definitions. Importing a card does not enable thermal or CFD coupling. Missing properties remain unknown.",
+    "multiphysics.materials_search": "Search references",
+    "multiphysics.materials_source": "Source",
+    "multiphysics.materials_sources": "Sources and provenance",
+    "multiphysics.materials_title": "Material library",
+    "multiphysics.materials_uncertainty": "Uncertainty"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "solver": "thmc_column1d",
+  "cells": 100,
+  "pressure_diffusivity": 0.01,
+  "thermal_diffusivity": 0.005,
+  "species_diffusivity": 0.002,
+  "reaction_rate": 0.5,
+  "thermo_pressure_coupling": 0.01,
+  "reaction_heat": 5.0,
+  "initial": [
+    1.0,
+    300.0,
+    0.1
+  ],
+  "source_cells": [
+    45,
+    55
+  ],
+  "source_state": [
+    2.0,
+    350.0,
+    0.5
+  ],
+  "dt": 0.002,
+  "steps": 2000
+}
