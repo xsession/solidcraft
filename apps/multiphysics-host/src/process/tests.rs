@@ -193,11 +193,9 @@ fn fan_and_porous_case_requires_0_4_0_and_each_capability() {
     let study = Project::default().create("flow-electronics-enclosure-fan", "Fan admission").unwrap();
     let request = FrozenRun { id: "run-fan-admission".into(), case_hash: case_hash(&study.case).unwrap(), study };
     let all = json!(["grid_obstacles_v1", "fan_curve_v1", "porous_blocks_v1"]);
-    for (version, capabilities) in [
-        ("0.3.0", all.clone()),
-        ("0.4.0", json!(["grid_obstacles_v1", "porous_blocks_v1"])),
-        ("0.4.0", json!(["grid_obstacles_v1", "fan_curve_v1"])),
-    ] {
+    for (version, capabilities) in
+        [("0.3.0", all.clone()), ("0.4.0", json!(["grid_obstacles_v1", "porous_blocks_v1"])), ("0.4.0", json!(["grid_obstacles_v1", "fan_curve_v1"]))]
+    {
         let mut value = manifest(&request);
         value["rust_port_version"] = json!(version);
         value["capabilities"] = capabilities.clone();

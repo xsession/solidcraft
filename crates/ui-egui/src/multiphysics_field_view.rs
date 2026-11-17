@@ -56,7 +56,15 @@ impl Default for State3d {
 
 impl Clone for State3d {
     fn clone(&self) -> Self {
-        Self { camera: self.camera, glyphs: self.glyphs, color_map: self.color_map, color_range: self.color_range, initialized: self.initialized, viewport: Box::default(), cache: self.cache.clone() }
+        Self {
+            camera: self.camera,
+            glyphs: self.glyphs,
+            color_map: self.color_map,
+            color_range: self.color_range,
+            initialized: self.initialized,
+            viewport: Box::default(),
+            cache: self.cache.clone(),
+        }
     }
 }
 
@@ -173,6 +181,7 @@ fn navigate(app: &mut SolveApp, ui: &mut egui::Ui, state: &mut State3d, rect: eg
         navigation: egui::Rect::NOTHING,
         confirm: egui::Rect::NOTHING,
         usable: None,
+        panel_obstacles: None,
     });
     crate::render_workspace::preserve_entry_fit_during(app, |app| {
         crate::navigation::handle(app, ui, rect, response, crate::navigation::NavCaps { orbit: true, pick: false });
@@ -260,6 +269,7 @@ pub(crate) fn show(
         cam: state.camera,
         vp: state.camera.view_proj_bounds(f64::from(rect.width() / rect.height().max(1.0)), &bounds),
         rect,
+        bounds: Some(solidcraft_engine::geom::Aabb3 { min: bounds.min, max: bounds.max }),
     };
     let project = |point: Vec3| projection.to_screen(point).filter(|point| point.is_finite());
     let plane_point = transform

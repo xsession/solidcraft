@@ -2771,7 +2771,7 @@ fn same_but_features(a: &Document, b: &Document) -> bool {
         next_component_color_index,
         plugin_data,
     } = a;
-        *plugin_data == b.plugin_data
+    *plugin_data == b.plugin_data
         && *render == b.render
         && *multiphysics == b.multiphysics
         && *format == b.format
