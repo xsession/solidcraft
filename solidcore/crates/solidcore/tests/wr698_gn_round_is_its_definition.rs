@@ -602,15 +602,13 @@ fn the_offset_of_a_round_is_the_offset_of_its_definition() {
 /// #2388, contract 5, #2451: the plane x = 20 sections each reopened round's face (the
 /// face's own section, `SmBrep::CreatePlanarSectionCurves`' per-face step, with no
 /// tolerance given). Each section curve lies within the face's tolerance of the round at
-/// 65 points along it, and off S and B alike (the net is S to rounding there). With
-/// `planar_section_face_tolerance` (WR-723) the section is traced to the face's
-/// tolerance; upstream's march runs to its default 1/1000 of the surface's size and left
+/// 65 points along it, and off S and B alike (the net is S to rounding there). The
+/// section is traced to the face's tolerance (WR-723); upstream's march runs to its default 1/1000 of the surface's size and left
 /// the round by up to 32 times the face's tolerance (5.2e-3 at 1.6e-4).
 #[test]
 fn a_plane_section_of_a_round_is_within_its_tolerance() {
     use solidcore::topology::brep::planar_section::face_planar_section_curves;
     let mut k = kernel(true);
-    k.fixes.planar_section_face_tolerance = true;
     let mut b = chamfered_box(&mut k);
     let rounds = reopen(&k, &mut b);
     let (mut on, mut worst, mut s_vs_b) = (0, 0.0_f64, 0.0_f64);
@@ -1032,11 +1030,10 @@ fn a_query_below_the_bound_takes_s_and_one_at_it_the_net() {
 
 // ---- #2487: the offset of a round built from its definition S ----------------------------
 
-/// The tilted pipe's root rounded r 2 by the ball's exact circle
-/// (`fillet_exact_arc_sections`): a procedural blend of order 1 on the plate's plane and
+/// The tilted pipe's root rounded r 2 by the ball's exact circle (every circular round's
+/// section): a procedural blend of order 1 on the plate's plane and
 /// the pipe's cylinder. Its surface.
 fn circle_root(k: &mut Kernel) -> (Brep, Surface) {
-    k.fixes.fillet_exact_arc_sections = true;
     let b = tilted_pipe_rounded(k, 1, 1, 1.0);
     let s = rounds_of(&b)
         .into_iter()

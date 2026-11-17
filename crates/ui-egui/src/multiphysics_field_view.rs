@@ -56,15 +56,7 @@ impl Default for State3d {
 
 impl Clone for State3d {
     fn clone(&self) -> Self {
-        Self {
-            camera: self.camera,
-            glyphs: self.glyphs,
-            color_map: self.color_map,
-            color_range: self.color_range,
-            initialized: self.initialized,
-            viewport: Box::default(),
-            cache: self.cache.clone(),
-        }
+        Self { camera: self.camera, glyphs: self.glyphs, color_map: self.color_map, color_range: self.color_range, initialized: self.initialized, viewport: Box::default(), cache: self.cache.clone() }
     }
 }
 

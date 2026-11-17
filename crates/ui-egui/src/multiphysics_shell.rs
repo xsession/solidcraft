@@ -7,6 +7,7 @@
 
 use super::*;
 use crate::ribbon;
+use crate::ui_kit::BackingTooltipExt as _;
 use egui::{Rect, pos2, vec2};
 
 /// Width of the resource bar's icon strip.
@@ -1334,7 +1335,7 @@ pub(super) fn customize(state: &mut State, ctx: &egui::Context) {
     if !state.show_customize {
         return;
     }
-    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_customize_tree"), "list", tr("multiphysics.tree_customize"))
+    let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_customize_tree"), "list", tr("multiphysics.tree_customize"))
         .cards(1.6)
         .page_rows(22.0)
         .show_body(ctx, |ui| {
@@ -1446,7 +1447,7 @@ pub(super) fn windows(
             Some(pointer) if node.edits_case() => format!("{} — {} — {}", tr(node.key()), entry_label(pointer), study.name),
             _ => format!("{} — {}", tr(node.key()), study.name),
         };
-        let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_feature_window"), node.icon(), &title)
+        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_feature_window"), node.icon(), &title)
             .placed(egui::Align2::LEFT_TOP, at)
             .cards(if node.stage() == Stage::Results { 2.4 } else { 1.8 })
             .page_rows(24.0)
@@ -1463,7 +1464,7 @@ pub(super) fn windows(
         && (state.show_monitor || state.stage == Stage::Run)
     {
         let title = format!("{} — {}", tr("multiphysics.cmd_monitor"), study.name);
-        let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_solver_monitor"), "settings_monitor", &title)
+        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_solver_monitor"), "settings_monitor", &title)
             .placed(egui::Align2::RIGHT_TOP, graphics.right_top() + vec2(-t.space_12, t.space_12))
             .cards(1.6)
             .show_body(ctx, |ui| {
@@ -1478,7 +1479,7 @@ pub(super) fn windows(
         }
     }
     if state.show_catalog {
-        let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_templates"), "library", tr("multiphysics.cmd_templates"))
+        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_templates"), "library", tr("multiphysics.cmd_templates"))
             .placed(egui::Align2::LEFT_TOP, at)
             .cards(2.2)
             .page_rows(24.0)
@@ -1604,7 +1605,7 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
     );
     let mut finish = false;
     let mut cancel = false;
-    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_wizard"), "new", &title).cards(2.0).page_rows(18.0).show_body(ctx, |ui| {
+    let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_wizard"), "new", &title).cards(2.0).page_rows(18.0).show_body(ctx, |ui| {
         crate::scenario::publish_rect("multiphysics:wizard", ui.max_rect());
         match wizard.step {
             0 => {

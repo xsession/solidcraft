@@ -5,6 +5,7 @@
 
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
+use solidcore_ops::curve::CubicStanding;
 use solidcore_record::Vec2;
 use solidcraft_geom::prelude::*;
 
@@ -169,6 +170,44 @@ fn length_mm(s: &str) -> Option<f64> {
 
 struct Out {
     g: Vec<Geom2>,
+    warnings: Vec<CurveWarning>,
+}
+
+/// A cubic of an imported drawing that is kept as drawn although SolidCraft's curve check
+/// refuses it (or could not check it), so a body made from it would fail: the reading warns
+/// about it by name rather than refusing the file (#16190).
+#[derive(Clone, Debug, PartialEq)]
+pub struct CurveWarning {
+    /// Its number among the drawing's imported curves and lines, from 1.
+    pub number: usize,
+    /// Its start, in the drawing's millimetres.
+    pub from: Vec2,
+    /// Its end, in the drawing's millimetres.
+    pub to: Vec2,
+    /// `None`: the check refuses it. `Some(why)`: the kernel could not check it.
+    pub unchecked: Option<String>,
+}
+
+impl std::fmt::Display for CurveWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (n, a, b) = (self.number, self.from, self.to);
+        write!(f, "curve {n} of the drawing, from ({:.4}, {:.4}) to ({:.4}, {:.4}) mm, ", a.x, a.y, b.x, b.y)?;
+        match &self.unchecked {
+            None => f.write_str(
+                "bends too sharply or slows almost to a stop near an end: SolidCraft's curve check refuses it, so a body made from it will fail. Move its handles away from its ends, or draw it as a line",
+            ),
+            Some(why) => write!(f, "could not be checked: {why}"),
+        }
+    }
+}
+
+/// An SVG drawing's geometry and the warnings about curves kept as drawn ([`CurveWarning`]).
+#[derive(Clone, Debug, Default)]
+pub struct SvgDrawing {
+    /// The geometry, in millimetres, y up.
+    pub geometry: Vec<Geom2>,
+    /// One warning for each cubic the curve check refuses or could not check, in order.
+    pub warnings: Vec<CurveWarning>,
 }
 
 impl Out {
@@ -192,7 +231,24 @@ impl Out {
         if a.dist(b) > 1e-12 { self.push(Geom2::Line(a, b)) } else { Ok(()) }
     }
     fn cubic(&mut self, t: Tf, p: [Vec2; 4]) -> Result<()> {
-        self.push(Geom2::Spline { pts: p.iter().map(|q| t.apply(*q)).collect(), control: true, degree: 3 })
+        let p = p.map(|q| t.apply(q));
+        if !p.iter().all(|q| q.is_finite()) {
+            return Err(IoError::Invalid(OUT_OF_RANGE.into()));
+        }
+        // The whole cubic lies within the model's zone tolerance of its chord (measured after the
+        // SVG transform): the model cannot tell it from that line. Otherwise it stays as drawn,
+        // with a warning naming it when the kernel's curve check refuses it (#16190).
+        let number = self.g.len() + 1;
+        let unchecked = match solidcore_ops::curve::classify_cubic(p.map(|q| [q.x, q.y, 0.0])) {
+            Ok(CubicStanding::Chord) => return self.line(Tf::ID, p[0], p[3]),
+            Ok(CubicStanding::Curve) => None,
+            Ok(CubicStanding::Refused) => Some(None),
+            Err(e) => Some(Some(e.to_string())),
+        };
+        if let Some(unchecked) = unchecked {
+            self.warnings.push(CurveWarning { number, from: p[0], to: p[3], unchecked });
+        }
+        self.push(Geom2::Spline { pts: p.to_vec(), control: true, degree: 3 })
     }
     fn quad(&mut self, t: Tf, a: Vec2, c: Vec2, b: Vec2) -> Result<()> {
         let (a, c, b) = (t.apply(a), t.apply(c), t.apply(b));
@@ -424,8 +480,60 @@ fn not_drawn(name: &str, a: &[(String, String)]) -> bool {
             .is_some_and(|s| s.split(';').filter_map(|d| d.split_once(':')).any(|(k, v)| k.trim().eq_ignore_ascii_case("display") && none(v)))
 }
 
-/// Read the geometry of an SVG document (millimetres, y up). `scale` multiplies the result.
+/// The root element's transformation (user units to millimetres, y flipped) and its sheet in
+/// user units (`viewBox`, else `width` and `height` as a box at the origin), when it has one.
+fn root_transform(a: &[(String, String)]) -> (Tf, Option<[f64; 4]>) {
+    let vb = attr(a, "viewBox").map(numbers).filter(|v| v.len() == 4);
+    let (w, h) = (attr(a, "width").and_then(length_mm), attr(a, "height").and_then(length_mm));
+    let (sx, sy, ox, oy, sheet) = match (vb, w, h) {
+        (Some(v), Some(w), Some(h)) if v[2] > 0.0 && v[3] > 0.0 => (w / v[2], h / v[3], v[0], v[1], Some([v[0], v[1], v[2], v[3]])),
+        (Some(v), _, _) => (PX_MM, PX_MM, v[0], v[1], (v[2] > 0.0 && v[3] > 0.0).then_some([v[0], v[1], v[2], v[3]])),
+        (None, Some(w), Some(h)) if w > 0.0 && h > 0.0 => (PX_MM, PX_MM, 0.0, 0.0, Some([0.0, 0.0, w / PX_MM, h / PX_MM])),
+        _ => (PX_MM, PX_MM, 0.0, 0.0, None),
+    };
+    (Tf([sx, 0.0, 0.0, -sy, -ox * sx, oy * sy]), sheet)
+}
+
+/// The sheet of an SVG drawing in millimetres, in the coordinates its geometry comes out in: the
+/// root's `viewBox` (else its `width` and `height`) through the same transformation. None when
+/// the file gives no sheet.
+pub fn svg_sheet(text: &str) -> Option<(Vec2, Vec2)> {
+    if text.len() > MAX_DRAWING_BYTES {
+        return None;
+    }
+    let mut rd = Reader::from_reader(text.as_bytes());
+    rd.config_mut().trim_text(true);
+    let mut buf = Vec::new();
+    let mut elements = 0;
+    while elements < MAX_ENTITIES {
+        match rd.read_event_into(&mut buf) {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
+                elements += 1;
+                if e.local_name().as_ref() == b"svg" {
+                    let (tf, sheet) = root_transform(&attrs(&e));
+                    let [x, y, w, h] = sheet?;
+                    let (a, b) = (tf.apply(Vec2::new(x, y)), tf.apply(Vec2::new(x + w, y + h)));
+                    let (lo, hi) = (Vec2::new(a.x.min(b.x), a.y.min(b.y)), Vec2::new(a.x.max(b.x), a.y.max(b.y)));
+                    return (lo.is_finite() && hi.is_finite() && hi.x > lo.x && hi.y > lo.y).then_some((lo, hi));
+                }
+            }
+            Ok(Event::Eof) | Err(_) => return None,
+            _ => {}
+        }
+        buf.clear();
+    }
+    None
+}
+
+/// Read the geometry of an SVG document (millimetres, y up), without its warnings
+/// ([`read_svg_drawing`]).
 pub fn read_svg(text: &str) -> Result<Vec<Geom2>> {
+    read_svg_drawing(text).map(|d| d.geometry)
+}
+
+/// Read the geometry of an SVG document (millimetres, y up) and the warnings about curves kept as
+/// drawn that the curve check refuses.
+pub fn read_svg_drawing(text: &str) -> Result<SvgDrawing> {
     if text.len() > MAX_DRAWING_BYTES {
         return Err(IoError::Invalid("the SVG file is too large".into()));
     }
@@ -433,7 +541,7 @@ pub fn read_svg(text: &str) -> Result<Vec<Geom2>> {
     rd.config_mut().trim_text(true);
     let mut buf = Vec::new();
     let mut stack: Vec<Tf> = Vec::new();
-    let mut out = Out { g: Vec::new() };
+    let mut out = Out { g: Vec::new(), warnings: Vec::new() };
     let mut root: Option<Tf> = None;
     let mut pending_text: Option<(Tf, Vec2, f64)> = None;
     // The depth of the element whose contents are not drawn (#11039), while inside one.
@@ -490,14 +598,7 @@ pub fn read_svg(text: &str) -> Result<Vec<Geom2>> {
             None => parent,
         };
         if name == "svg" && root.is_none() {
-            // Root: user units to millimetres, y flipped.
-            let vb = attr(&a, "viewBox").map(numbers).filter(|v| v.len() == 4);
-            let (sx, sy, ox, oy) = match (vb, attr(&a, "width").and_then(length_mm), attr(&a, "height").and_then(length_mm)) {
-                (Some(v), Some(w), Some(h)) if v[2] > 0.0 && v[3] > 0.0 => (w / v[2], h / v[3], v[0], v[1]),
-                (Some(v), _, _) => (PX_MM, PX_MM, v[0], v[1]),
-                _ => (PX_MM, PX_MM, 0.0, 0.0),
-            };
-            let r = Tf([sx, 0.0, 0.0, -sy, -ox * sx, oy * sy]);
+            let (r, _) = root_transform(&a);
             root = Some(r);
             tf = r;
         }
@@ -553,7 +654,7 @@ pub fn read_svg(text: &str) -> Result<Vec<Geom2>> {
         }
         buf.clear();
     }
-    Ok(out.g)
+    Ok(SvgDrawing { geometry: out.g, warnings: out.warnings })
 }
 
 /// The text of an SVG file's bytes: a UTF-8 byte-order mark is dropped and UTF-16 files (with
@@ -638,6 +739,21 @@ pub fn svg_nothing_to_import(text: &str) -> String {
 mod tests {
     use super::*;
 
+    /// The sheet: the viewBox in the millimetres `width` and `height` give, else in pixels; only
+    /// `width` and `height` make a sheet at the origin; without either there is none.
+    #[test]
+    fn the_sheet_follows_the_root_like_the_geometry() {
+        let close = |a: Vec2, b: Vec2| (a.x - b.x).abs() < 1e-9 && (a.y - b.y).abs() < 1e-9;
+        let both = svg_sheet(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 200 100"/>"#).unwrap();
+        assert!(close(both.0, Vec2::new(0.0, -50.0)) && close(both.1, Vec2::new(100.0, 0.0)), "{both:?}");
+        let vb = svg_sheet(r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 20 200 100"/>"#).unwrap();
+        assert!(close(vb.0, Vec2::new(0.0, -100.0 * PX_MM)) && close(vb.1, Vec2::new(200.0 * PX_MM, 0.0)), "{vb:?}");
+        let wh = svg_sheet(r#"<svg xmlns="http://www.w3.org/2000/svg" width="30mm" height="20mm"/>"#).unwrap();
+        assert!(close(wh.0, Vec2::new(0.0, -20.0)) && close(wh.1, Vec2::new(30.0, 0.0)), "{wh:?}");
+        assert!(svg_sheet(r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="3" height="4"/></svg>"#).is_none());
+        assert!(svg_sheet(r#"<svg viewBox="0 0 0 10"/>"#).is_none(), "a sheet without area is none");
+    }
+
     /// The parser recurses over groups and reads numbers out of a document the user did not write,
     /// so none of these may panic: `catch_unwind` turns one into a failed test, the way
     /// `hostile_files_never_panic` does for STEP (solidcraft#469).
@@ -696,6 +812,88 @@ mod tests {
         // Plain pixels.
         let g = read_svg(r#"<svg><line x1="0" y1="0" x2="96" y2="0"/></svg>"#).unwrap();
         assert!(matches!(g[0], Geom2::Line(a, b) if (a.dist(b) - 25.4).abs() < 1e-9));
+    }
+
+    #[test]
+    fn a_cubic_within_the_zone_tolerance_of_its_chord_is_a_line() {
+        let read = |path, transform| {
+            read_svg(&format!(r#"<svg width="10mm" height="10mm" viewBox="0 0 10 10"><path transform="{transform}" d="{path}"/></svg>"#))
+        };
+        let spline = |g: &[Geom2]| matches!(g, [Geom2::Spline { pts, control: true, degree: 3 }] if pts.len() == 4);
+        assert!(read("M1 1 C1 1 1 1 1 1", "").unwrap().is_empty());
+        // 0.000005 mm off its chord, within the zone tolerance (0.00001 mm): a line. Measured
+        // after the transform, ten times that is a curve.
+        let path = "M0 0 C1 0.000005 2 0.000005 3 0";
+        assert!(matches!(read(path, "").unwrap().as_slice(), [Geom2::Line(_, _)]));
+        assert!(spline(&read(path, "scale(10)").unwrap()));
+        assert!(spline(&read("M0 0 C1 0.0005 2 0.0005 3 0", "").unwrap()));
+        // Equal endpoints do not make a curve degenerate.
+        assert!(spline(&read("M0 0 C10 10 -10 10 0 0", "").unwrap()));
+        // Collinear and overshooting its ends, each of these cubics stops and turns back, which
+        // the curve check refuses: both are imported as drawn, each with a warning naming it.
+        let d = read_svg_drawing(
+            r#"<svg width="10mm" height="10mm" viewBox="0 0 10 10"><path d="M0 0 L0 5 M0 0 C-10 0 20 0 1 0 M0 3 C-10 3 20 3 1 3"/></svg>"#,
+        )
+        .unwrap();
+        assert!(matches!(d.geometry.as_slice(), [Geom2::Line(..), Geom2::Spline { .. }, Geom2::Spline { .. }]), "{:?}", d.geometry);
+        assert_eq!(d.warnings.iter().map(|w| (w.number, w.unchecked.is_none())).collect::<Vec<_>>(), [(2, true), (3, true)]);
+        assert!(
+            d.warnings[1].to_string().starts_with("curve 3 of the drawing, from (0.0000, -3.0000) to (1.0000, -3.0000) mm, bends"),
+            "{}",
+            d.warnings[1]
+        );
+    }
+
+    /// Synthetic outlines. e and f each have a cubic whose inner control points almost meet its
+    /// start (#16190): about 0.00053 mm off its chord, above the zone tolerance, so it stays a
+    /// curve as drawn, and the curve check refuses it, so the import warns about it by name. h's
+    /// curves are regular and extrude.
+    #[test]
+    fn imported_cubic_outlines_extrude_or_are_named_in_warnings() {
+        use solidcore_record::{Loop2, Plane, Region2, Seg2};
+        let svg = |path: &str| format!(r#"<svg width="2480px" height="3508px" viewBox="0 0 2480 3508"><path d="{path}"/></svg>"#);
+
+        let e =
+            "M200 200 L2000 200 L2000 1500 C 1990 1500.01, 1980 1500.02, 1900 1500.03 C 1899.99 1500.031, 1899.98 1500.032, 1800 1500 L200 1500 Z";
+        let f = "M200 200 L2000 200 C 2100 200, 2200 300, 2200 400 C 2200.001 400.002, 2200.002 400.001, 2200 500 L2000 1500 L200 1500 Z";
+        for (name, path, number) in [("e", e, 4), ("f", f, 3)] {
+            let d = read_svg_drawing(&svg(path)).unwrap();
+            assert_eq!(d.geometry.iter().filter(|g| matches!(g, Geom2::Spline { .. })).count(), 2, "{name}");
+            assert_eq!(d.warnings.iter().map(|w| (w.number, w.unchecked.is_none())).collect::<Vec<_>>(), [(number, true)], "{name}");
+        }
+
+        // g: a hook about 0.00007 mm across bends as far from its chord as half its size, above
+        // the zone tolerance, and the check passes it: it stays a curve.
+        let g = "M200 200 L2000 200 L2000 1500 L1000.0001 1500 C 1000.0002 1500.0001, 1000.0001 1500.0002, 1000 1500.0001 L200 1500 Z";
+        let d = read_svg_drawing(&svg(g)).unwrap();
+        assert_eq!(d.geometry.iter().filter(|g| matches!(g, Geom2::Spline { .. })).count(), 1);
+        assert!(d.warnings.is_empty());
+
+        // h: expected volume from integrating (x dy - y dx)/2 over the line and cubic
+        // polynomials, times (25.4/96)^2 and the 2 mm depth.
+        let h = "M200 200 L2000 200 L2000 1500 C 1500 1500, 1200 1600, 1000 1500 C 900 1450, 1100 1600, 1000 1499.99 L200 1500 Z";
+        let d = read_svg_drawing(&svg(h)).unwrap();
+        assert!(d.warnings.is_empty());
+        let geometry = d.geometry;
+        assert_eq!(geometry.iter().filter(|g| matches!(g, Geom2::Spline { .. })).count(), 2);
+        let segs = geometry
+            .iter()
+            .map(|g| match g {
+                Geom2::Line(a, b) => Seg2::Line { a: *a, b: *b },
+                Geom2::Spline { pts, control: true, degree: 3 } => {
+                    let [p0, p1, p2, p3] = pts.as_slice() else { panic!("four cubic controls") };
+                    Seg2::Cubic { p0: *p0, p1: *p1, p2: *p2, p3: *p3 }
+                }
+                other => panic!("unexpected imported geometry: {other:?}"),
+            })
+            .collect();
+        let region = Region2 { outer: Loop2 { segs }, holes: Vec::new() };
+        let bodies = solidcraft_kernel::extrude(&Plane::XY, &[region], 0.0, 2.0).unwrap();
+        assert_eq!(bodies.len(), 1);
+        let measured = solidcraft_kernel::measure_mass(&bodies[0]).unwrap();
+        assert!((measured.volume - 330664.92026605905).abs() < 0.005, "{measured:?}");
+        let check = solidcraft_kernel::validity(&bodies[0]);
+        assert!(check.ok() && matches!(check.smlib, Some(solidcraft_kernel::SmlibCheck::Valid)), "{check:?}");
     }
 
     /// #9641: a file with nothing to import says why (an embedded picture, shapes from another

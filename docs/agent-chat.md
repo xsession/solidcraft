@@ -44,18 +44,15 @@ when you send a message or press **Connect** (or at launch, when you turned that
 
 ## The panel
 
-With **Preferences → Layout → Use shared panel layout** enabled, side panels keep
-the conversation above the composer. A wide floating panel places the conversation
-beside the provider controls and composer when both columns have enough width.
-Smaller widths keep the stacked layout. The conversation, unsent draft and scroll
-state stay with the same Assistant when the layout changes. Hovering over its shared
-header reports the current agent state or pending approvals; requests that need
-attention use the shared attention indication. Classic and the Assistant's own
-native window keep their existing layout.
+Assistant uses the shared panel layout. Narrow panels keep the conversation above
+the composer. A wide floating panel places the conversation beside the provider
+controls and composer when both columns have enough width. The conversation,
+unsent draft and scroll state stay with the same Assistant when its placement
+changes. The shared header reports the agent state and pending approvals.
+The Assistant’s own native window keeps its existing layout.
 
-In the floating layout, Assistant fills the viewport height in the shared rounded panel, with
-space around its edges. The compass and navigation bar move into the remaining space beside it. It overlays the model without changing the viewport projection;
-clicks and scrolling over the panel stay in the chat. The docked layout retains its side panel.
+Assistant fills the available side height. The compass and navigation bar use the
+remaining viewport space. Clicks and scrolling over the panel stay in the chat.
 
 After clicking in Assistant, keyboard input stays in the chat, including when selecting text
 in an answer. Copy, Cut and Paste do not also operate on selected CAD geometry. Moving the
@@ -66,6 +63,11 @@ To select more of the conversation than fits in the panel, drag the selection to
 bottom edge and hold it there: the conversation scrolls, faster the further past the edge you
 go, and the selection grows with it. It stays when its start scrolls out of view, and Copy takes
 all of it.
+
+In Assistant, outside the message box, Ctrl+A (Cmd+A on macOS) selects the whole conversation:
+every prompt and answer, including those scrolled out of view, but not thoughts, tool cards, plans or
+notices. Ctrl+C then copies them in order as plain text, each under who wrote it. Esc or a
+click ends the selection; in the message box Ctrl+A selects only the draft.
 
 - **Docking:** on the left, Assistant is the first panel, before vertical history and the browser.
   The drag highlight shows the actual destination bounds. Drag the panel's header (the dotted grip and the title) to the other half of the
@@ -279,6 +281,35 @@ These permissions apply to SolidCraft for your user account:
 Restart SolidCraft after applying the override. Other agents or installation folders
 may need different filesystem permissions.
 
+Starting from a computer with no Node, these steps set up Claude Code for the Flatpak. They were
+tested on Linux Mint:
+
+1. Install Node through nvm, not the distribution's package. A package such as `nodejs` from
+   `apt` can be too old, and it installs to `/usr/bin`, which the sandbox can't see. Install
+   nvm with the command from the [nvm README](https://github.com/nvm-sh/nvm#installing-and-updating),
+   open a new terminal, then run `nvm install --lts` and check it with `node -v`.
+2. Install Claude Code and its adapter:
+
+   ```sh
+   npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code
+   npm install -g @agentclientprotocol/claude-agent-acp
+   ```
+
+   Newer npm versions skip a package's setup script unless it's allowed. Without
+   `--allow-scripts`, Claude Code installs but its setup doesn't run. Check it with
+   `claude --version`.
+3. Run `claude` once and sign in. Claude Code needs a Pro, Max, Team or Enterprise plan, or an
+   Anthropic Console account; the free Claude plan doesn't include it. Then quit it; it doesn't
+   need to trust your home folder for SolidCraft to use it.
+4. Run the `flatpak override` command above. **Preferences → Assistant** shows the same command
+   with a **Copy** button.
+5. Quit SolidCraft completely and start it again. **Preferences → Assistant → Agents** then lists
+   Claude Code with **login found**.
+
+The adapter includes the Claude Code engine itself, so steps 2 and 3 can likely be shortened to
+installing only `@agentclientprotocol/claude-agent-acp` and signing in from the panel (see
+[Signing in](#signing-in)). That shorter path hasn't been tested with the Flatpak yet.
+
 ### XAI Grok
 
 Install **Grok Build** and run `grok login` in a terminal to sign in with your Grok account.
@@ -424,9 +455,10 @@ The agent reaches the open design only through SolidCraft's own tools (the
   a single undo step, named after your message. The conversation shows *N changes, one undo
   step* with **Undo these changes** while nothing else has happened since.
 - **Tool cards:** each tool call shows as a card with its state; click it to see what it returned.
-- **Formatted text:** the agent's answers show as Markdown: headings, lists, quotes, code blocks
-  (with **Copy**), bold, italic, `code` and links (web links only; each link is a button that opens
-  it in your browser). What you type, and the agent's thoughts, stay plain text.
+- **Formatted text:** the agent's answers show as Markdown: headings, lists, quotes, tables, code
+  blocks (with **Copy**), bold, italic, `code` and links (web links only; each link is a button
+  that opens it in your browser). A wide table scrolls sideways; one without the `|---|` line
+  under its header, or with more than 200 rows or 2000 cells, shows as plain text. What you type, and the agent's thoughts, stay plain text.
 - **Attach view:** tick it to send a picture of the current view with your message, for agents
   that take pictures. The picture is taken when the agent starts on the message and then shows as
   a small thumbnail under it. Hold the pointer over the thumbnail for a bigger preview that stays
@@ -446,8 +478,11 @@ The agent reaches the open design only through SolidCraft's own tools (the
   a message that waits in the queue.
 - **Pick context:** press it to choose what the message is about on purpose. A picker opens with
   three lists, **Elements** (faces, edges, vertices), **Features** (steps of the timeline) and
-  **Bodies**; click things in the model, the timeline or the browser to put them in the list that
-  is active (click a list to make it active; click a picked thing again to take it out). **OK**
+  **Bodies**. A click in the model goes into the list that is active (click a list to make it
+  active). A step clicked in the History or the Browser goes into Features, and a body clicked in
+  the Browser into Bodies, whichever list is active. Click a picked thing again to take it out.
+  The arrow beside a list shows what it holds by name, as in every dialog; the × on a name takes
+  it out. **OK**
   puts the pick into the message as a **pill**, `«1: Plate · 3 faces»`, at the text cursor (at the
   end when the box was never used). Typing `@` where a word starts does the same: the `@` is
   taken out and the picker opens, and the pill goes where it was. Pick as often as you like; each

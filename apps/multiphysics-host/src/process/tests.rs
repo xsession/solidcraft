@@ -7,7 +7,6 @@ fn request() -> FrozenRun {
     FrozenRun { id: "run-host-fixture".into(), case_hash: case_hash(&study.case).unwrap(), study }
 }
 
-#[cfg(unix)]
 fn manifest(request: &FrozenRun) -> Value {
     json!({
         "schema":"cfd-solvers-rs/run/1",

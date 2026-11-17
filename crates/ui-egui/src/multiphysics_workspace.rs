@@ -782,7 +782,7 @@ fn prepare(app: &mut SolveApp, state: &mut State, study: &Study, report: &solidc
             let response = crate::ui_kit::text_area(
                 ui,
                 tr("multiphysics.question"),
-                egui::Id::unique(("multiphysics_question", &study.id)),
+                egui::Id::new(("multiphysics_question", &study.id)),
                 &mut draft.question,
                 3,
                 4096,
@@ -964,7 +964,7 @@ fn settings(state: &mut State, study: &Study, node: shell::Node, entry: Option<&
             let response = crate::ui_kit::text_area(
                 ui,
                 tr("multiphysics.case_settings"),
-                egui::Id::unique(("multiphysics_case_json", &study.id)),
+                egui::Id::new(("multiphysics_case_json", &study.id)),
                 &mut draft.case_text,
                 16,
                 1024 * 1024,
