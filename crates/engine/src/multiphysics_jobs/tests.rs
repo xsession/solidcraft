@@ -311,3 +311,62 @@ fn newer_design_keeps_unknown_numerical_evidence_while_current_format_rejects_it
     assert_eq!(reopened.params, opened.params);
     assert_eq!(serde_json::from_str::<Value>(&reopened.to_json()).unwrap()["multiphysics"], original_section);
 }
+
+#[test]
+fn reference_feature_prepare_and_wizard_creation_preserve_atomic_history() {
+    let mut s = Session::default();
+    let case = solidcraft_multiphysics::Project::default().create("flow-channel", "Base").unwrap().case;
+    let document = s.doc.clone();
+    let undo = s.undo.len();
+    let prepared = s.execute("multiphysics.case.feature.prepare", &json!({"case":case,"kind":"porous","name":"filter"})).unwrap();
+    assert!(Arc::ptr_eq(&document, &s.doc));
+    assert_eq!(s.undo.len(), undo);
+    assert!(s.multiphysics_jobs().is_empty());
+    let mut invalid = case.clone();
+    invalid["mesh"]["dimensions"] = json!([u64::MAX, u64::MAX, 2]);
+    for rejected in [invalid, json!({"solver":"poisson1d","cells":8})] {
+        assert!(s.execute("multiphysics.study.create", &json!({"template":"flow-channel","name":"Rejected","case":rejected})).is_err());
+        assert_eq!(*s.doc, *document);
+        assert_eq!(s.undo.len(), undo);
+    }
+    let reply = s.execute("multiphysics.study.create", &json!({"template":"flow-channel","name":"Reviewed","case":prepared["case"]})).unwrap();
+    assert_eq!(reply["study"]["id"], "mp-study-1", "failed creation must not allocate identities");
+    assert_eq!(s.doc.multiphysics.studies[0].case, prepared["case"]);
+    assert_eq!(s.undo.len(), undo + 1);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert!(s.doc.multiphysics.studies.is_empty());
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(s.doc.multiphysics.studies[0].case, prepared["case"]);
+    let saved = solidcraft_io::write_design_container(&s.doc).unwrap();
+    let reopened = solidcraft_io::read_design(&saved).unwrap();
+    assert_eq!(reopened.multiphysics, s.doc.multiphysics);
+}
+
+#[test]
+fn cad_bodies_become_case_parts_without_touching_the_document() {
+    let mut s = Session::default();
+    s.execute("solid.box", &json!({"length":20,"width":10,"height":10})).unwrap();
+    let names = s.execute("multiphysics.cad.bodies", &json!({})).unwrap()["bodies"].clone();
+    let body = names[0].as_str().unwrap().to_string();
+    let case = solidcraft_multiphysics::Project::default().create("flow-channel", "Base").unwrap().case;
+    let document = s.doc.clone();
+    let undo = s.undo.len();
+    let reply = s
+        .execute(
+            "multiphysics.case.component.import",
+            &json!({"case":case,"bodies":[body],"options":{"fit_domain":true,"margin_mm":10.0,"cell_mm":5.0}}),
+        )
+        .unwrap();
+    assert!(Arc::ptr_eq(&document, &s.doc));
+    assert_eq!(s.undo.len(), undo);
+    assert_eq!(reply["edit"]["issues"], json!([]), "{reply}");
+    // A box is a grid block; 20 × 10 × 10 mm plus 10 mm each side in 5 mm cells.
+    assert_eq!(reply["parts"][0][1], "obstacle");
+    let dimensions: Vec<u64> = serde_json::from_value(reply["edit"]["case"]["mesh"]["dimensions"].clone()).unwrap();
+    let mut sorted = dimensions.clone();
+    sorted.sort();
+    assert_eq!(sorted, [6, 6, 8]);
+    assert_eq!(reply["edit"]["case"]["obstacles"][0]["min"], json!([2, 2, 2]));
+    assert_eq!(reply["edit"]["case"]["obstacles"][0]["max"], json!(dimensions.iter().map(|n| n - 2).collect::<Vec<_>>()));
+    assert!(s.execute("multiphysics.case.component.import", &json!({"case":case,"bodies":["missing"]})).is_err());
+}

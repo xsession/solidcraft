@@ -7,15 +7,17 @@
 
 use super::*;
 use crate::ribbon;
-use crate::ui_kit::BackingTooltipExt as _;
 use egui::{Rect, pos2, vec2};
+
+#[path = "multiphysics_menus.rs"]
+mod menus;
 
 /// Width of the resource bar's icon strip.
 pub(super) const RESOURCE_BAR: f32 = 34.0;
 /// Width kept for the workspace switcher at the left of the ribbon.
 const SWITCHER: f32 = 88.0;
 /// The ribbon: its tab row and one row of labelled groups.
-pub(super) const RIBBON: f32 = ribbon::TAB_ROW_HEIGHT + ribbon::GROUP_HEIGHT + 1.0;
+pub(super) const RIBBON: f32 = menus::HEIGHT + ribbon::TAB_ROW_HEIGHT + ribbon::GROUP_HEIGHT + 1.0;
 
 /// One entry of the Analysis tree. Folders and features map onto the workspace stages, so
 /// scripts that select a stage and people who click the tree reach the same editors.
@@ -26,12 +28,17 @@ pub(super) enum Node {
     General,
     Control,
     Domain,
+    ComponentControl,
     FluidSubdomains,
     SolidMaterials,
     Boundary,
     Fans,
     Sources,
     Radiation,
+    RadiationSources,
+    HeatSinks,
+    ThermalJoints,
+    FromComponents,
     Porous,
     Perforated,
     Contact,
@@ -49,6 +56,7 @@ pub(super) enum Node {
     Mesh,
     Coupling,
     Results,
+    ResultsMesh,
     CutPlots,
     SurfacePlots,
     Isosurfaces,
@@ -60,44 +68,53 @@ pub(super) enum Node {
     XyPlots,
     GoalPlots,
     Report,
+    ExportResults,
     Animation,
     Compare,
     Verify,
 }
 
 impl Node {
-    /// The Input Data folder's features, in tree order.
-    /// The Input data folder's features, in tree order: the flow-analysis defaults
-    /// (computational domain, fluid subdomains, boundary conditions, goals, mesh) and the
-    /// folders that show once the case has entries for them or Customize Tree turns them on.
-    const INPUT: [Self; 23] = [
+    /// The Input data folder's features in the reference flow-analysis tree's order
+    /// (Computational Domain … Initial Conditions, Goals, Mesh, From Components), then the
+    /// SolidCraft-only folders. Computational domain, component control, fluid subdomains,
+    /// boundary conditions, goals and mesh show by default; the others once the case has
+    /// entries for them or Customize Tree turns them on.
+    pub(super) const INPUT: [Self; 28] = [
         Self::Domain,
+        Self::ComponentControl,
         Self::FluidSubdomains,
         Self::SolidMaterials,
         Self::Boundary,
+        Self::Transferred,
         Self::Fans,
         Self::Sources,
         Self::Radiation,
+        Self::RadiationSources,
+        Self::Contact,
+        Self::Tec,
+        Self::HeatSinks,
         Self::Porous,
         Self::Perforated,
-        Self::Contact,
-        Self::Initial,
-        Self::Rotating,
         Self::TwoResistor,
         Self::HeatPipes,
+        Self::ThermalJoints,
         Self::Pcb,
-        Self::Tec,
-        Self::Leds,
         Self::Electrical,
+        Self::Initial,
+        Self::Rotating,
+        Self::Leds,
         Self::Batteries,
-        Self::Transferred,
         Self::Goals,
         Self::Mesh,
+        Self::FromComponents,
         Self::Coupling,
     ];
-    /// The Results folder's features, in tree order. The unavailable ones stay listed (greyed)
-    /// so the tree reads the same as a full flow-analysis tool and says what is missing.
-    const RESULTS: [Self; 13] = [
+    /// The Results folder's features in the reference tree's order (Mesh … Report, Export
+    /// Results), then SolidCraft's Animation and Compare. Unbuilt tools are listed greyed when
+    /// Customize Tree shows them, so the tree says what is missing.
+    const RESULTS: [Self; 15] = [
+        Self::ResultsMesh,
         Self::CutPlots,
         Self::SurfacePlots,
         Self::Isosurfaces,
@@ -109,6 +126,7 @@ impl Node {
         Self::XyPlots,
         Self::GoalPlots,
         Self::Report,
+        Self::ExportResults,
         Self::Animation,
         Self::Compare,
     ];
@@ -120,6 +138,13 @@ impl Node {
             Self::General => "multiphysics.tree_general",
             Self::Control => "multiphysics.tree_control",
             Self::Domain => "multiphysics.tree_domain",
+            Self::ComponentControl => "multiphysics.tree_component_control",
+            Self::RadiationSources => "multiphysics.tree_radiation_sources",
+            Self::HeatSinks => "multiphysics.tree_heat_sinks",
+            Self::ThermalJoints => "multiphysics.tree_thermal_joints",
+            Self::FromComponents => "multiphysics.tree_from_components",
+            Self::ResultsMesh => "multiphysics.tree_results_mesh",
+            Self::ExportResults => "multiphysics.tree_export_results",
             Self::FluidSubdomains => "multiphysics.tree_fluid_subdomains",
             Self::SolidMaterials => "multiphysics.tree_solid_materials",
             Self::Boundary => "multiphysics.tree_boundary",
@@ -167,6 +192,13 @@ impl Node {
             Self::General => "settings",
             Self::Control => "timeline_play",
             Self::Domain => "box",
+            Self::ComponentControl => "component",
+            Self::RadiationSources => "render_light_point",
+            Self::HeatSinks => "pattern",
+            Self::ThermalJoints => "contact_sets",
+            Self::FromComponents => "import",
+            Self::ResultsMesh => "mesh_body",
+            Self::ExportResults => "export",
             Self::FluidSubdomains => "render_environment",
             Self::SolidMaterials => "material",
             Self::Boundary => "surface",
@@ -231,7 +263,7 @@ impl Node {
     /// Shown in a new project's tree before Customize Tree changes anything (the flow-analysis
     /// defaults); other folders appear once the case has entries for them.
     fn default_visible(self) -> bool {
-        matches!(self, Self::Domain | Self::FluidSubdomains | Self::Boundary | Self::Goals | Self::Mesh)
+        matches!(self, Self::Domain | Self::ComponentControl | Self::FluidSubdomains | Self::Boundary | Self::Goals | Self::Mesh)
             || (Self::RESULTS.contains(&self) && self.available())
     }
 
@@ -242,8 +274,10 @@ impl Node {
     }
 
     /// Whether the node has an implementation; the others are listed for orientation only.
+    /// Every tree node has a working panel now; kept so menus can still grey out items.
     pub(super) fn available(self) -> bool {
-        !matches!(self, Self::SurfacePlots | Self::Isosurfaces | Self::Trajectories | Self::Particles | Self::SurfaceParams)
+        let _ = self;
+        true
     }
 
     /// Shown in the graphics window rather than in a floating window over it.
@@ -332,6 +366,12 @@ pub(super) fn group_of(key: &str) -> Node {
         Node::Batteries
     } else if has(&["heat_pipe"]) {
         Node::HeatPipes
+    } else if has(&["heat_sink"]) {
+        Node::HeatSinks
+    } else if has(&["thermal_joint"]) {
+        Node::ThermalJoints
+    } else if has(&["radiation_source"]) {
+        Node::RadiationSources
     } else if word(&["tec", "thermoelectric", "peltier"]) {
         Node::Tec
     } else if word(&["led", "leds", "phosphor"]) {
@@ -466,24 +506,34 @@ fn items(case: &Value, pointer: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The New Project wizard: name, analysis type, template, summary.
+/// Seven-page study preparation wizard; edits remain transient until Finish.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Wizard {
     step: usize,
     name: String,
     category: Option<String>,
     template: Option<usize>,
+    candidate: Option<Value>,
+    case_template: Option<String>,
+    error: Option<String>,
 }
 
 impl Wizard {
     /// The wizard on its summary page for a template picked in the template list.
     pub(super) fn from_template(index: usize, category: String) -> Self {
-        Self { step: WIZARD_STEPS.len() - 1, name: String::new(), category: Some(category), template: Some(index) }
+        Self { step: WIZARD_STEPS.len() - 1, category: Some(category), template: Some(index), ..Default::default() }
     }
 }
 
-static WIZARD_STEPS: [&str; 4] =
-    ["multiphysics.wizard_step_name", "multiphysics.wizard_step_type", "multiphysics.wizard_step_template", "multiphysics.wizard_step_summary"];
+static WIZARD_STEPS: [&str; 7] = [
+    "multiphysics.wizard_step_name",
+    "multiphysics.wizard_setup_analysis",
+    "multiphysics.wizard_setup_units",
+    "multiphysics.wizard_setup_general",
+    "multiphysics.wizard_setup_materials",
+    "multiphysics.wizard_setup_initial",
+    "multiphysics.wizard_step_summary",
+];
 
 // ── Ribbon ───────────────────────────────────────────────────────────────────────────────────
 
@@ -507,98 +557,80 @@ fn groups(app: &SolveApp, state: &State, study: Option<&Study>, tab: usize) -> V
     let running = study.is_some_and(|study| {
         app.session.multiphysics_jobs().iter().any(|job| job.study_id == study.id && matches!(job.state.as_str(), "queued" | "running"))
     });
-    let mut out = if tab == 0 {
-        vec![
-            (
-                "project",
-                "multiphysics.group_project",
-                vec![
-                    cmd("wizard", "multiphysics.cmd_wizard", "new", true),
-                    cmd("create", "multiphysics.cmd_new_project", "plus", true),
-                    cmd("general", "multiphysics.cmd_general_settings", "settings", has_study),
-                    cmd("control", "multiphysics.cmd_calculation_control", "timeline_play", has_study),
-                    cmd("remove", "multiphysics.cmd_delete_project", "delete", has_study),
-                ],
-            ),
-            (
-                "input",
-                "multiphysics.group_input",
-                vec![
-                    cmd("domain", "multiphysics.cmd_domain", "box", has_study),
-                    cmd("boundary", "multiphysics.cmd_boundary", "surface", has_study),
-                    cmd("sources", "multiphysics.cmd_sources", "render_light_point", has_study),
-                    cmd("materials", "multiphysics.cmd_engineering_database", "material", true),
-                    cmd("goals", "multiphysics.cmd_goals", "checkpoint", has_study),
-                    cmd("coupling", "multiphysics.cmd_coupling", "joint", has_study),
-                ],
-            ),
-            (
-                "mesh",
-                "multiphysics.group_mesh",
-                vec![cmd("mesh", "multiphysics.cmd_mesh", "mesh_body", has_study), cmd("check", "multiphysics.cmd_check", "render_check", has_study)],
-            ),
-            (
-                "solve",
-                "multiphysics.group_solve",
-                vec![
-                    cmd("run_solver", "multiphysics.cmd_run", "play", has_study && !running),
-                    cmd("monitor", "multiphysics.cmd_monitor", "settings_monitor", has_study),
-                    cmd("stop_solver", "multiphysics.cmd_stop", "stop", running),
-                ],
-            ),
-            (
-                "tools",
-                "multiphysics.group_tools",
-                vec![
-                    cmd("templates", "multiphysics.cmd_templates", "library", true),
-                    cmd("verify", "multiphysics.cmd_verify", "inspect", has_study),
-                    cmd("case_export", "multiphysics.cmd_export_case", "export_tray", has_study),
-                ],
-            ),
-        ]
-    } else {
-        vec![
-            ("load", "multiphysics.group_results", vec![cmd("load_results", "multiphysics.cmd_load_results", "open", has_runs)]),
-            (
-                "plots",
-                "multiphysics.group_plots",
-                vec![
-                    cmd("cut_plot", "multiphysics.tree_cut_plots", "section", has_runs),
-                    cmd("surface_plot", "multiphysics.tree_surface_plots", "surface", false),
-                    cmd("isosurface", "multiphysics.tree_isosurfaces", "iso_analysis", false),
-                    cmd("trajectories", "multiphysics.tree_trajectories", "spline", false),
-                    cmd("particles", "multiphysics.tree_particles", "dots", false),
-                ],
-            ),
-            (
-                "parameters",
-                "multiphysics.group_parameters",
-                vec![
-                    cmd("point_params", "multiphysics.tree_point_params", "point", has_runs),
-                    cmd("surface_params", "multiphysics.tree_surface_params", "plane", false),
-                    cmd("volume_params", "multiphysics.tree_volume_params", "body", has_runs),
-                ],
-            ),
-            (
-                "charts",
-                "multiphysics.group_charts",
-                vec![
-                    cmd("xy_plot", "multiphysics.tree_xy_plots", "line", has_runs),
-                    cmd("goal_plot", "multiphysics.tree_goal_plots", "graph", has_runs),
-                ],
-            ),
-            (
-                "output",
-                "multiphysics.group_output",
-                vec![
-                    cmd("report", "multiphysics.tree_report", "list", has_runs),
-                    cmd("animation", "multiphysics.tree_animation", "ws_animate", has_runs),
-                    cmd("compare", "multiphysics.tree_compare", "compare", has_runs),
-                    cmd("result_export", "multiphysics.cmd_export_results", "export", has_runs),
-                ],
-            ),
-        ]
-    };
+    // One ribbon tab laid out like the reference flow-analysis tab: Project | Insert | Mesh |
+    // Solve | Results | Tools | Help. `tab` is kept for callers; there is a single tab.
+    let _ = tab;
+    let mut out = vec![
+        (
+            "project",
+            "multiphysics.group_project",
+            vec![
+                cmd("wizard", "multiphysics.cmd_wizard", "new", true),
+                cmd("create", "multiphysics.cmd_new_project", "plus", true),
+                cmd("clone", "multiphysics.menu_clone", "copy", has_study),
+                cmd("general", "multiphysics.cmd_general_settings", "settings", has_study),
+                cmd("component_control", "multiphysics.tree_component_control", "component", has_study),
+                cmd("domain", "multiphysics.cmd_domain", "box", has_study),
+            ],
+        ),
+        (
+            "input",
+            "multiphysics.menu_insert",
+            vec![
+                cmd("add_from_components", "multiphysics.cmd_add_components", "import", has_study),
+                cmd("boundary", "multiphysics.cmd_boundary", "surface", has_study),
+                cmd("goals", "multiphysics.cmd_goals", "checkpoint", has_study),
+            ],
+        ),
+        (
+            "mesh",
+            "multiphysics.group_mesh",
+            vec![
+                cmd("mesh", "multiphysics.tree_global_mesh", "mesh_body", has_study),
+                cmd("local_mesh", "multiphysics.menu_local_mesh", "mesh_body", has_study),
+            ],
+        ),
+        (
+            "solve",
+            "multiphysics.group_solve",
+            vec![
+                cmd("run_solver", "multiphysics.cmd_run", "play", has_study && !running),
+                cmd("batch_run", "multiphysics.cmd_batch_run", "timeline_play", has_study),
+                cmd("control", "multiphysics.cmd_calculation_control", "settings_monitor", has_study),
+                cmd("monitor", "multiphysics.cmd_monitor", "settings_monitor", has_study),
+                cmd("stop_solver", "multiphysics.cmd_stop", "stop", running),
+            ],
+        ),
+        (
+            "results",
+            "multiphysics.group_results",
+            vec![
+                cmd("load_results", "multiphysics.cmd_load_results", "open", has_runs),
+                cmd("cut_plot", "multiphysics.tree_cut_plots", "section", has_runs),
+                cmd("surface_plot", "multiphysics.tree_surface_plots", "surface", has_runs),
+                cmd("isosurface", "multiphysics.tree_isosurfaces", "iso_analysis", has_runs),
+                cmd("trajectories", "multiphysics.tree_trajectories", "spline", has_runs),
+                cmd("particles", "multiphysics.tree_particles", "dots", has_runs),
+                cmd("point_params", "multiphysics.tree_point_params", "point", has_runs),
+                cmd("surface_params", "multiphysics.tree_surface_params", "plane", has_runs),
+                cmd("xy_plot", "multiphysics.tree_xy_plots", "line", has_runs),
+                cmd("goal_plot", "multiphysics.tree_goal_plots", "graph", has_runs),
+                cmd("report", "multiphysics.tree_report", "list", has_runs),
+                cmd("result_export", "multiphysics.cmd_export_results", "export", has_runs),
+            ],
+        ),
+        (
+            "tools",
+            "multiphysics.group_tools",
+            vec![
+                cmd("check", "multiphysics.cmd_check", "render_check", has_study),
+                cmd("materials", "multiphysics.cmd_engineering_database", "material", true),
+                cmd("create_lids", "multiphysics.menu_create_lids", "surface", has_study),
+                cmd("templates", "multiphysics.cmd_templates", "library", true),
+            ],
+        ),
+        ("help", "multiphysics.menu_help", vec![cmd("verify", "multiphysics.menu_validation", "inspect", has_study)]),
+    ];
     for (_, _, commands) in &mut out {
         for command in commands.iter_mut() {
             command.pressed = match command.id {
@@ -619,6 +651,31 @@ fn node_for(id: &str) -> Option<Node> {
         "control" => Node::Control,
         "domain" => Node::Domain,
         "boundary" => Node::Boundary,
+        "fluid_subdomains" => Node::FluidSubdomains,
+        "solid_materials" => Node::SolidMaterials,
+        "fans" => Node::Fans,
+        "radiation" => Node::Radiation,
+        "radiation_sources" => Node::RadiationSources,
+        "heat_sinks" => Node::HeatSinks,
+        "thermal_joint" => Node::ThermalJoints,
+        "transferred" => Node::Transferred,
+        "rotating" => Node::Rotating,
+        "fluid_volume" => Node::Domain,
+        "contact" => Node::Contact,
+        "create_lids" => Node::Boundary,
+        "local_mesh" => Node::Mesh,
+        "pcb" => Node::Pcb,
+        "leds" => Node::Leds,
+        "batteries" => Node::Batteries,
+        "perforated" => Node::Perforated,
+        "tec" => Node::Tec,
+        "two_resistor" => Node::TwoResistor,
+        "heat_pipes" => Node::HeatPipes,
+        "component_control" => Node::ComponentControl,
+        "add_from_components" => Node::FromComponents,
+        "porous" => Node::Porous,
+        "initial" => Node::Initial,
+        "electrical" => Node::Electrical,
         "sources" => Node::Sources,
         "goals" => Node::Goals,
         "coupling" => Node::Coupling,
@@ -628,6 +685,11 @@ fn node_for(id: &str) -> Option<Node> {
         "load_results" => Node::Results,
         "cut_plot" => Node::CutPlots,
         "point_params" => Node::PointParams,
+        "surface_plot" => Node::SurfacePlots,
+        "isosurface" => Node::Isosurfaces,
+        "trajectories" => Node::Trajectories,
+        "particles" => Node::Particles,
+        "surface_params" => Node::SurfaceParams,
         "volume_params" => Node::VolumeParams,
         "xy_plot" => Node::XyPlots,
         "goal_plot" => Node::GoalPlots,
@@ -661,7 +723,7 @@ const RIBBON_HANDLES: ribbon::Handles<'static> = ribbon::Handles {
 const TAB_HANDLES: ribbon::TabHandles<'static> =
     ribbon::TabHandles { tab: "multiphysics_tab:", tab_rect: "multiphysics_tab_rect:", add: "multiphysics_tab:add", action: "multiphysics:" };
 
-static TABS: [(&str, &str); 2] = [("ANALYSIS", "multiphysics.ribbon_tab_analysis"), ("RESULTS", "multiphysics.ribbon_tab_results")];
+static TABS: [(&str, &str); 1] = [("FLOW", "multiphysics.ribbon_tab_flow")];
 
 /// The workspace switcher, the tab row (with Save, Undo and Redo at its right, as a quick
 /// access toolbar) and the active tab's groups.
@@ -677,11 +739,13 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
         crate::context_menu::toggle_for(app, response.rect, response.rect.left_bottom(), crate::context_menu::Target::Workspace);
     }
     let left = whole.left() + SWITCHER;
-    let tab_row = Rect::from_min_max(pos2(left, whole.top()), pos2(whole.right(), whole.top() + ribbon::TAB_ROW_HEIGHT));
+    let menu_row = Rect::from_min_max(pos2(left, whole.top()), pos2(whole.right(), whole.top() + menus::HEIGHT));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(menu_row), |ui| menus::show(app, state, studies, ui));
+    let tab_row = Rect::from_min_max(pos2(left, menu_row.bottom()), pos2(whole.right(), menu_row.bottom() + ribbon::TAB_ROW_HEIGHT));
     let labels: Vec<&str> = TABS.iter().map(|(_, key)| tr(key)).collect();
     let quick = [("save", tr("multiphysics.save")), ("undo", tr("multiphysics.undo")), ("redo", tr("multiphysics.redo"))];
     let accent = crate::workspace::tab_accent(&t, "MODEL");
-    let active = TABS.get(state.ribbon_tab).map_or("ANALYSIS", |&(id, _)| id);
+    let active = TABS.get(state.ribbon_tab).map_or("FLOW", |&(id, _)| id);
     let out = {
         let row = ribbon::Tabs {
             tabs: TABS.iter().zip(&labels).map(|(&(id, _), &label)| ribbon::Tab { id, label, accent, contextual: false, aliases: &[] }).collect(),
@@ -781,9 +845,6 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
             if command.id == "monitor" {
                 crate::scenario::publish_target("multiphysics.stage_run", button.whole);
             }
-            if !command.enabled && unavailable(command.id) {
-                let _ = button.response.clone().backing_on_hover_text(tr("multiphysics.tree_unavailable"));
-            }
         }
     }
     for action in drawn.actions {
@@ -797,12 +858,12 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
 }
 
 /// The result tools that are listed but not built yet.
-fn unavailable(id: &str) -> bool {
-    matches!(id, "surface_plot" | "isosurface" | "trajectories" | "particles" | "surface_params")
-}
 
 /// What a ribbon command does.
 fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
+    if id == "fluid_volume" {
+        state.case_tool.fluid_requested = true;
+    }
     let study = state.selected.as_ref().and_then(|selected| studies.iter().find(|study| &study.id == selected)).cloned();
     if let Some(node) = node_for(id) {
         if node.stage() == Stage::Results && id != "load_results" {
@@ -816,6 +877,20 @@ fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
             state.wizard = Some(Wizard::default());
         }
         "create" => create_from_template(app, state, None),
+        "clone" => {
+            if let Some(study) = study
+                && let Some(reply) = command(app, state, "multiphysics.study.clone", json!({"id":study.id}))
+            {
+                state.selected = reply["study"]["id"].as_str().map(str::to_string);
+                state.selected_run = None;
+                select(state, Node::Project);
+            }
+        }
+        "unload_results" => {
+            select(state, Node::Project);
+            state.dialog_open = false;
+        }
+        "customize_tree" => state.show_customize = true,
         "remove" => {
             if let Some(study) = study {
                 command(app, state, "multiphysics.study.remove", json!({"id":study.id}));
@@ -832,6 +907,7 @@ fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
                 start_run(app, state, &study);
             }
         }
+        "batch_run" => batch_run(app, state, studies),
         "stop_solver" => {
             if let Some(study) = study {
                 let jobs: Vec<String> = app
@@ -864,6 +940,23 @@ pub(super) fn start_run(app: &mut SolveApp, state: &mut State, study: &Study) {
         return;
     }
     command(app, state, "multiphysics.run.start", json!({"id":study.id}));
+}
+
+/// Batch Run: start every project that is ready and not already queued or running. Projects
+/// that are not ready (unapplied edits, failing checks, no solver host) are skipped and counted.
+fn batch_run(app: &mut SolveApp, state: &mut State, studies: &[Study]) {
+    let host = app.session.multiphysics_host_available();
+    let mut started = 0usize;
+    for study in studies {
+        let busy = app.session.multiphysics_jobs().iter().any(|job| job.study_id == study.id && matches!(job.state.as_str(), "queued" | "running"));
+        let report = state.study_preflight(&app.session.doc.multiphysics.clone(), study);
+        let ready = Readiness::for_study(study, state.drafts.get(&study.id), host, report.errors.is_empty()).can_run();
+        if !busy && ready && command(app, state, "multiphysics.run.start", json!({"id":study.id})).is_some() {
+            started += 1;
+        }
+    }
+    state.show_monitor = started > 0;
+    state.notice = Some(format!("{} {started}/{}", tr("multiphysics.batch_run_started"), studies.len()));
 }
 
 /// A new project from template `index` (the wizard's choice), or from the template last used.
@@ -924,6 +1017,10 @@ pub(super) fn resource_bar(state: &mut State, ui: &mut egui::Ui) {
 /// What a tree row asks for.
 enum TreeAction {
     Select(String, Node),
+    /// Open the Goals panel with the given goal kind picked for Add.
+    InsertGoal(String, &'static str),
+    /// Toggle the basic mesh (grid lines) in the graphics window.
+    ShowBasicMesh(String),
     Entry(String, Node, String),
     Artifact(String, Node, usize),
     Fold(&'static str),
@@ -936,6 +1033,12 @@ enum TreeAction {
     Customize,
     Revert(String, String),
     Copy(String),
+    /// Duplicate a list item in the draft, right after itself.
+    CloneItem(String, String),
+    /// Remove a list item from the draft.
+    DeleteItem(String, String),
+    /// Copy an entry's draft value into another study's draft at the same pointer.
+    CopyTo(String, String, Value),
 }
 
 /// A context-menu entry (kit ghost button) that closes the menu when chosen.
@@ -945,6 +1048,84 @@ fn menu_item(ui: &mut egui::Ui, key: &str) -> bool {
         ui.close();
     }
     chosen
+}
+
+/// A context-menu entry listed for orientation but not available, with the reason on hover.
+fn menu_item_off(ui: &mut egui::Ui, key: &str, why: &str) {
+    let response = ui.add_enabled_ui(false, |ui| crate::ui_kit::button(ui, tr(key), crate::ui_kit::Button::Ghost)).inner;
+    let _ = response.backing_on_hover_text(tr(why));
+}
+
+/// The right-click menu of an Input data folder. Goals and Mesh carry the reference tree's own
+/// commands; other folders insert a feature of their type through the same dialog as the
+/// Insert menu.
+fn folder_menu(ui: &mut egui::Ui, study: &Study, folder: Node, actions: &mut Vec<TreeAction>) {
+    match folder {
+        Node::Goals => {
+            for (key, kind) in [
+                ("multiphysics.tree_insert_global_goals", "global_goal"),
+                ("multiphysics.tree_insert_point_goals", "point_goal"),
+                ("multiphysics.tree_insert_surface_goals", "goal"),
+                ("multiphysics.tree_insert_volume_goals", "volume_goal"),
+                ("multiphysics.tree_insert_equation_goal", "equation_goal"),
+            ] {
+                if menu_item(ui, key) {
+                    actions.push(TreeAction::InsertGoal(study.id.clone(), kind));
+                }
+            }
+        }
+        Node::Mesh => {
+            if menu_item(ui, "multiphysics.tree_global_mesh") {
+                actions.push(TreeAction::Select(study.id.clone(), Node::Mesh));
+            }
+            if menu_item(ui, "multiphysics.tree_insert_local_mesh") {
+                actions.push(TreeAction::Select(study.id.clone(), Node::Mesh));
+            }
+            if menu_item(ui, "multiphysics.tree_show_basic_mesh") {
+                actions.push(TreeAction::ShowBasicMesh(study.id.clone()));
+            }
+            ui.separator();
+            menu_item_off(ui, "multiphysics.tree_create_mesh", "multiphysics.tree_mesh_at_run");
+            ui.separator();
+            if menu_item(ui, "multiphysics.tree_delete_local_meshes") {
+                actions.push(TreeAction::Select(study.id.clone(), Node::Mesh));
+            }
+            return;
+        }
+        _ => {
+            if menu_item(ui, "multiphysics.tree_insert") {
+                actions.push(TreeAction::Select(study.id.clone(), folder));
+            }
+        }
+    }
+    ui.separator();
+    if menu_item(ui, "multiphysics.tree_hide_folder") {
+        actions.push(TreeAction::Hide(folder));
+    }
+    if menu_item(ui, "multiphysics.tree_customize") {
+        actions.push(TreeAction::Customize);
+    }
+}
+
+/// The list and index of a list item's pointer (`/list/3` → `/list`, 3).
+fn list_item(pointer: &str) -> Option<(&str, usize)> {
+    let (parent, index) = pointer.rsplit_once('/')?;
+    Some((parent, index.parse().ok()?))
+}
+
+/// Parse a study's draft case, change it and write it back; a draft that does not parse is left
+/// alone with a message (fix the JSON first).
+fn edit_draft(state: &mut State, id: &str, change: impl FnOnce(&mut Value) -> bool) {
+    let Some(draft) = state.drafts.get_mut(id) else { return };
+    let Ok(mut case) = serde_json::from_str::<Value>(&draft.case_text) else {
+        state.error = Some(tr("multiphysics.tree_revert_invalid").to_string());
+        return;
+    };
+    if change(&mut case) {
+        draft.case_text = pretty(&case);
+    } else {
+        state.error = Some(tr("multiphysics.tree_revert_missing").to_string());
+    }
 }
 
 /// The Analysis tree: every project of the design, the active one expanded into General
@@ -992,7 +1173,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             if response.clicked() {
                 actions.push(TreeAction::Select(study.id.clone(), Node::Project));
             }
-            response.context_menu(|ui| {
+            crate::ui_kit::Menu::context(&response, |ui| {
                 if menu_item(ui, "multiphysics.tree_activate") {
                     actions.push(TreeAction::Select(study.id.clone(), Node::Project));
                 }
@@ -1023,18 +1204,6 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             if !active {
                 continue;
             }
-            for setting in [Node::General, Node::Control] {
-                let response = row(ui, 1, None, setting.icon(), tr(setting.key()), node == setting, true, false);
-                publish_node(setting, response.rect);
-                if response.clicked() {
-                    actions.push(TreeAction::Select(study.id.clone(), setting));
-                }
-                response.context_menu(|ui| {
-                    if menu_item(ui, "multiphysics.tree_edit_definition") {
-                        actions.push(TreeAction::Select(study.id.clone(), setting));
-                    }
-                });
-            }
             // Input data.
             let open = !state.folders_closed[0];
             let label = if dirty { format!("{} •", tr(Node::Input.key())) } else { tr(Node::Input.key()).to_string() };
@@ -1045,7 +1214,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             } else if response.clicked() {
                 actions.push(TreeAction::Select(study.id.clone(), Node::Input));
             }
-            response.context_menu(|ui| {
+            crate::ui_kit::Menu::context(&response, |ui| {
                 if menu_item(ui, "multiphysics.tree_edit_definition") {
                     actions.push(TreeAction::Select(study.id.clone(), Node::Input));
                 }
@@ -1060,7 +1229,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     }
                     let pointers = entries(&case, folder);
                     let folded = state.tree_folded.contains(folder.key());
-                    let has_rows = !pointers.is_empty();
+                    let has_rows = !pointers.is_empty() || folder == Node::Mesh;
                     let response = row(
                         ui,
                         2,
@@ -1077,19 +1246,26 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     } else if response.clicked() {
                         actions.push(TreeAction::Select(study.id.clone(), folder));
                     }
-                    response.context_menu(|ui| {
-                        if menu_item(ui, "multiphysics.tree_edit_definition") {
-                            actions.push(TreeAction::Select(study.id.clone(), folder));
-                        }
-                        if menu_item(ui, "multiphysics.tree_hide_folder") {
-                            actions.push(TreeAction::Hide(folder));
-                        }
-                        if menu_item(ui, "multiphysics.tree_customize") {
-                            actions.push(TreeAction::Customize);
-                        }
-                    });
+                    crate::ui_kit::Menu::context(&response, |ui| folder_menu(ui, study, folder, &mut actions));
                     if folded || folder == Node::Coupling {
                         continue;
+                    }
+                    if folder == Node::Mesh {
+                        // The project-wide mesh settings, as the reference tree's Global Mesh.
+                        let picked = node == Node::Mesh && state.entry.is_none();
+                        let response = row(ui, 3, None, Node::Mesh.icon(), tr("multiphysics.tree_global_mesh"), picked, true, false);
+                        crate::scenario::publish_target("multiphysics:tree:global_mesh", response.rect);
+                        if response.clicked() {
+                            actions.push(TreeAction::Select(study.id.clone(), Node::Mesh));
+                        }
+                        crate::ui_kit::Menu::context(&response, |ui| {
+                            if menu_item(ui, "multiphysics.tree_edit_definition") {
+                                actions.push(TreeAction::Select(study.id.clone(), Node::Mesh));
+                            }
+                            if menu_item(ui, "multiphysics.tree_show_basic_mesh") {
+                                actions.push(TreeAction::ShowBasicMesh(study.id.clone()));
+                            }
+                        });
                     }
                     for pointer in pointers {
                         let picked = node == folder && state.entry.as_deref() == Some(pointer.as_str());
@@ -1098,7 +1274,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                         if response.clicked() {
                             actions.push(TreeAction::Entry(study.id.clone(), folder, pointer.clone()));
                         }
-                        entry_menu(&response, study, folder, &pointer, &case, &mut actions);
+                        entry_menu(&response, study, studies, folder, &pointer, &case, &mut actions);
                         for (item, label) in items(&case, &pointer) {
                             let picked = node == folder && state.entry.as_deref() == Some(item.as_str());
                             let response = row(ui, 4, None, "component", &label, picked, true, false);
@@ -1106,7 +1282,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                             if response.clicked() {
                                 actions.push(TreeAction::Entry(study.id.clone(), folder, item.clone()));
                             }
-                            entry_menu(&response, study, folder, &item, &case, &mut actions);
+                            entry_menu(&response, study, studies, folder, &item, &case, &mut actions);
                         }
                     }
                 }
@@ -1117,7 +1293,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             let stale = loaded.is_some_and(|run| run.study_revision != study.revision);
             let label = match loaded {
                 Some(run) => format!("{} ({})", tr(Node::Results.key()), run.id),
-                None => tr(Node::Results.key()).to_string(),
+                None => tr("multiphysics.tree_results_not_loaded").to_string(),
             };
             let icon = if stale { "status_warning" } else { Node::Results.icon() };
             let response = row(ui, 1, Some(open), icon, &label, node == Node::Results, loaded.is_some(), false);
@@ -1128,7 +1304,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             } else if response.clicked() && loaded.is_some() {
                 actions.push(TreeAction::Select(study.id.clone(), Node::Results));
             }
-            response.context_menu(|ui| {
+            crate::ui_kit::Menu::context(&response, |ui| {
                 for run in study.runs.iter().rev().take(16) {
                     let text = solidcraft_ui_text::format("multiphysics.tree_load_run", &[("run", &run.id)]);
                     if crate::ui_kit::button(ui, text, crate::ui_kit::Button::Ghost).clicked() {
@@ -1187,11 +1363,11 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     } else if !files.is_empty() && disclosure_clicked(ui, &response, 2) {
                         actions.push(TreeAction::Fold(folder.key()));
                     } else if response.clicked() {
-                        actions.push(TreeAction::Select(study.id.clone(), folder));
+                        actions.push(TreeAction::Select(study.id.clone(), opens(folder)));
                     }
-                    response.context_menu(|ui| {
+                    crate::ui_kit::Menu::context(&response, |ui| {
                         if folder.available() && menu_item(ui, "multiphysics.tree_insert") {
-                            actions.push(TreeAction::Select(study.id.clone(), folder));
+                            actions.push(TreeAction::Select(study.id.clone(), opens(folder)));
                         }
                         if menu_item(ui, "multiphysics.tree_hide_folder") {
                             actions.push(TreeAction::Hide(folder));
@@ -1207,7 +1383,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                         if response.clicked() {
                             actions.push(TreeAction::Artifact(study.id.clone(), folder, index));
                         }
-                        response.context_menu(|ui| {
+                        crate::ui_kit::Menu::context(&response, |ui| {
                             if menu_item(ui, "multiphysics.tree_show") {
                                 actions.push(TreeAction::Artifact(study.id.clone(), folder, index));
                             }
@@ -1230,12 +1406,47 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
     }
 }
 
-/// The right-click menu of a case entry or list item.
-fn entry_menu(response: &egui::Response, study: &Study, folder: Node, pointer: &str, case: &Value, actions: &mut Vec<TreeAction>) {
-    response.context_menu(|ui| {
+/// The node a Results row opens: Export Results is the report's export section.
+fn opens(folder: Node) -> Node {
+    if folder == Node::ExportResults { Node::Report } else { folder }
+}
+
+/// The right-click menu of a case entry or list item, in the reference tree's order: Edit
+/// Definition, Clone, Delete, Copy to Project, then SolidCraft's Revert and Copy as JSON. Clone
+/// and Delete act on list items only; removing a whole case entry could leave the case without
+/// a setting its solver requires.
+fn entry_menu(response: &egui::Response, study: &Study, studies: &[Study], folder: Node, pointer: &str, case: &Value, actions: &mut Vec<TreeAction>) {
+    crate::ui_kit::Menu::context(response, |ui| {
         if menu_item(ui, "multiphysics.tree_edit_definition") {
             actions.push(TreeAction::Entry(study.id.clone(), folder, pointer.to_string()));
         }
+        ui.separator();
+        if list_item(pointer).is_some() {
+            if menu_item(ui, "multiphysics.tree_clone") {
+                actions.push(TreeAction::CloneItem(study.id.clone(), pointer.to_string()));
+            }
+            if menu_item(ui, "multiphysics.tree_delete") {
+                actions.push(TreeAction::DeleteItem(study.id.clone(), pointer.to_string()));
+            }
+        } else {
+            menu_item_off(ui, "multiphysics.tree_clone", "multiphysics.tree_items_only");
+            menu_item_off(ui, "multiphysics.tree_delete", "multiphysics.tree_items_only");
+        }
+        ui.separator();
+        let others: Vec<&Study> = studies.iter().filter(|other| other.id != study.id).take(16).collect();
+        if others.is_empty() {
+            menu_item_off(ui, "multiphysics.tree_copy_to_project", "multiphysics.tree_no_other_project");
+        } else if let Some(value) = case.pointer(pointer) {
+            let _ = crate::ui_kit::Menu::button(ui, tr("multiphysics.tree_copy_to_project"), |ui| {
+                for other in others {
+                    if crate::ui_kit::button(ui, &other.name, crate::ui_kit::Button::Ghost).clicked() {
+                        actions.push(TreeAction::CopyTo(other.id.clone(), pointer.to_string(), value.clone()));
+                        ui.close();
+                    }
+                }
+            });
+        }
+        ui.separator();
         if menu_item(ui, "multiphysics.tree_revert") {
             actions.push(TreeAction::Revert(study.id.clone(), pointer.to_string()));
         }
@@ -1254,6 +1465,17 @@ fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: &[Study], a
         state.selected = Some(id);
     };
     match action {
+        TreeAction::ShowBasicMesh(id) => {
+            activate(state, id);
+            select(state, Node::Mesh);
+            state.case_view.mesh = !state.case_view.mesh;
+            state.case_view.cad = false;
+        }
+        TreeAction::InsertGoal(id, kind) => {
+            activate(state, id);
+            select(state, Node::Goals);
+            state.goal_kind = kind;
+        }
         TreeAction::Select(id, node) => {
             activate(state, id);
             if node.stage() == Stage::Results && node != Node::Results {
@@ -1326,6 +1548,35 @@ fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: &[Study], a
             }
         }
         TreeAction::Copy(text) => ctx.copy_text(text),
+        TreeAction::CloneItem(id, pointer) => edit_draft(state, &id, |case| {
+            let Some((parent, index)) = list_item(&pointer) else { return false };
+            let Some(list) = case.pointer_mut(parent).and_then(Value::as_array_mut) else { return false };
+            let Some(item) = list.get(index).cloned() else { return false };
+            if list.len() >= 64 {
+                return false;
+            }
+            list.insert(index + 1, item);
+            true
+        }),
+        TreeAction::DeleteItem(id, pointer) => {
+            edit_draft(state, &id, |case| {
+                let Some((parent, index)) = list_item(&pointer) else { return false };
+                let Some(list) = case.pointer_mut(parent).and_then(Value::as_array_mut) else { return false };
+                if index >= list.len() {
+                    return false;
+                }
+                list.remove(index);
+                true
+            });
+            state.entry = None;
+        }
+        TreeAction::CopyTo(id, pointer, value) => edit_draft(state, &id, |case| match case.pointer_mut(&pointer) {
+            Some(slot) => {
+                *slot = value;
+                true
+            }
+            None => false,
+        }),
     }
 }
 
@@ -1335,7 +1586,7 @@ pub(super) fn customize(state: &mut State, ctx: &egui::Context) {
     if !state.show_customize {
         return;
     }
-    let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_customize_tree"), "list", tr("multiphysics.tree_customize"))
+    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_customize_tree"), "list", tr("multiphysics.tree_customize"))
         .cards(1.6)
         .page_rows(22.0)
         .show_body(ctx, |ui| {
@@ -1419,7 +1670,7 @@ fn row(ui: &mut egui::Ui, depth: usize, open: Option<bool>, icon: &str, text: &s
     let galley = painter.layout(text.to_owned(), font, color, room);
     let galley_height = galley.size().y;
     painter.with_clip_rect(rect).galley(pos2(x, rect.center().y - galley_height / 2.0), galley, color);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, text));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, text));
     response
 }
 
@@ -1431,40 +1682,17 @@ pub(super) fn windows(
     app: &mut SolveApp,
     state: &mut State,
     study: Option<&Study>,
-    report: Option<&solidcraft_engine::multiphysics::Validation>,
+    _report: Option<&solidcraft_engine::multiphysics::Validation>,
     graphics: Rect,
     ctx: &egui::Context,
 ) {
     let t = Tokens::get();
-    let node = current(state);
     let at = graphics.left_top() + vec2(t.space_12, t.space_12);
-    if let Some(study) = study
-        && state.dialog_open
-        && !node.in_graphics()
-        && !state.show_materials
-    {
-        let title = match &state.entry {
-            Some(pointer) if node.edits_case() => format!("{} — {} — {}", tr(node.key()), entry_label(pointer), study.name),
-            _ => format!("{} — {}", tr(node.key()), study.name),
-        };
-        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_feature_window"), node.icon(), &title)
-            .placed(egui::Align2::LEFT_TOP, at)
-            .cards(if node.stage() == Stage::Results { 2.4 } else { 1.8 })
-            .page_rows(24.0)
-            .keep_open_on_escape()
-            .show_body(ctx, |ui| {
-                crate::scenario::publish_rect("multiphysics:feature_window", ui.max_rect());
-                feature(app, state, study, report, node, ui);
-            });
-        if closed {
-            state.dialog_open = false;
-        }
-    }
     if let Some(study) = study
         && (state.show_monitor || state.stage == Stage::Run)
     {
         let title = format!("{} — {}", tr("multiphysics.cmd_monitor"), study.name);
-        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_solver_monitor"), "settings_monitor", &title)
+        let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_solver_monitor"), "settings_monitor", &title)
             .placed(egui::Align2::RIGHT_TOP, graphics.right_top() + vec2(-t.space_12, t.space_12))
             .cards(1.6)
             .show_body(ctx, |ui| {
@@ -1479,7 +1707,7 @@ pub(super) fn windows(
         }
     }
     if state.show_catalog {
-        let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_templates"), "library", tr("multiphysics.cmd_templates"))
+        let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_templates"), "library", tr("multiphysics.cmd_templates"))
             .placed(egui::Align2::LEFT_TOP, at)
             .cards(2.2)
             .page_rows(24.0)
@@ -1494,7 +1722,62 @@ pub(super) fn windows(
     customize(state, ctx);
 }
 
-/// The body of the floating window for `node`.
+/// Whether the selected node's feature dialog is shown in the right-hand property panel.
+pub(super) fn feature_docked(state: &State) -> bool {
+    state.dialog_open && !current(state).in_graphics() && !state.show_materials
+}
+
+/// The right-hand property panel: the feature's title, its dialog, and the ✓ / ✕ footer of a
+/// flow-analysis property panel. ✓ applies pending case edits (when this node edits the case)
+/// and closes; ✕ closes and keeps the draft, so nothing typed is lost.
+pub(super) fn feature_panel(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &Study,
+    report: Option<&solidcraft_engine::multiphysics::Validation>,
+    ui: &mut egui::Ui,
+) {
+    let t = Tokens::get();
+    let node = current(state);
+    crate::scenario::publish_rect("multiphysics:feature_window", ui.max_rect());
+    let title = match &state.entry {
+        Some(pointer) if node.edits_case() => format!("{} — {}", tr(node.key()), entry_label(pointer)),
+        _ => tr(node.key()).to_string(),
+    };
+    ui.add_space(t.space_4);
+    ui.horizontal(|ui| {
+        let (rect, _) = ui.allocate_exact_size(vec2(t.space_16, t.space_16), Sense::hover());
+        crate::icons::paint_icon(ui.painter(), rect, node.icon(), 1.0);
+        ui.strong(&title);
+    });
+    ui.label(RichText::new(&study.name).small().color(t.text_dim));
+    ui.separator();
+    let footer = t.control_height + t.space_12;
+    egui::ScrollArea::vertical().id_salt("multiphysics_feature_panel").max_height((ui.available_height() - footer).max(80.0)).show(ui, |ui| {
+        feature(app, state, study, report, node, ui);
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        let dirty = state.drafts.get(&study.id).is_some_and(Draft::dirty);
+        let ok = crate::ui_kit::button(ui, "✓", crate::ui_kit::Button::Normal).backing_on_hover_text(tr("multiphysics.panel_ok"));
+        crate::scenario::publish_target("multiphysics:panel_ok", ok.rect);
+        let close = crate::ui_kit::button(ui, "✕", crate::ui_kit::Button::Normal).backing_on_hover_text(tr("multiphysics.panel_close"));
+        crate::scenario::publish_target("multiphysics:panel_close", close.rect);
+        if ok.clicked() {
+            if node.edits_case() && dirty {
+                apply(app, state, study);
+            }
+            if state.error.is_none() {
+                state.dialog_open = false;
+            }
+        }
+        if close.clicked() {
+            state.dialog_open = false;
+        }
+    });
+}
+
+/// The body of the property panel for `node`.
 fn feature(
     app: &mut SolveApp,
     state: &mut State,
@@ -1521,7 +1804,7 @@ fn feature(
                 ui.strong(entry_label(pointer));
                 ui.label(RichText::new(pointer).small().monospace().color(Tokens::get().text_dim));
             }
-            settings(state, study, node, entry.as_deref(), ui);
+            settings(app, state, study, node, entry.as_deref(), ui);
             ui.separator();
             let dirty = state.drafts.get(&study.id).is_some_and(Draft::dirty);
             ui.horizontal(|ui| {
@@ -1570,7 +1853,47 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
             }
         }
         _ => {
+            let mut offer_case = false;
+            // A 3-D airflow case is drawn as itself, with its domain, parts and face roles,
+            // and picked in place; anything else (and "Show CAD model") is the CAD window.
+            if let Some(study) = study
+                && node.stage() != Stage::Results
+                && let Some(text) = state.drafts.get(&study.id).map(|draft| draft.case_text.clone())
+                && crate::multiphysics_case_view::drawable(&mut state.case_view, &text)
+            {
+                state.case_view.own(&study.id);
+                if !state.case_view.cad {
+                    let mode = super::case_mode(node, state.case_tool.fan_internal);
+                    state.case_view.force_mesh = node == Node::Mesh;
+                    state.case_view.show_pockets = node == Node::Domain;
+                    if let Some(outcome) = crate::multiphysics_case_view::show(app, ui, &mut state.case_view, &text, mode) {
+                        if let Some((face, cells)) = outcome.move_face
+                            && let Ok(case) = serde_json::from_str::<Value>(&text)
+                        {
+                            let cell = solidcraft_engine::multiphysics::case_scene::scene(&case).map(|scene| scene.edge_cell(face)).unwrap_or(0.0);
+                            let result = solidcraft_engine::multiphysics::case_scene::move_domain_face(&case, face, cells);
+                            if super::apply_case_edit(state, study, result) {
+                                state.case_view.moved(face, cells, cell);
+                            }
+                        }
+                        // Picking in the graphics window opens the matching panel.
+                        if outcome.picked && !state.case_view.selection.is_empty() && node.edits_case() && !feature_docked(state) {
+                            select(state, node);
+                        }
+                    }
+                    return;
+                }
+                offer_case = true;
+            }
             crate::viewport::show(app, ui);
+            // Drawn after the CAD window so it stays on top of it.
+            if offer_case {
+                let corner = Rect::from_min_size(rect.min + vec2(t.space_8, t.space_8), vec2(260.0, t.control_height + t.space_4));
+                ui.scope_builder(egui::UiBuilder::new().max_rect(corner), |ui| {
+                    let response = crate::ui_kit::checkbox(ui, tr("multiphysics.case_show_cad"), &mut state.case_view.cad);
+                    crate::scenario::publish_target("multiphysics:case_show_cad", response.rect);
+                });
+            }
             // The cue line: what the graphics window is showing and what to do next.
             let cue = match study {
                 None => tr("multiphysics.cue_no_project"),
@@ -1587,113 +1910,159 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
 /// The New Project wizard, one page per step.
 fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
     let Some(mut wizard) = state.wizard.take() else { return };
-    let templates = state.templates.as_ref().and_then(|result| result.as_ref().ok()).cloned().unwrap_or_default();
-    let mut categories: Vec<String> = templates.iter().map(|template| template_category(&template.name).to_owned()).collect();
+    let templates = state.templates.as_ref().and_then(|r| r.as_ref().ok()).cloned().unwrap_or_default();
+    let mut categories: Vec<String> = templates.iter().map(|t| template_category(&t.name).to_string()).collect();
     categories.sort();
     categories.dedup();
-    let in_category: Vec<usize> = (0..templates.len())
-        .filter(|&index| {
-            wizard
-                .category
-                .as_deref()
-                .is_none_or(|category| templates.get(index).is_some_and(|template| template_category(&template.name) == category))
-        })
-        .collect();
+    let synchronize = |wizard: &mut Wizard| {
+        let chosen = wizard.template.and_then(|i| templates.get(i));
+        let id = chosen.map(|t| t.id.as_str());
+        if wizard.case_template.as_deref() != id {
+            wizard.case_template = id.map(str::to_string);
+            wizard.candidate = chosen.map(|t| t.case.clone());
+            wizard.error = None;
+        }
+    };
+    synchronize(&mut wizard);
+    wizard.step = wizard.step.min(6);
     let title = solidcraft_ui_text::format(
         "multiphysics.wizard_title",
-        &[("step", &(wizard.step + 1).to_string()), ("count", &WIZARD_STEPS.len().to_string()), ("name", tr(WIZARD_STEPS[wizard.step.min(3)]))],
+        &[("step", &(wizard.step + 1).to_string()), ("count", "7"), ("name", tr(WIZARD_STEPS[wizard.step]))],
     );
     let mut finish = false;
     let mut cancel = false;
-    let closed = crate::ui_kit::Window::new(egui::Id::new("multiphysics_wizard"), "new", &title).cards(2.0).page_rows(18.0).show_body(ctx, |ui| {
+    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_wizard"), "new", &title).cards(2.0).page_rows(18.0).show_body(ctx, |ui| {
         crate::scenario::publish_rect("multiphysics:wizard", ui.max_rect());
+        crate::scenario::publish_count("multiphysics:wizard_step", wizard.step as f64);
         match wizard.step {
             0 => {
                 ui.label(tr("multiphysics.wizard_name_hint"));
-                crate::ui_kit::text_row(ui, tr("multiphysics.name"), &mut wizard.name, tr("multiphysics.wizard_name_placeholder"));
+                let r = crate::ui_kit::row(ui, tr("multiphysics.name"), |ui| {
+                    crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("wizard_name"), &mut wizard.name, "", false, 160)
+                });
+                crate::scenario::publish_target("multiphysics:wizard_name", r.rect);
             }
             1 => {
-                ui.label(tr("multiphysics.wizard_type_hint"));
-                egui::ScrollArea::vertical().id_salt("multiphysics_wizard_types").max_height(320.0).show(ui, |ui| {
-                    if crate::ui_kit::list_picker(
+                let current = wizard.category.clone().unwrap_or_else(|| tr("multiphysics.template_category_all").to_string());
+                let r = crate::ui_kit::dropdown_menu(ui, "multiphysics_wizard_category", &current, |ui| {
+                    let response = crate::ui_kit::list_picker(
                         ui,
-                        "multiphysics_wizard_type_all",
+                        "multiphysics_wizard_category_all",
                         tr("multiphysics.template_category_all"),
                         wizard.category.is_none(),
-                    )
-                    .clicked()
-                    {
+                    );
+                    crate::scenario::publish_target("multiphysics:wizard_category:all", response.rect);
+                    if response.clicked() {
                         wizard.category = None;
-                        wizard.template = None;
+                        ui.close();
                     }
                     for category in &categories {
-                        let selected = wizard.category.as_deref() == Some(category.as_str());
-                        if crate::ui_kit::list_picker(ui, &format!("multiphysics_wizard_type_{category}"), category, selected).clicked() {
+                        let response = crate::ui_kit::list_picker(
+                            ui,
+                            &format!("multiphysics_wizard_category_{category}"),
+                            category,
+                            wizard.category.as_ref() == Some(category),
+                        );
+                        crate::scenario::publish_target(&format!("multiphysics:wizard_category:{category}"), response.rect);
+                        if response.clicked() {
                             wizard.category = Some(category.clone());
-                            wizard.template = None;
+                            ui.close();
                         }
                     }
                 });
+                crate::scenario::publish_target("multiphysics:wizard_category_menu", r.rect);
+                egui::ScrollArea::vertical().id_salt("multiphysics_wizard_templates").max_height(280.0).show(ui, |ui| {
+                    for (i, template) in templates.iter().enumerate() {
+                        if wizard.category.as_deref().is_some_and(|c| template_category(&template.name) != c) {
+                            continue;
+                        }
+                        let response = crate::ui_kit::list_picker(
+                            ui,
+                            &format!("multiphysics_wizard_template_{}", template.id),
+                            &template.name,
+                            wizard.template == Some(i),
+                        );
+                        crate::scenario::publish_target(&format!("multiphysics:wizard_template:{}", template.id), response.rect);
+                        if response.clicked() {
+                            wizard.template = Some(i);
+                        }
+                    }
+                });
+                synchronize(&mut wizard);
             }
             2 => {
-                ui.label(tr("multiphysics.wizard_template_hint"));
-                egui::ScrollArea::vertical().id_salt("multiphysics_wizard_templates").max_height(320.0).show(ui, |ui| {
-                    for &index in &in_category {
-                        let Some(template) = templates.get(index) else { continue };
-                        let selected = wizard.template == Some(index);
-                        if crate::ui_kit::list_picker(ui, &format!("multiphysics_wizard_template_{}", template.id), &template.name, selected)
-                            .clicked()
-                        {
-                            wizard.template = Some(index);
-                        }
-                    }
-                });
-                if let Some(template) = wizard.template.and_then(|index| templates.get(index)) {
-                    ui.label(RichText::new(&template.profile).small().color(Tokens::get().text_dim));
-                }
+                ui.label(tr("multiphysics.wizard_si_scope"));
+            }
+            3..=5 => {
+                ui.small(tr("multiphysics.wizard_case_scope"));
+                let groups: &[Node] = match wizard.step {
+                    3 => &[Node::General, Node::Control, Node::Domain, Node::Mesh],
+                    4 => &[Node::FluidSubdomains, Node::SolidMaterials, Node::Boundary, Node::Radiation, Node::Sources, Node::Fans, Node::Porous],
+                    _ => &[Node::Initial],
+                };
+                let r = ui
+                    .scope(|ui| {
+                        egui::ScrollArea::vertical().id_salt(("wizard_case", wizard.step)).max_height(320.0).show(ui, |ui| {
+                            let mut any = false;
+                            if let Some(case) = &mut wizard.candidate {
+                                for &group in groups {
+                                    if entries(case, group).is_empty() {
+                                        continue;
+                                    }
+                                    any = true;
+                                    ui.push_id(group.key(), |ui| {
+                                        ui.strong(tr(group.key()));
+                                        fields_group(ui, case, group);
+                                    });
+                                }
+                            }
+                            if !any {
+                                ui.label(tr("multiphysics.wizard_no_case_fields"));
+                            }
+                        });
+                    })
+                    .response;
+                crate::scenario::publish_rect(
+                    match wizard.step {
+                        3 => "multiphysics:wizard_case_general",
+                        4 => "multiphysics:wizard_case_materials",
+                        _ => "multiphysics:wizard_case_initial",
+                    },
+                    r.rect,
+                );
             }
             _ => {
-                let template = wizard.template.and_then(|index| templates.get(index));
-                egui::Grid::new("multiphysics_wizard_summary").striped(true).show(ui, |ui| {
-                    ui.label(tr("multiphysics.name"));
-                    ui.monospace(if wizard.name.trim().is_empty() {
-                        template.map_or("", |template| template.name.as_str())
-                    } else {
-                        wizard.name.as_str()
-                    });
-                    ui.end_row();
-                    ui.label(tr(WIZARD_STEPS[1]));
-                    ui.monospace(wizard.category.as_deref().unwrap_or(tr("multiphysics.template_category_all")));
-                    ui.end_row();
-                    ui.label(tr(WIZARD_STEPS[2]));
-                    ui.monospace(template.map_or("", |template| template.name.as_str()));
-                    ui.end_row();
-                    ui.label(tr("multiphysics.wizard_profile"));
-                    ui.monospace(template.map_or("", |template| template.profile.as_str()));
-                    ui.end_row();
-                    let entries = template.and_then(|template| template.case.as_object()).map_or(0, serde_json::Map::len);
-                    ui.label(tr("multiphysics.wizard_settings"));
-                    ui.monospace(entries.to_string());
-                    ui.end_row();
+                if let Some(t) = wizard.template.and_then(|i| templates.get(i)) {
+                    ui.strong(if wizard.name.trim().is_empty() { &t.name } else { &wizard.name });
+                    ui.label(&t.profile);
+                }
+                ui.label(tr("multiphysics.wizard_summary_hint"));
+                egui::CollapsingHeader::new(tr("multiphysics.case_settings")).show(ui, |ui| {
+                    if let Some(case) = &wizard.candidate {
+                        egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
+                            ui.monospace(pretty(case));
+                        });
+                    }
                 });
-                ui.label(RichText::new(tr("multiphysics.wizard_summary_hint")).small().color(Tokens::get().text_dim));
             }
+        }
+        let valid = wizard.candidate.as_ref().map(solidcraft_engine::multiphysics::validate_case);
+        if let Some(Err(e)) = &valid {
+            ui.colored_label(Tokens::get().form_error, e.to_string());
+        }
+        if let Some(e) = &wizard.error {
+            ui.colored_label(Tokens::get().form_error, e);
         }
         ui.separator();
         ui.horizontal(|ui| {
-            let ready = match wizard.step {
-                2 => wizard.template.is_some(),
-                3 => wizard.template.is_some(),
-                _ => true,
-            };
             if button(ui, "multiphysics.wizard_back", "multiphysics:wizard_back", wizard.step > 0).clicked() {
                 wizard.step = wizard.step.saturating_sub(1);
             }
-            if wizard.step < WIZARD_STEPS.len() - 1 {
-                if button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", ready).clicked() {
+            if wizard.step < 6 {
+                if button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", wizard.step == 0 || wizard.candidate.is_some()).clicked() {
                     wizard.step += 1;
                 }
-            } else if button(ui, "multiphysics.wizard_finish", "multiphysics:wizard_finish", ready).clicked() {
+            } else if button(ui, "multiphysics.wizard_finish", "multiphysics:wizard_finish", matches!(valid, Some(Ok(())))).clicked() {
                 finish = true;
             }
             if button(ui, "multiphysics.cancel_draft", "multiphysics:wizard_cancel", true).clicked() {
@@ -1701,11 +2070,22 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
             }
         });
     });
-    if finish && let Some(index) = wizard.template {
-        create_from_template(app, state, Some((index, wizard.name.clone())));
+    if closed || cancel {
         return;
     }
-    if !closed && !cancel {
-        state.wizard = Some(wizard);
+    if finish
+        && let Some(t) = wizard.template.and_then(|i| templates.get(i))
+        && let Some(case) = wizard.candidate.as_ref()
+    {
+        let name = if wizard.name.trim().is_empty() { &t.name } else { &wizard.name };
+        if let Some(reply) = command(app, state, "multiphysics.study.create", json!({"template":t.id,"name":name,"case":case})) {
+            state.selected = reply["study"]["id"].as_str().map(str::to_string);
+            state.selected_run = None;
+            state.selected_artifact = 0;
+            select(state, Node::Project);
+            return;
+        }
+        wizard.error = state.error.clone();
     }
+    state.wizard = Some(wizard);
 }

@@ -163,6 +163,8 @@ pub struct State {
     inspected: Option<Inspected>,
     /// Post-processing answers for the shown run; dropped when the project or run changes.
     post: Option<PostCache>,
+    /// Trajectory, particle, isosurface and surface tools.
+    flow: FlowTool,
     /// The Analysis tree node picked for `stage` (see [`shell::current`]).
     node: Option<(Stage, shell::Node)>,
     /// The picked node's feature dialog or result window is open over the graphics window.
@@ -179,7 +181,1163 @@ pub struct State {
     show_customize: bool,
     /// The case entry (JSON pointer) picked in the tree, edited alone in its feature dialog.
     entry: Option<String>,
+    feature_name: String,
+    replace_fan_patch_conditions: bool,
+    feature_owner: Option<(u64, String, &'static str)>,
+    /// The goal kind Add creates in the Goals panel (`authoring::FeatureKind`, snake case).
+    goal_kind: &'static str,
+    /// The 3-D case view in the graphics window and what is picked in it.
+    case_view: crate::multiphysics_case_view::CaseView,
+    /// Values typed in the panel for the picked parts and faces.
+    case_tool: CaseTool,
+    /// Add from Components: the model's bodies and the import choices.
+    components: ComponentTool,
+    /// Per project, the CAD point (mm) at the domain origin, from the last fitted import.
+    /// Kept for the session only: the solver case has no place for it.
+    cad_origin: BTreeMap<String, [f64; 3]>,
 }
+
+#[derive(Default)]
+struct ComponentTool {
+    /// The model's body names, read when the panel opens or on Refresh.
+    bodies: Option<Result<Vec<String>, String>>,
+    chosen: std::collections::BTreeSet<String>,
+    representation: solidcraft_engine::multiphysics::case_scene::Representation,
+    keep_domain: bool,
+    margin: String,
+    cell: String,
+    replace: bool,
+    notes: Vec<String>,
+}
+
+const REPRESENTATIONS: [(solidcraft_engine::multiphysics::case_scene::Representation, &str); 3] = [
+    (solidcraft_engine::multiphysics::case_scene::Representation::Auto, "multiphysics.components_auto"),
+    (solidcraft_engine::multiphysics::case_scene::Representation::Obstacle, "multiphysics.components_obstacle"),
+    (solidcraft_engine::multiphysics::case_scene::Representation::Surface, "multiphysics.components_surface"),
+];
+
+/// The bodies picked in the CAD model.
+fn cad_bodies(app: &SolveApp) -> Vec<String> {
+    app.session
+        .selection
+        .iter()
+        .filter_map(|sel| match sel {
+            solidcraft_engine::Sel::Body { name } => Some(name.clone()),
+            solidcraft_engine::Sel::Face { body, .. } => Some(body.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Points (mm) of the faces picked in the CAD model.
+fn cad_face_points(app: &SolveApp) -> Vec<[f64; 3]> {
+    app.session
+        .selection
+        .iter()
+        .filter_map(|sel| match sel {
+            solidcraft_engine::Sel::Face { point, .. } => Some([point.x, point.y, point.z]),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Add from Components: turn model bodies into case parts (grid blocks or surface bodies).
+fn components_panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::case_scene::Representation;
+    let t = Tokens::get();
+    ui.small(tr("multiphysics.components_hint"));
+    if state.components.bodies.is_none() || button(ui, "multiphysics.components_refresh", "multiphysics:components_refresh", true).clicked() {
+        let listed = app
+            .run("multiphysics.cad.bodies", json!({}))
+            .map(|reply| reply["bodies"].as_array().into_iter().flatten().filter_map(|b| b.as_str().map(str::to_string)).collect::<Vec<_>>());
+        if let Ok(bodies) = &listed {
+            state.components.chosen.retain(|name| bodies.contains(name));
+        }
+        state.components.bodies = Some(listed);
+    }
+    let picked = cad_bodies(app);
+    if !picked.is_empty() && button(ui, "multiphysics.components_use_selection", "multiphysics:components_use_selection", true).clicked() {
+        state.components.chosen = picked.into_iter().collect();
+    }
+    match state.components.bodies.clone() {
+        Some(Ok(bodies)) if bodies.is_empty() => {
+            ui.label(RichText::new(tr("multiphysics.components_none")).color(t.text_dim));
+        }
+        Some(Ok(bodies)) => {
+            egui::ScrollArea::vertical().id_salt("multiphysics_components").max_height(180.0).show(ui, |ui| {
+                for name in bodies {
+                    let mut on = state.components.chosen.contains(&name);
+                    let response = crate::ui_kit::checkbox(ui, &name, &mut on);
+                    crate::scenario::publish_target(&format!("multiphysics:component:{name}"), response.rect);
+                    if response.changed() {
+                        if on {
+                            state.components.chosen.insert(name);
+                        } else {
+                            state.components.chosen.remove(&name);
+                        }
+                    }
+                }
+            });
+        }
+        Some(Err(error)) => {
+            ui.label(RichText::new(error).color(t.form_error));
+        }
+        None => {}
+    }
+    let current = REPRESENTATIONS.iter().find(|(r, _)| *r == state.components.representation).map_or("", |(_, key)| key);
+    let r = crate::ui_kit::row(ui, tr("multiphysics.components_as"), |ui| {
+        crate::ui_kit::dropdown_menu(ui, "multiphysics_components_as", tr(current), |ui| {
+            for (representation, key) in REPRESENTATIONS {
+                let response = crate::ui_kit::list_picker(
+                    ui,
+                    &format!("multiphysics_components_as_{key}"),
+                    tr(key),
+                    representation == state.components.representation,
+                );
+                if response.clicked() {
+                    state.components.representation = representation;
+                    ui.close();
+                }
+            }
+        })
+    });
+    crate::scenario::publish_target("multiphysics:components_as", r.rect);
+    let origin = state.cad_origin.get(&study.id).copied();
+    // Without a CAD origin the first import has to size the domain around the bodies.
+    let fit = !state.components.keep_domain || origin.is_none();
+    let r = ui
+        .add_enabled_ui(origin.is_some(), |ui| {
+            crate::ui_kit::checkbox(ui, tr("multiphysics.components_keep_domain"), &mut state.components.keep_domain)
+        })
+        .inner;
+    crate::scenario::publish_target("multiphysics:components_keep_domain", r.rect);
+    match origin {
+        Some(o) => {
+            ui.small(solidcraft_ui_text::format("multiphysics.components_origin", &[("origin", &format!("{:.2}, {:.2}, {:.2}", o[0], o[1], o[2]))]))
+        }
+        None => ui.small(tr("multiphysics.components_no_origin")),
+    };
+    if fit {
+        if state.components.margin.is_empty() {
+            state.components.margin = "10".into();
+        }
+        let r = crate::ui_kit::row(ui, tr("multiphysics.components_margin"), |ui| {
+            crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("components_margin"), &mut state.components.margin, "", false, 16)
+        });
+        crate::scenario::publish_target("multiphysics:components_margin", r.rect);
+        let r = crate::ui_kit::row(ui, tr("multiphysics.components_cell"), |ui| {
+            crate::ui_kit::bounded_cell_editor(
+                ui,
+                ui.scope_id().with("components_cell"),
+                &mut state.components.cell,
+                tr("multiphysics.components_cell_auto"),
+                false,
+                16,
+            )
+        });
+        crate::scenario::publish_target("multiphysics:components_cell", r.rect);
+    }
+    let r = crate::ui_kit::checkbox(ui, tr("multiphysics.components_replace"), &mut state.components.replace);
+    crate::scenario::publish_target("multiphysics:components_replace", r.rect);
+    let margin = if fit { number(&state.components.margin) } else { Some(0.0) };
+    let cell = if state.components.cell.trim().is_empty() { Ok(None) } else { number(&state.components.cell).map(Some).ok_or(()) };
+    let ready = !state.components.chosen.is_empty() && margin.is_some() && cell.is_ok();
+    if button(ui, "multiphysics.components_add", "multiphysics:components_add", ready).clicked()
+        && let (Some(margin), Ok(cell)) = (margin, cell)
+        && let Some(case) = state.drafts.get(&study.id).and_then(|draft| serde_json::from_str::<Value>(&draft.case_text).ok())
+    {
+        let options = json!({
+            "representation": match state.components.representation {
+                Representation::Auto => "auto",
+                Representation::Obstacle => "obstacle",
+                Representation::Surface => "surface",
+            },
+            "origin_mm": if fit { None } else { origin },
+            "fit_domain": fit,
+            "margin_mm": margin,
+            "cell_mm": if fit { cell } else { None },
+            "replace_parts": state.components.replace,
+        });
+        let bodies: Vec<String> = state.components.chosen.iter().cloned().collect();
+        match app.run("multiphysics.case.component.import", json!({"case": case, "bodies": bodies, "options": options})) {
+            Ok(reply) => match serde_json::from_value::<solidcraft_engine::multiphysics::case_scene::Edit>(reply["edit"].clone()) {
+                Ok(edit) => {
+                    if let Ok(origin) = serde_json::from_value::<[f64; 3]>(reply["origin_mm"].clone()) {
+                        state.cad_origin.insert(study.id.clone(), origin);
+                    }
+                    state.components.notes = reply["notes"].as_array().into_iter().flatten().filter_map(|n| n.as_str().map(str::to_string)).collect();
+                    state.case_view.reset();
+                    apply_case_edit(state, study, Ok(edit));
+                }
+                Err(error) => state.error = Some(error.to_string()),
+            },
+            Err(error) => state.error = Some(error),
+        }
+    }
+    for note in &state.components.notes {
+        ui.small(note.as_str());
+    }
+}
+
+/// Text fields of the panel's selection tools (kept as typed until used).
+#[derive(Default)]
+struct CaseTool {
+    conductivity: String,
+    speed: String,
+    pressure: String,
+    /// Lid opening along the face's two in-plane axes: [u from, u to, v from, v to] in cells.
+    opening: [String; 4],
+    /// The face the opening fields were filled for.
+    opening_face: Option<usize>,
+    /// Device inputs, as typed (filled with typical values on first use).
+    devices_ready: bool,
+    pcb_thickness: String,
+    /// `thickness_um:coverage` per copper layer, comma separated.
+    pcb_layers: String,
+    led_power: String,
+    led_efficiency: String,
+    led_rjc: String,
+    battery_current: String,
+    battery_resistance: String,
+    battery_entropic: String,
+    battery_cells: String,
+    plate_name: String,
+    plate_open: String,
+    /// Local mesh: cell split factor (2..4) and margin around the picked parts, in cells.
+    refine_factor: usize,
+    refine_margin: String,
+    /// Zoom-in: refinement (1..4), margin in parent cells and the child project's name.
+    zoom_refine: usize,
+    zoom_margin: String,
+    zoom_name: String,
+    /// Rotating region: name, speed in rpm, axis (0 x, 1 y, 2 z) and margin in cells.
+    rotating_ready: bool,
+    rotating_name: String,
+    rotating_rpm: String,
+    rotating_axis: usize,
+    rotating_margin: String,
+    /// Fluid volume check: the report for the case text it was made from (by hash), and a
+    /// request to run it (Tools → Fluid Volume).
+    fluid: Option<(u64, Result<solidcraft_engine::multiphysics::fluid_volume::FluidVolume, String>)>,
+    fluid_requested: bool,
+    /// Fans: an internal fan (picked part) instead of an external one (domain face).
+    fan_internal: bool,
+    /// Internal fan inputs: name, direction (index into `FAN_DIRECTIONS`) and the curve as
+    /// `flow L/s : pressure Pa` pairs, comma separated.
+    fan_ready: bool,
+    fan_name: String,
+    fan_direction: usize,
+    fan_curve: String,
+}
+
+/// Results Mesh: the computational grid of a retained field file, drawn as cell lines on the
+/// faces of its bounding box in the 3-D field view, with its size.
+fn mesh_view(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &Study,
+    run: &solidcraft_engine::multiphysics::RunEvidence,
+    artifact: &str,
+    ui: &mut egui::Ui,
+) {
+    ui.label(RichText::new(tr("multiphysics.tree_results_mesh")).strong());
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let grid = state.inspected.as_ref().and_then(|cached| {
+            if !cached.key.matches(app, &study.id, &run.id, artifact) {
+                return None;
+            }
+            match &cached.outcome {
+                Ok(output) => match &output.spatial {
+                    Some(Ok(grid)) => {
+                        // Node positions per axis: every cell face level.
+                        let nodes: [Vec<f64>; 3] = [0, 1, 2].map(|a| {
+                            let mut list: Vec<f64> = grid.cells.iter().flat_map(|c| [c[a][0], c[a][1]]).collect();
+                            list.sort_by(f64::total_cmp);
+                            let tolerance = 1e-12 * (grid.bounds[a][1] - grid.bounds[a][0]).abs().max(1e-300);
+                            list.dedup_by(|x, y| (*x - *y).abs() <= tolerance);
+                            list
+                        });
+                        Some((grid.cells.len(), grid.bounds, nodes))
+                    }
+                    _ => None,
+                },
+                Err(_) => None,
+            }
+        });
+        let Some((cell_count, bounds, nodes)) = grid else {
+            if !inspection_busy(state) {
+                start_inspection(app, state, &study.id, &run.id, artifact);
+            }
+            ui.small(tr("multiphysics.results_mesh_loading"));
+            return;
+        };
+        let widths = |a: usize| nodes[a].windows(2).map(|w| w[1] - w[0]).fold((f64::INFINITY, 0.0_f64), |(lo, hi), w| (lo.min(w), hi.max(w)));
+        egui::Grid::new("multiphysics_results_mesh").show(ui, |ui| {
+            ui.label(tr("multiphysics.results_mesh_cells"));
+            ui.monospace(cell_count.to_string());
+            ui.end_row();
+            for (a, name) in ["x", "y", "z"].into_iter().enumerate() {
+                let (lo, hi) = widths(a);
+                ui.label(name);
+                ui.monospace(format!("{} · {:.4e} – {:.4e} m", nodes[a].len().saturating_sub(1), lo, hi));
+                ui.end_row();
+            }
+        });
+        let mut lines = Vec::new();
+        for face in 0..6usize {
+            let axis = face / 2;
+            let fixed = bounds[axis][face % 2];
+            let [u, v] = solidcraft_engine::multiphysics::case_scene::face_axes(axis);
+            for (along, across) in [(u, v), (v, u)] {
+                let stride = nodes[along].len().div_ceil(64).max(1);
+                for &at in nodes[along].iter().step_by(stride) {
+                    let mut a = [0.0; 3];
+                    a[axis] = fixed;
+                    a[along] = at;
+                    a[across] = bounds[across][0];
+                    let mut b = a;
+                    b[across] = bounds[across][1];
+                    lines.push(vec![(a, 0.5), (b, 0.5)]);
+                }
+            }
+        }
+        if state.view.field_3d.overlay.as_ref().is_none_or(|o| o.lines.len() != lines.len()) {
+            state.view.field_3d.overlay =
+                Some(std::sync::Arc::new(crate::multiphysics_field_view::Overlay { lines, range: (0.0, 1.0), ..Default::default() }));
+            state.view.show_3d = true;
+        }
+        ui.small(tr("multiphysics.flow_in_view"));
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (app, state, study, run, artifact);
+    }
+}
+
+/// The newest flow field of a run: its last VTU frame that is not the thermal export.
+fn flow_artifact(run: &solidcraft_engine::multiphysics::RunEvidence) -> Option<String> {
+    run.artifacts
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .filter(|name| name.ends_with(".vtu") && !name.starts_with("thermal"))
+        .max()
+        .map(str::to_string)
+}
+
+/// Transferred Boundary Conditions: a zoom-in child project around the picked parts, fed by
+/// this project's latest run.
+fn zoom_tools(app: &mut SolveApp, state: &mut State, study: &Study, parts: &[String], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::case_scene as cs;
+    let t = Tokens::get();
+    ui.separator();
+    ui.label(RichText::new(tr("multiphysics.zoom_title")).strong());
+    ui.small(tr("multiphysics.zoom_hint"));
+    let Some((run, artifact)) = study.runs.iter().rev().find_map(|run| flow_artifact(run).map(|name| (run, name))) else {
+        ui.colored_label(t.text_dim, tr("multiphysics.zoom_needs_run"));
+        return;
+    };
+    ui.small(solidcraft_ui_text::format("multiphysics.zoom_source", &[("run", &run.id), ("file", &artifact)]));
+    let Ok(parent) = cs::scene(&run.input_case) else {
+        ui.colored_label(t.text_dim, tr("multiphysics.zoom_needs_run"));
+        return;
+    };
+    let tool = &mut state.case_tool;
+    if tool.zoom_refine == 0 {
+        tool.zoom_refine = 2;
+        tool.zoom_margin = "2".into();
+        tool.zoom_name = format!("{} zoom", study.name);
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tr("multiphysics.zoom_refine"));
+        for factor in 1..=cs::MAX_REFINEMENT {
+            let r = crate::ui_kit::choice_chip(ui, &format!("multiphysics_zoom_{factor}"), &format!("× {factor}"), tool.zoom_refine == factor);
+            crate::scenario::publish_target(&format!("multiphysics:zoom_refine:{factor}"), r.rect);
+            if r.clicked() {
+                tool.zoom_refine = factor;
+            }
+        }
+    });
+    tool_field(ui, "multiphysics.zoom_margin", "multiphysics:zoom_margin", &mut tool.zoom_margin);
+    tool_field(ui, "multiphysics.zoom_name", "multiphysics:zoom_name", &mut tool.zoom_name);
+    // The box: the picked parts (as the run's grid places them) plus the margin.
+    let margin = number(&tool.zoom_margin).filter(|m| (0.0..=64.0).contains(m));
+    let mut low = [f64::INFINITY; 3];
+    let mut high = [f64::NEG_INFINITY; 3];
+    for name in parts {
+        if let Some(part) = parent.part(name) {
+            for a in 0..3 {
+                low[a] = low[a].min(part.min[a]);
+                high[a] = high[a].max(part.max[a]);
+            }
+        }
+    }
+    let boxed = low.iter().all(|v| v.is_finite());
+    if let (true, Some(m)) = (boxed, margin) {
+        for a in 0..3 {
+            low[a] = (low[a] - m * parent.cell(a)).max(0.0);
+            high[a] = (high[a] + m * parent.cell(a)).min(parent.lengths[a]);
+        }
+        ui.small(format!("x {:.4}–{:.4} · y {:.4}–{:.4} · z {:.4}–{:.4} m", low[0], high[0], low[1], high[1], low[2], high[2]));
+    } else {
+        ui.colored_label(t.text_dim, tr("multiphysics.zoom_pick"));
+    }
+    let (refine, name) = (tool.zoom_refine, tool.zoom_name.trim().to_string());
+    let ready = boxed && margin.is_some() && !name.is_empty();
+    if !button(ui, "multiphysics.zoom_create", "multiphysics:zoom_create", ready).clicked() {
+        return;
+    }
+    let project = app.session.doc.multiphysics.clone();
+    let zoom = match post::zoom_from_run(&project, &study.id, &run.id, &artifact, low, high, refine) {
+        Ok(zoom) => zoom,
+        Err(error) => {
+            state.error = Some(error.to_string());
+            return;
+        }
+    };
+    let Some(reply) = command(app, state, "multiphysics.study.clone", json!({"id": study.id, "name": name})) else { return };
+    let Some(child_id) = reply["study"]["id"].as_str().map(str::to_string) else { return };
+    let Some(child) = app.session.doc.multiphysics.studies.iter().find(|s| s.id == child_id).cloned() else { return };
+    let mut draft = Draft::from_study(&child);
+    draft.case_text = pretty(&zoom.case);
+    state.drafts.insert(child_id.clone(), draft);
+    state.selected = Some(child_id);
+    state.case_view.reset();
+    state.error = zoom.issues.first().cloned();
+    let faces: Vec<String> = zoom.transferred.iter().map(|(face, kind)| format!("{face} ({kind})")).collect();
+    let mut notice = solidcraft_ui_text::format("multiphysics.zoom_created", &[("faces", &faces.join(", "))]);
+    for note in &zoom.notes {
+        notice.push_str("\n");
+        notice.push_str(note);
+    }
+    state.notice = Some(notice);
+}
+
+/// Global Mesh panel: the grid size, and local refinement around the parts picked in the
+/// graphics window.
+fn local_mesh_tools(state: &mut State, study: &Study, case: &Value, parts: &[String], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::case_scene as cs;
+    let Ok(scene) = cs::scene(case) else { return };
+    let t = Tokens::get();
+    ui.separator();
+    ui.label(RichText::new(tr("multiphysics.local_mesh_title")).strong());
+    let [nx, ny, nz] = scene.dimensions;
+    let finest = (0..3).flat_map(|a| scene.nodes[a].windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>()).fold(f64::INFINITY, f64::min);
+    ui.label(solidcraft_ui_text::format(
+        if scene.graded() { "multiphysics.local_mesh_graded" } else { "multiphysics.local_mesh_uniform" },
+        &[("cells", &format!("{nx} × {ny} × {nz} = {}", nx * ny * nz)), ("finest", &format!("{:.4}", finest * 1000.0))],
+    ));
+    let tool = &mut state.case_tool;
+    if tool.refine_factor == 0 {
+        tool.refine_factor = 2;
+    }
+    if tool.refine_margin.is_empty() {
+        tool.refine_margin = "1".into();
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tr("multiphysics.local_mesh_factor"));
+        for factor in 2..=solidcraft_engine::multiphysics::case_scene::MAX_REFINEMENT {
+            let r = crate::ui_kit::choice_chip(ui, &format!("multiphysics_refine_{factor}"), &format!("× {factor}"), tool.refine_factor == factor);
+            crate::scenario::publish_target(&format!("multiphysics:refine_factor:{factor}"), r.rect);
+            if r.clicked() {
+                tool.refine_factor = factor;
+            }
+        }
+    });
+    tool_field(ui, "multiphysics.local_mesh_margin", "multiphysics:refine_margin", &mut tool.refine_margin);
+    let margin = number(&tool.refine_margin);
+    let factor = tool.refine_factor;
+    if parts.is_empty() {
+        ui.colored_label(t.text_dim, tr("multiphysics.local_mesh_pick"));
+    }
+    let mut result = None;
+    ui.horizontal_wrapped(|ui| {
+        if button(ui, "multiphysics.local_mesh_refine", "multiphysics:local_mesh_refine", !parts.is_empty() && margin.is_some()).clicked()
+            && let Some(margin) = margin
+        {
+            result = Some(cs::refine_around(case, parts, factor, margin));
+        }
+        let graded = case.pointer("/mesh/coordinates").is_some_and(|c| !c.is_null());
+        if button(ui, "multiphysics.local_mesh_reset", "multiphysics:local_mesh_reset", graded).clicked() {
+            result = Some(cs::uniform_mesh(case));
+        }
+    });
+    if let Some(result) = result {
+        apply_case_edit(state, study, result);
+    }
+}
+
+/// Rotating regions (MRF): a region around the picked parts, turning about x, y or z through
+/// its centre; the case's regions are listed with their speed and a remove button.
+fn rotating_tools(state: &mut State, study: &Study, case: &Value, parts: &[String], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::case_scene as cs;
+    let Ok(scene) = cs::scene(case) else { return };
+    let t = Tokens::get();
+    ui.separator();
+    ui.label(RichText::new(tr("multiphysics.rotating_title")).strong());
+    let tool = &mut state.case_tool;
+    if !tool.rotating_ready {
+        tool.rotating_ready = true;
+        tool.rotating_name = format!("rotor_{}", scene.rotating.len() + 1);
+        tool.rotating_rpm = "1500".into();
+        tool.rotating_axis = 2;
+        tool.rotating_margin = "1".into();
+    }
+    tool_field(ui, "multiphysics.rotating_name", "multiphysics:rotating_name", &mut tool.rotating_name);
+    tool_field(ui, "multiphysics.rotating_rpm", "multiphysics:rotating_rpm", &mut tool.rotating_rpm);
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tr("multiphysics.rotating_axis"));
+        for (axis, label) in ["X", "Y", "Z"].into_iter().enumerate() {
+            let r = crate::ui_kit::choice_chip(ui, &format!("multiphysics_rotating_axis_{axis}"), label, tool.rotating_axis == axis);
+            crate::scenario::publish_target(&format!("multiphysics:rotating_axis:{axis}"), r.rect);
+            if r.clicked() {
+                tool.rotating_axis = axis;
+            }
+        }
+    });
+    tool_field(ui, "multiphysics.rotating_margin", "multiphysics:rotating_margin", &mut tool.rotating_margin);
+    let rpm = number(&tool.rotating_rpm);
+    let margin = number(&tool.rotating_margin).filter(|m| m.fract() == 0.0 && *m >= 0.0).map(|m| m as usize);
+    if parts.is_empty() {
+        ui.colored_label(t.text_dim, tr("multiphysics.rotating_pick"));
+    }
+    let mut result = None;
+    let ready = !parts.is_empty() && rpm.is_some() && margin.is_some() && !tool.rotating_name.trim().is_empty();
+    if button(ui, "multiphysics.rotating_add", "multiphysics:rotating_add", ready).clicked()
+        && let (Some(rpm), Some(margin)) = (rpm, margin)
+    {
+        result = Some(cs::add_rotating_region(case, tool.rotating_name.trim(), parts, tool.rotating_axis, rpm, margin));
+        tool.rotating_ready = false;
+    }
+    for region in &scene.rotating {
+        ui.horizontal_wrapped(|ui| {
+            let axis = ["X", "Y", "Z"].into_iter().zip(region.axis).find(|(_, c)| c.abs() > 0.5).map_or("?", |(name, _)| name);
+            ui.label(solidcraft_ui_text::format(
+                "multiphysics.rotating_row",
+                &[("name", &region.name), ("rpm", &format!("{}", region.rpm)), ("axis", axis)],
+            ));
+            let handle = format!("multiphysics:rotating_remove:{}", region.name);
+            if button(ui, "multiphysics.rotating_remove", &handle, true).clicked() {
+                result = Some(cs::remove_rotating_region(case, &region.name));
+            }
+        });
+    }
+    if let Some(result) = result {
+        apply_case_edit(state, study, result);
+    }
+}
+
+/// Fluid volume: fluid and solid cells and volumes, the connected fluid regions and the
+/// openings each reaches. Sealed pockets are drawn in the graphics window and can be filled
+/// with solid blocks.
+fn fluid_volume_tools(state: &mut State, study: &Study, case: &Value, ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::fluid_volume as fv;
+    use std::hash::{Hash, Hasher};
+    let t = Tokens::get();
+    ui.separator();
+    ui.label(RichText::new(tr("multiphysics.fluid_title")).strong());
+    let key = {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        case.to_string().hash(&mut hasher);
+        hasher.finish()
+    };
+    let tool = &mut state.case_tool;
+    // A report for an older case is redone, so the figures always match the draft.
+    let stale = tool.fluid.as_ref().is_some_and(|(k, _)| *k != key);
+    let pressed = button(ui, "multiphysics.fluid_check", "multiphysics:fluid_check", true).clicked();
+    if pressed || stale || std::mem::take(&mut tool.fluid_requested) {
+        tool.fluid = Some((key, fv::fluid_volume(case).map_err(|e| e.to_string())));
+    }
+    let litres = |m3: f64| format!("{:.4}", m3 * 1000.0);
+    let mut fill = false;
+    state.case_view.pockets.clear();
+    match tool.fluid.as_ref().map(|(_, report)| report) {
+        None => {
+            ui.colored_label(t.text_dim, tr("multiphysics.fluid_hint"));
+        }
+        Some(Err(error)) => {
+            ui.colored_label(t.error, error);
+        }
+        Some(Ok(report)) => {
+            let percent = |part: f64| if report.total_volume_m3 > 0.0 { 100.0 * part / report.total_volume_m3 } else { 0.0 };
+            ui.label(solidcraft_ui_text::format(
+                "multiphysics.fluid_fluid",
+                &[
+                    ("cells", &report.fluid_cells.to_string()),
+                    ("volume", &litres(report.fluid_volume_m3)),
+                    ("percent", &format!("{:.1}", percent(report.fluid_volume_m3))),
+                ],
+            ));
+            ui.label(solidcraft_ui_text::format(
+                "multiphysics.fluid_solid",
+                &[
+                    ("cells", &report.solid_cells.to_string()),
+                    ("volume", &litres(report.solid_volume_m3)),
+                    ("percent", &format!("{:.1}", percent(report.solid_volume_m3))),
+                ],
+            ));
+            if report.openings.is_empty() {
+                ui.colored_label(t.warning, tr("multiphysics.fluid_no_openings"));
+            } else {
+                ui.label(solidcraft_ui_text::format("multiphysics.fluid_openings", &[("openings", &report.openings.join(", "))]));
+            }
+            for (n, region) in report.regions.iter().enumerate() {
+                let number = (n + 1).to_string();
+                let cells = region.cells.to_string();
+                let volume = litres(region.volume_m3);
+                if region.sealed() {
+                    state.case_view.pockets.push((region.min, region.max));
+                    let text =
+                        solidcraft_ui_text::format("multiphysics.fluid_region_sealed", &[("n", &number), ("cells", &cells), ("volume", &volume)]);
+                    let r = ui.colored_label(t.warning, text);
+                    crate::scenario::publish_target(&format!("multiphysics:fluid_region:{}", n + 1), r.rect);
+                } else {
+                    let text = solidcraft_ui_text::format(
+                        "multiphysics.fluid_region",
+                        &[("n", &number), ("cells", &cells), ("volume", &volume), ("openings", &region.openings.join(", "))],
+                    );
+                    let r = ui.label(text);
+                    crate::scenario::publish_target(&format!("multiphysics:fluid_region:{}", n + 1), r.rect);
+                }
+            }
+            if report.unlisted_regions > 0 {
+                ui.label(solidcraft_ui_text::format(
+                    "multiphysics.fluid_more",
+                    &[("regions", &report.unlisted_regions.to_string()), ("cells", &report.unlisted_cells.to_string())],
+                ));
+            }
+            for part in report.solids.iter().filter(|p| p.overlapping_cells > 0) {
+                ui.colored_label(
+                    t.warning,
+                    solidcraft_ui_text::format("multiphysics.fluid_overlap", &[("name", &part.name), ("cells", &part.overlapping_cells.to_string())]),
+                );
+            }
+            for name in &report.empty_bodies {
+                ui.colored_label(t.warning, solidcraft_ui_text::format("multiphysics.fluid_empty_body", &[("name", name)]));
+            }
+            let sealed = report.sealed().count();
+            if sealed == 0 && !report.openings.is_empty() {
+                ui.colored_label(t.text_dim, tr("multiphysics.fluid_no_pockets"));
+            }
+            fill = button(ui, "multiphysics.fluid_fill", "multiphysics:fluid_fill", sealed > 0 && !report.openings.is_empty()).clicked();
+            crate::scenario::publish_count("multiphysics:fluid_sealed", sealed as f64);
+        }
+    }
+    if fill {
+        apply_case_edit(state, study, fv::fill_sealed_pockets(case));
+    }
+}
+
+/// `flow L/s : pressure Pa` pairs, comma separated, as (m³/s, Pa) curve points.
+fn parse_fan_curve(text: &str) -> Option<Vec<(f64, f64)>> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(|item| {
+            let (flow, pressure) = item.split_once(':')?;
+            Some((number(flow)? / 1000.0, number(pressure)?))
+        })
+        .collect()
+}
+
+/// Internal fans: the picked part becomes a fan block blowing along a grid direction with a
+/// pressure-flow curve; the case's internal fans are listed with a remove button.
+fn internal_fan_tools(state: &mut State, study: &Study, case: &Value, parts: &[String], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::{airflow::FAN_DIRECTIONS, case_scene as cs};
+    let Ok(scene) = cs::scene(case) else { return };
+    let t = Tokens::get();
+    ui.separator();
+    ui.label(RichText::new(tr("multiphysics.internal_fan_title")).strong());
+    let tool = &mut state.case_tool;
+    if !tool.fan_ready {
+        tool.fan_ready = true;
+        tool.fan_name = format!("fan_{}", scene.fans.len() + 1);
+        tool.fan_direction = 0;
+        // A typical 60 mm axial fan: 0 L/s at 40 Pa, 10 L/s at 20 Pa, 16 L/s free delivery.
+        tool.fan_curve = "0:40, 10:20, 16:0".into();
+    }
+    tool_field(ui, "multiphysics.internal_fan_name", "multiphysics:internal_fan_name", &mut tool.fan_name);
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tr("multiphysics.internal_fan_direction"));
+        for (index, label) in FAN_DIRECTIONS.iter().enumerate() {
+            let r = crate::ui_kit::choice_chip(ui, &format!("multiphysics_internal_fan_direction_{index}"), label, tool.fan_direction == index);
+            crate::scenario::publish_target(&format!("multiphysics:internal_fan_direction:{label}"), r.rect);
+            if r.clicked() {
+                tool.fan_direction = index;
+            }
+        }
+    });
+    tool_field(ui, "multiphysics.internal_fan_curve", "multiphysics:internal_fan_curve", &mut tool.fan_curve);
+    let curve = parse_fan_curve(&tool.fan_curve);
+    if curve.is_none() {
+        ui.colored_label(t.error, tr("multiphysics.internal_fan_curve_bad"));
+    }
+    if parts.is_empty() {
+        ui.colored_label(t.text_dim, tr("multiphysics.internal_fan_pick"));
+    }
+    let mut result = None;
+    let ready = !parts.is_empty() && curve.is_some() && !tool.fan_name.trim().is_empty();
+    if button(ui, "multiphysics.internal_fan_add", "multiphysics:internal_fan_add", ready).clicked()
+        && let Some(curve) = &curve
+    {
+        let direction = FAN_DIRECTIONS.get(tool.fan_direction).copied().unwrap_or("+x");
+        result = Some(cs::add_internal_fan(case, tool.fan_name.trim(), parts, direction, curve));
+        tool.fan_ready = false;
+    }
+    for fan in &scene.fans {
+        ui.horizontal_wrapped(|ui| {
+            let index = fan.direction.iter().position(|c| c.abs() > 0.5).unwrap_or(0);
+            let direction = FAN_DIRECTIONS.get(2 * index + usize::from(fan.direction[index] < 0.0)).copied().unwrap_or("?");
+            ui.label(solidcraft_ui_text::format("multiphysics.internal_fan_row", &[("name", &fan.name), ("direction", direction)]));
+            let handle = format!("multiphysics:internal_fan_remove:{}", fan.name);
+            if button(ui, "multiphysics.internal_fan_remove", &handle, true).clicked() {
+                result = Some(cs::remove_internal_fan(case, &fan.name));
+            }
+        });
+    }
+    if let Some(result) = result {
+        if result.is_ok() {
+            state.case_view.selection.clear();
+        }
+        apply_case_edit(state, study, result);
+    }
+}
+
+/// One labelled text field of the selection tools.
+fn tool_field(ui: &mut egui::Ui, label: &str, handle: &str, value: &mut String) {
+    let r = crate::ui_kit::row(ui, tr(label), |ui| crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with(handle), value, "", false, 128));
+    crate::scenario::publish_target(handle, r.rect);
+}
+
+/// PCB, LED and battery inputs for the one picked part, compiled into its solid record.
+fn device_tools(state: &mut State, study: &Study, case: &Value, node: shell::Node, parts: &[String], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::devices;
+    let tool = &mut state.case_tool;
+    if !tool.devices_ready {
+        tool.devices_ready = true;
+        tool.pcb_thickness = "1.6".into();
+        tool.pcb_layers = "35:0.9, 35:0.3, 35:0.3, 35:0.9".into();
+        tool.led_power = "1".into();
+        tool.led_efficiency = "0.35".into();
+        tool.battery_current = "10".into();
+        tool.battery_resistance = "0.02".into();
+        tool.battery_entropic = "0".into();
+        tool.battery_cells = "1".into();
+        tool.plate_name = "perforated_plate".into();
+        tool.plate_open = "0.5".into();
+    }
+    ui.separator();
+    let [part] = parts else {
+        ui.small(tr("multiphysics.device_pick_one"));
+        return;
+    };
+    let result = match node {
+        shell::Node::Pcb => {
+            tool_field(ui, "multiphysics.device_pcb_thickness", "multiphysics:device_pcb_thickness", &mut tool.pcb_thickness);
+            tool_field(ui, "multiphysics.device_pcb_layers", "multiphysics:device_pcb_layers", &mut tool.pcb_layers);
+            let layers: Option<Vec<devices::CopperLayer>> = tool
+                .pcb_layers
+                .split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(|item| {
+                    let (thickness, coverage) = item.split_once(':')?;
+                    Some(devices::CopperLayer { thickness_um: number(thickness)?, coverage: number(coverage)? })
+                })
+                .collect();
+            let stack = layers.zip(number(&tool.pcb_thickness)).map(|(layers, thickness)| devices::PcbStack {
+                board_thickness_mm: thickness,
+                layers,
+                dielectric_w_per_m_k: devices::FR4_W_PER_M_K,
+                normal_axis: None,
+            });
+            if !button(ui, "multiphysics.device_apply", "multiphysics:device_apply", stack.is_some()).clicked() {
+                return;
+            }
+            let Some(stack) = stack else { return };
+            devices::apply_pcb(case, part, &stack).map(|(edit, k)| {
+                let note = solidcraft_ui_text::format(
+                    "multiphysics.device_pcb_result",
+                    &[("in_plane", &format!("{:.2}", k.in_plane_w_per_m_k)), ("through", &format!("{:.3}", k.through_plane_w_per_m_k))],
+                );
+                (edit, note)
+            })
+        }
+        shell::Node::Leds => {
+            tool_field(ui, "multiphysics.device_led_power", "multiphysics:device_led_power", &mut tool.led_power);
+            tool_field(ui, "multiphysics.device_led_efficiency", "multiphysics:device_led_efficiency", &mut tool.led_efficiency);
+            tool_field(ui, "multiphysics.device_led_rjc", "multiphysics:device_led_rjc", &mut tool.led_rjc);
+            let rjc = if tool.led_rjc.trim().is_empty() { Some(None) } else { number(&tool.led_rjc).map(Some) };
+            let led = number(&tool.led_power).zip(number(&tool.led_efficiency)).zip(rjc).map(|((power, efficiency), rjc)| devices::Led {
+                electrical_power_w: power,
+                optical_efficiency: efficiency,
+                junction_to_case_k_per_w: rjc,
+                max_junction_temperature_k: None,
+            });
+            if !button(ui, "multiphysics.device_apply", "multiphysics:device_apply", led.is_some()).clicked() {
+                return;
+            }
+            let Some(led) = led else { return };
+            devices::apply_led(case, part, &led)
+                .map(|(edit, heat)| (edit, solidcraft_ui_text::format("multiphysics.device_heat_result", &[("watts", &format!("{heat:.3}"))])))
+        }
+        _ => {
+            tool_field(ui, "multiphysics.device_battery_current", "multiphysics:device_battery_current", &mut tool.battery_current);
+            tool_field(ui, "multiphysics.device_battery_resistance", "multiphysics:device_battery_resistance", &mut tool.battery_resistance);
+            tool_field(ui, "multiphysics.device_battery_entropic", "multiphysics:device_battery_entropic", &mut tool.battery_entropic);
+            tool_field(ui, "multiphysics.device_battery_cells", "multiphysics:device_battery_cells", &mut tool.battery_cells);
+            let cells = tool.battery_cells.trim().parse::<u32>().ok();
+            let battery = number(&tool.battery_current).zip(number(&tool.battery_resistance)).zip(number(&tool.battery_entropic)).zip(cells).map(
+                |(((current, resistance), entropic), cells)| devices::Battery {
+                    current_a: current,
+                    internal_resistance_ohm: resistance,
+                    entropic_coefficient_v_per_k: entropic,
+                    temperature_k: None,
+                    cells,
+                },
+            );
+            if !button(ui, "multiphysics.device_apply", "multiphysics:device_apply", battery.is_some()).clicked() {
+                return;
+            }
+            let Some(battery) = battery else { return };
+            devices::apply_battery(case, part, &battery)
+                .map(|(edit, heat)| (edit, solidcraft_ui_text::format("multiphysics.device_heat_result", &[("watts", &format!("{heat:.3}"))])))
+        }
+    };
+    match result {
+        Ok((edit, note)) => {
+            if apply_case_edit(state, study, Ok(edit)) {
+                state.notice = Some(note);
+            }
+        }
+        Err(error) => state.error = Some(error.to_string()),
+    }
+}
+
+/// A perforated plate on each picked domain face.
+fn plate_tools(state: &mut State, study: &Study, case: &Value, faces: &[usize], ui: &mut egui::Ui) {
+    use solidcraft_engine::multiphysics::devices;
+    let tool = &mut state.case_tool;
+    if tool.plate_name.is_empty() {
+        tool.plate_name = "perforated_plate".into();
+    }
+    if tool.plate_open.is_empty() {
+        tool.plate_open = "0.5".into();
+    }
+    tool_field(ui, "multiphysics.device_plate_name", "multiphysics:device_plate_name", &mut tool.plate_name);
+    tool_field(ui, "multiphysics.device_plate_open", "multiphysics:device_plate_open", &mut tool.plate_open);
+    let open = number(&tool.plate_open);
+    if let Some(open) = open
+        && let Ok(k) = devices::perforated_loss(open)
+    {
+        ui.small(solidcraft_ui_text::format("multiphysics.device_plate_loss", &[("k", &format!("{k:.2}"))]));
+    }
+    let name = tool.plate_name.trim().to_string();
+    if !button(ui, "multiphysics.device_apply", "multiphysics:device_apply", !faces.is_empty() && open.is_some() && !name.is_empty()).clicked() {
+        return;
+    }
+    let Some(open) = open else { return };
+    let mut current = case.clone();
+    let mut last = None;
+    for (index, face) in faces.iter().enumerate() {
+        let label = if faces.len() == 1 { name.clone() } else { format!("{name}_{}", index + 1) };
+        match devices::apply_perforated_plate(&current, &label, *face, open, None) {
+            Ok((edit, _)) => {
+                current = edit.case.clone();
+                last = Some(edit);
+            }
+            Err(error) => {
+                state.error = Some(error.to_string());
+                return;
+            }
+        }
+    }
+    if let Some(edit) = last {
+        apply_case_edit(state, study, Ok(edit));
+    }
+}
+
+/// What clicking in the 3-D case view picks for a tree node. Fans pick a domain face for an
+/// external fan, or a part for an internal one.
+fn case_mode(node: shell::Node, internal_fan: bool) -> crate::multiphysics_case_view::Mode {
+    use crate::multiphysics_case_view::Mode;
+    match node {
+        shell::Node::Domain => Mode::Domain,
+        shell::Node::Fans if internal_fan => Mode::Parts,
+        shell::Node::Boundary | shell::Node::Fans | shell::Node::Perforated => Mode::Faces,
+        _ => Mode::Parts,
+    }
+}
+
+/// Put a case edit made by pointing into the draft (Apply still commits it).
+fn apply_case_edit(
+    state: &mut State,
+    study: &Study,
+    result: solidcraft_engine::multiphysics::Result<solidcraft_engine::multiphysics::case_scene::Edit>,
+) -> bool {
+    match result {
+        Ok(edit) => {
+            if let Some(draft) = state.drafts.get_mut(&study.id) {
+                draft.case_text = pretty(&edit.case);
+            }
+            state.entry = edit.pointer;
+            state.error = edit.issues.first().cloned();
+            state.notice = Some(tr("multiphysics.case_edit_drafted").to_string());
+            true
+        }
+        Err(error) => {
+            state.error = Some(error.to_string());
+            false
+        }
+    }
+}
+
+fn number(text: &str) -> Option<f64> {
+    text.trim().parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// The panel's half of picking in the graphics window: what is picked, and what to do with it.
+fn case_tools(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::Node, ui: &mut egui::Ui) {
+    use crate::multiphysics_case_view::Mode;
+    use solidcraft_engine::multiphysics::case_scene as cs;
+    let Some(case) = state.drafts.get(&study.id).and_then(|draft| serde_json::from_str::<Value>(&draft.case_text).ok()) else { return };
+    let Ok(scene) = cs::scene(&case) else { return };
+    state.case_view.own(&study.id);
+    if node == shell::Node::FromComponents {
+        components_panel(app, state, study, ui);
+        ui.separator();
+        return;
+    }
+    let origin = state.cad_origin.get(&study.id).copied();
+    if node == shell::Node::Fans {
+        ui.horizontal_wrapped(|ui| {
+            for (internal, key) in [(false, "multiphysics.fan_kind_external"), (true, "multiphysics.fan_kind_internal")] {
+                let r =
+                    crate::ui_kit::choice_chip(ui, &format!("multiphysics_fan_kind_{internal}"), tr(key), state.case_tool.fan_internal == internal);
+                crate::scenario::publish_target(&format!("multiphysics:fan_kind:{}", if internal { "internal" } else { "external" }), r.rect);
+                if r.clicked() && state.case_tool.fan_internal != internal {
+                    state.case_tool.fan_internal = internal;
+                    state.case_view.selection.clear();
+                }
+            }
+        });
+    }
+    let mode = case_mode(node, state.case_tool.fan_internal);
+    let t = Tokens::get();
+    ui.label(RichText::new(tr("multiphysics.case_from_graphics")).strong());
+    match mode {
+        Mode::Domain => {
+            ui.small(tr("multiphysics.case_hint_domain"));
+            let size = format!(
+                "{} × {} × {} · {:.4} × {:.4} × {:.4} m",
+                scene.dimensions[0], scene.dimensions[1], scene.dimensions[2], scene.lengths[0], scene.lengths[1], scene.lengths[2]
+            );
+            ui.label(size);
+            for (face, name) in cs::PATCHES.iter().enumerate() {
+                let mut step = 0;
+                ui.horizontal(|ui| {
+                    ui.label(*name);
+                    if button(ui, "multiphysics.case_face_in", &format!("multiphysics:domain_in:{name}"), true).clicked() {
+                        step = -1;
+                    }
+                    if button(ui, "multiphysics.case_face_out", &format!("multiphysics:domain_out:{name}"), true).clicked() {
+                        step = 1;
+                    }
+                });
+                if step != 0 && apply_case_edit(state, study, cs::move_domain_face(&case, face, step)) {
+                    state.case_view.moved(face, step, scene.edge_cell(face));
+                }
+            }
+            fluid_volume_tools(state, study, &case, ui);
+        }
+        Mode::Parts => {
+            // Bodies picked on the CAD model stand for the case parts brought in from them.
+            let from_cad: Vec<String> = cad_bodies(app).iter().map(|name| cs::part_name(name)).filter(|name| scene.part(name).is_some()).collect();
+            if !from_cad.is_empty() && button(ui, "multiphysics.case_use_cad_bodies", "multiphysics:case_use_cad_bodies", true).clicked() {
+                state.case_view.selection = from_cad.into_iter().map(crate::multiphysics_case_view::Pick::Part).collect();
+            }
+            let parts = state.case_view.parts();
+            if parts.is_empty() {
+                ui.small(tr("multiphysics.case_hint_parts"));
+            } else {
+                ui.label(RichText::new(parts.join(", ")).color(t.text));
+            }
+            // A device goes on one picked solid: the picked part fills the name field.
+            if matches!(node, shell::Node::Contact | shell::Node::ThermalJoints | shell::Node::TwoResistor | shell::Node::HeatPipes)
+                && let [only] = parts.as_slice()
+                && state.feature_name != *only
+            {
+                state.feature_name = only.clone();
+            }
+            if node == shell::Node::SolidMaterials {
+                if state.case_tool.conductivity.is_empty() {
+                    state.case_tool.conductivity = "1".into();
+                }
+                let r = crate::ui_kit::row(ui, tr("multiphysics.case_conductivity"), |ui| {
+                    crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("case_conductivity"), &mut state.case_tool.conductivity, "", false, 24)
+                });
+                crate::scenario::publish_target("multiphysics:case_conductivity", r.rect);
+                let k = number(&state.case_tool.conductivity);
+                if button(ui, "multiphysics.case_apply_material", "multiphysics:case_apply_material", !parts.is_empty() && k.is_some()).clicked()
+                    && let Some(k) = k
+                {
+                    apply_case_edit(state, study, cs::assign_solid_material(&case, &parts, k));
+                }
+            }
+            if matches!(node, shell::Node::Pcb | shell::Node::Leds | shell::Node::Batteries) {
+                device_tools(state, study, &case, node, &parts, ui);
+            }
+            if node == shell::Node::Mesh {
+                local_mesh_tools(state, study, &case, &parts, ui);
+            }
+            if node == shell::Node::Transferred {
+                zoom_tools(app, state, study, &parts, ui);
+            }
+            if node == shell::Node::Rotating {
+                rotating_tools(state, study, &case, &parts, ui);
+            }
+            if node == shell::Node::Fans {
+                internal_fan_tools(state, study, &case, &parts, ui);
+            }
+        }
+        Mode::Faces => {
+            // Faces picked on the CAD model that lie on a domain face pick that domain face.
+            if let Some(origin) = origin {
+                let mut from_cad: Vec<usize> = cad_face_points(app).into_iter().filter_map(|p| cs::patch_at(&case, origin, p)).collect();
+                from_cad.sort_unstable();
+                from_cad.dedup();
+                if !from_cad.is_empty() && button(ui, "multiphysics.case_use_cad_faces", "multiphysics:case_use_cad_faces", true).clicked() {
+                    state.case_view.selection = from_cad.into_iter().map(crate::multiphysics_case_view::Pick::Patch).collect();
+                }
+            }
+            let faces = state.case_view.patches();
+            if faces.is_empty() {
+                ui.small(tr("multiphysics.case_hint_faces"));
+            } else {
+                let names: Vec<String> = faces
+                    .iter()
+                    .map(|face| format!("{} ({})", cs::PATCHES.get(*face).copied().unwrap_or("?"), tr(role_key(scene.patches.get(*face).copied()))))
+                    .collect();
+                ui.label(RichText::new(names.join(", ")).color(t.text));
+            }
+            if node == shell::Node::Perforated {
+                ui.separator();
+                plate_tools(state, study, &case, &faces, ui);
+                ui.separator();
+                return;
+            }
+            if node != shell::Node::Boundary {
+                return;
+            }
+            if state.case_tool.speed.is_empty() {
+                state.case_tool.speed = "0.1".into();
+            }
+            if state.case_tool.pressure.is_empty() {
+                state.case_tool.pressure = "0".into();
+            }
+            let r = crate::ui_kit::row(ui, tr("multiphysics.case_inlet_speed"), |ui| {
+                crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("case_speed"), &mut state.case_tool.speed, "", false, 24)
+            });
+            crate::scenario::publish_target("multiphysics:case_speed", r.rect);
+            let r = crate::ui_kit::row(ui, tr("multiphysics.case_outlet_pressure"), |ui| {
+                crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("case_pressure"), &mut state.case_tool.pressure, "", false, 24)
+            });
+            crate::scenario::publish_target("multiphysics:case_pressure", r.rect);
+            let mut role = None;
+            ui.horizontal_wrapped(|ui| {
+                let any = !faces.is_empty();
+                let speed = number(&state.case_tool.speed);
+                let pressure = number(&state.case_tool.pressure);
+                if button(ui, "multiphysics.case_role_inlet", "multiphysics:case_set_inlet", any && speed.is_some()).clicked()
+                    && let Some(speed) = speed
+                {
+                    role = Some(cs::RoleInput::Inlet { speed });
+                }
+                if button(ui, "multiphysics.case_role_outlet", "multiphysics:case_set_outlet", any && pressure.is_some()).clicked()
+                    && let Some(pressure) = pressure
+                {
+                    role = Some(cs::RoleInput::Outlet { pressure });
+                }
+                if button(ui, "multiphysics.case_role_wall", "multiphysics:case_set_wall", any).clicked() {
+                    role = Some(cs::RoleInput::Wall);
+                }
+                if button(ui, "multiphysics.case_role_symmetry", "multiphysics:case_set_symmetry", any).clicked() {
+                    role = Some(cs::RoleInput::Symmetry);
+                }
+            });
+            if let Some(role) = role {
+                let mut result = Ok(cs::Edit { case: case.clone(), issues: Vec::new(), pointer: None });
+                for face in &faces {
+                    result = result.and_then(|edit| cs::set_patch_role(&edit.case, *face, role));
+                }
+                apply_case_edit(state, study, result);
+            }
+            // Lids: one picked face, an opening in cells along its two in-plane axes.
+            ui.separator();
+            ui.label(RichText::new(tr("multiphysics.case_lids")).strong());
+            let [face] = faces.as_slice() else {
+                ui.small(tr("multiphysics.case_lids_hint"));
+                return;
+            };
+            let [u, v] = cs::face_axes(face / 2);
+            let (nu, nv) = (scene.dimensions[u], scene.dimensions[v]);
+            if state.case_tool.opening_face != Some(*face) {
+                state.case_tool.opening_face = Some(*face);
+                state.case_tool.opening = [nu / 4, nu - nu / 4, nv / 4, nv - nv / 4].map(|n| n.to_string());
+            }
+            let axes = ["x", "y", "z"];
+            for (slot, (axis, label)) in [(u, "from"), (u, "to"), (v, "from"), (v, "to")].into_iter().enumerate() {
+                let text = solidcraft_ui_text::format(
+                    if label == "from" { "multiphysics.case_opening_from" } else { "multiphysics.case_opening_to" },
+                    &[("axis", axes.get(axis).copied().unwrap_or("?"))],
+                );
+                let r = crate::ui_kit::row(ui, &text, |ui| {
+                    crate::ui_kit::bounded_cell_editor(
+                        ui,
+                        ui.scope_id().with(("case_opening", slot)),
+                        &mut state.case_tool.opening[slot],
+                        "",
+                        false,
+                        8,
+                    )
+                });
+                crate::scenario::publish_target(&format!("multiphysics:case_opening:{slot}"), r.rect);
+            }
+            let cells: Option<Vec<usize>> = state.case_tool.opening.iter().map(|text| text.trim().parse::<usize>().ok()).collect();
+            let opening = cells.and_then(|c| match c.as_slice() {
+                [a, b, c, d] => Some(([*a, *c], [*b, *d])),
+                _ => None,
+            });
+            if button(ui, "multiphysics.case_create_lids", "multiphysics:case_create_lids", opening.is_some()).clicked()
+                && let Some((low, high)) = opening
+            {
+                apply_case_edit(state, study, cs::create_lids(&case, *face, low, high));
+            }
+        }
+    }
+    ui.separator();
+}
+
+fn role_key(role: Option<solidcraft_engine::multiphysics::case_scene::PatchRole>) -> &'static str {
+    use solidcraft_engine::multiphysics::case_scene::PatchRole;
+    match role {
+        Some(PatchRole::Inlet) => "multiphysics.case_role_inlet",
+        Some(PatchRole::Outlet) => "multiphysics.case_role_outlet",
+        Some(PatchRole::Wall) => "multiphysics.case_role_wall",
+        Some(PatchRole::Symmetry) => "multiphysics.case_role_symmetry",
+        Some(PatchRole::Fan) => "multiphysics.case_role_fan",
+        _ => "multiphysics.case_role_default",
+    }
+}
+
+/// Goal kinds offered in the Goals panel, with their labels.
+const GOAL_KINDS: [(&str, &str); 5] = [
+    ("goal", "multiphysics.goal_kind_surface"),
+    ("global_goal", "multiphysics.goal_kind_global"),
+    ("point_goal", "multiphysics.goal_kind_point"),
+    ("volume_goal", "multiphysics.goal_kind_volume"),
+    ("equation_goal", "multiphysics.goal_kind_equation"),
+];
 
 /// Results derived from one retained run. The run is immutable evidence, so answers stay
 /// valid while the project `Arc` and the run id are unchanged.
@@ -695,6 +1853,18 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     // The ribbon and the tree may have changed the active project this frame.
     let selected = state.selected.as_ref().and_then(|id| studies.iter().find(|study| &study.id == id));
     let report = selected.map(|study| state.study_preflight(&document.multiphysics, study));
+    // Feature dialogs dock at the right of the graphics window, as a flow-analysis property
+    // panel does, rather than floating over the ribbon or the model.
+    if let Some(study) = selected
+        && shell::feature_docked(&state)
+    {
+        Container::for_layout(LayoutMode::Docked, Surface::Panel)
+            .edge("multiphysics_feature_panel", Edge::Right)
+            .default_size(380.0)
+            .size_range(300.0..=560.0)
+            .resizable(true)
+            .show(ui, |ui| shell::feature_panel(app, &mut state, study, report.as_deref(), ui));
+    }
     let mut graphics = egui::Rect::NOTHING;
     Container::for_layout(LayoutMode::Docked, Surface::Viewport).central().show(ui, |ui| {
         graphics = ui.max_rect();
@@ -782,7 +1952,7 @@ fn prepare(app: &mut SolveApp, state: &mut State, study: &Study, report: &solidc
             let response = crate::ui_kit::text_area(
                 ui,
                 tr("multiphysics.question"),
-                egui::Id::new(("multiphysics_question", &study.id)),
+                egui::Id::unique(("multiphysics_question", &study.id)),
                 &mut draft.question,
                 3,
                 4096,
@@ -946,7 +2116,102 @@ fn apply(app: &mut SolveApp, state: &mut State, study: &Study) {
 
 /// The case editor for one Analysis tree node: its top-level case entries, or every entry for
 /// Input Data and in the JSON editor (which always edits the whole case).
-fn settings(state: &mut State, study: &Study, node: shell::Node, entry: Option<&str>, ui: &mut egui::Ui) {
+fn feature_creation(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::Node, ui: &mut egui::Ui) {
+    let kind = match node {
+        shell::Node::Fans => "fan",
+        shell::Node::Porous => "porous",
+        shell::Node::SolidMaterials => "solid_material",
+        shell::Node::Goals => GOAL_KINDS.iter().find(|(kind, _)| *kind == state.goal_kind).map_or("goal", |(kind, _)| *kind),
+        shell::Node::Contact | shell::Node::ThermalJoints => "contact_resistance",
+        shell::Node::TwoResistor => "two_resistor",
+        shell::Node::HeatPipes => "heat_pipe",
+        shell::Node::Tec => "thermoelectric_cooler",
+        _ => return,
+    };
+    // Devices placed on an existing thermal solid take that solid's name.
+    let on_solid = matches!(kind, "solid_material" | "contact_resistance" | "two_resistor" | "heat_pipe");
+    let owner = (app.session.uid, study.id.clone(), kind);
+    if state.feature_owner.as_ref() != Some(&owner) {
+        state.feature_owner = Some(owner);
+        state.feature_name = if kind == "fan" { "external_fan".into() } else { String::new() };
+        state.replace_fan_patch_conditions = false;
+    }
+    let compatible = state
+        .drafts
+        .get(&study.id)
+        .and_then(|d| serde_json::from_str::<Value>(&d.case_text).ok())
+        .is_some_and(|c| c["solver"].as_str() == Some("collocated_flow3d"));
+    ui.small(tr("multiphysics.feature_draft_scope"));
+    if node == shell::Node::Goals {
+        let current = GOAL_KINDS.iter().find(|(id, _)| *id == kind).map_or("", |(_, label)| label);
+        let r = crate::ui_kit::row(ui, tr("multiphysics.goal_kind"), |ui| {
+            crate::ui_kit::dropdown_menu(ui, "multiphysics_goal_kind", tr(current), |ui| {
+                for (id, label) in GOAL_KINDS {
+                    let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_goal_kind_{id}"), tr(label), id == kind);
+                    crate::scenario::publish_target(&format!("multiphysics:goal_kind:{id}"), response.rect);
+                    if response.clicked() {
+                        state.goal_kind = id;
+                        ui.close();
+                    }
+                }
+            })
+        });
+        crate::scenario::publish_target("multiphysics:goal_kind", r.rect);
+    }
+    if kind != "fan" {
+        let r = crate::ui_kit::row(ui, tr(if on_solid { "multiphysics.feature_body" } else { "multiphysics.feature_name" }), |ui| {
+            crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("new_feature_name"), &mut state.feature_name, "", false, 60)
+        });
+        crate::scenario::publish_target("multiphysics:feature_name", r.rect);
+    } else {
+        ui.small(tr("multiphysics.feature_fan_singleton"));
+    }
+    if kind == "fan" {
+        let r = crate::ui_kit::checkbox(ui, tr("multiphysics.feature_fan_replace"), &mut state.replace_fan_patch_conditions);
+        crate::scenario::publish_target("multiphysics:feature_fan_replace", r.rect);
+    }
+    let r = button(ui, "multiphysics.feature_add", "multiphysics:feature_add", compatible && !state.feature_name.trim().is_empty());
+    if !compatible {
+        r.clone().backing_on_hover_text(tr("multiphysics.feature_solver_required"));
+    }
+    if r.clicked() {
+        let result = state
+            .drafts
+            .get(&study.id)
+            .and_then(|draft| serde_json::from_str::<Value>(&draft.case_text).ok())
+            .ok_or_else(|| tr("multiphysics.feature_solver_required").to_string())
+            .and_then(|case| {
+                app.run(
+                    "multiphysics.case.feature.prepare",
+                    json!({
+                        "case": case,
+                        "kind": kind,
+                        "name": state.feature_name.trim(),
+                        "replace_fan_patch_conditions": kind == "fan" && state.replace_fan_patch_conditions,
+                    }),
+                )
+            });
+        match result {
+            Ok(prepared) => {
+                if let Some(case) = prepared.get("case")
+                    && let Some(draft) = state.drafts.get_mut(&study.id)
+                {
+                    draft.case_text = pretty(case);
+                    state.entry = prepared["pointer"].as_str().map(str::to_string);
+                    state.notice = Some(tr("multiphysics.feature_draft_scope").to_string());
+                    state.error = prepared["issues"].as_array().and_then(|v| v.first()).and_then(Value::as_str).map(str::to_string);
+                }
+            }
+            Err(e) => state.error = Some(e),
+        }
+    }
+    ui.separator();
+}
+fn settings(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::Node, entry: Option<&str>, ui: &mut egui::Ui) {
+    if shell::Node::INPUT.contains(&node) || node == shell::Node::Mesh {
+        case_tools(app, state, study, node, ui);
+    }
+    feature_creation(app, state, study, node, ui);
     ui.horizontal(|ui| {
         crate::ui_kit::checkbox(ui, tr("multiphysics.json_editor"), &mut state.json_editor);
     });
@@ -964,7 +2229,7 @@ fn settings(state: &mut State, study: &Study, node: shell::Node, entry: Option<&
             let response = crate::ui_kit::text_area(
                 ui,
                 tr("multiphysics.case_settings"),
-                egui::Id::new(("multiphysics_case_json", &study.id)),
+                egui::Id::unique(("multiphysics_case_json", &study.id)),
                 &mut draft.case_text,
                 16,
                 1024 * 1024,
@@ -976,7 +2241,7 @@ fn settings(state: &mut State, study: &Study, node: shell::Node, entry: Option<&
         } else if let Ok(mut value) = parsed {
             let changed = match entry {
                 Some(pointer) => match value.pointer_mut(pointer) {
-                    Some(slot) => field_entry(ui, &shell::entry_label(pointer), slot, 0),
+                    Some(slot) => field_entry_at(ui, &shell::entry_label(pointer), slot, 0, pointer),
                     None => {
                         ui.label(RichText::new(tr("multiphysics.tree_revert_missing")).small().color(Tokens::get().text_dim));
                         false
@@ -1003,47 +2268,68 @@ fn fields_group(ui: &mut egui::Ui, value: &mut Value, node: shell::Node) -> bool
     let mut changed = false;
     for pointer in pointers.iter().take(80) {
         if let Some(slot) = value.pointer_mut(pointer) {
-            changed |= field_entry(ui, &shell::entry_label(pointer), slot, 0);
+            changed |= field_entry_at(ui, &shell::entry_label(pointer), slot, 0, pointer);
         }
     }
     changed
 }
 
 /// One named case entry: a folder for objects and arrays, a kit control for a value.
-fn field_entry(ui: &mut egui::Ui, name: &str, value: &mut Value, depth: usize) -> bool {
+fn field_pointer(parent: &str, key: &str) -> String {
+    format!("{parent}/{}", key.replace('~', "~0").replace('/', "~1"))
+}
+fn field_entry_at(ui: &mut egui::Ui, name: &str, value: &mut Value, depth: usize, pointer: &str) -> bool {
+    if depth > 5 {
+        ui.monospace(pretty(value));
+        return false;
+    }
     let mut changed = false;
     ui.push_id(name, |ui| {
         if value.is_object() || value.is_array() {
-            egui::CollapsingHeader::new(name).default_open(depth == 0).show(ui, |ui| changed |= fields(ui, value, depth + 1));
+            let tuple = value.as_array().is_some_and(|v| v.len() <= 4 && v.iter().all(|v| !v.is_object() && !v.is_array()));
+            egui::CollapsingHeader::new(name).default_open(depth == 0 || tuple).show(ui, |ui| changed |= fields_at(ui, value, depth + 1, pointer));
         } else {
             crate::ui_kit::row(ui, name, |ui| match value {
-                Value::Bool(boolean) => changed |= crate::ui_kit::checkbox(ui, "", boolean).changed(),
-                Value::Number(number) => {
-                    if let Some(mut numeric) = number.as_u64() {
-                        if crate::ui_kit::number_field(ui, &mut numeric, 0..=u64::MAX, 1.0, "").changed() {
-                            *number = numeric.into();
+                Value::Bool(v) => {
+                    let r = crate::ui_kit::checkbox(ui, "", v);
+                    crate::scenario::publish_target(&format!("multiphysics:case_field:{pointer}"), r.rect);
+                    changed |= r.changed();
+                }
+                Value::Number(n) => {
+                    if let Some(mut v) = n.as_u64() {
+                        let r = crate::ui_kit::number_field(ui, &mut v, 0..=u64::MAX, 1.0, "");
+                        crate::scenario::publish_target(&format!("multiphysics:case_field:{pointer}"), r.rect);
+                        if r.changed() {
+                            *n = v.into();
                             changed = true;
                         }
-                    } else if let Some(mut numeric) = number.as_i64() {
-                        if crate::ui_kit::number_field(ui, &mut numeric, i64::MIN..=i64::MAX, 1.0, "").changed() {
-                            *number = numeric.into();
+                    } else if let Some(mut v) = n.as_i64() {
+                        let r = crate::ui_kit::number_field(ui, &mut v, i64::MIN..=i64::MAX, 1.0, "");
+                        crate::scenario::publish_target(&format!("multiphysics:case_field:{pointer}"), r.rect);
+                        if r.changed() {
+                            *n = v.into();
                             changed = true;
                         }
-                    } else if let Some(mut numeric) = number.as_f64() {
-                        let response = crate::ui_kit::number_field(ui, &mut numeric, f64::MIN..=f64::MAX, 0.001, "");
-                        if response.changed()
-                            && numeric.is_finite()
-                            && let Some(updated) = serde_json::Number::from_f64(numeric)
+                    } else if let Some(mut v) = n.as_f64() {
+                        let r = crate::ui_kit::number_field(ui, &mut v, f64::MIN..=f64::MAX, 0.001, "");
+                        crate::scenario::publish_target(&format!("multiphysics:case_field:{pointer}"), r.rect);
+                        if r.changed()
+                            && v.is_finite()
+                            && let Some(updated) = serde_json::Number::from_f64(v)
                         {
-                            *number = updated;
+                            *n = updated;
                             changed = true;
                         }
                     }
                 }
-                Value::String(string) if name == "solver" || name == "schema" => {
-                    ui.monospace(string.as_str());
+                Value::String(v) if name == "solver" || name == "schema" => {
+                    ui.monospace(v.as_str());
                 }
-                Value::String(string) => changed |= crate::ui_kit::text_field(ui, string, "").1,
+                Value::String(v) => {
+                    let r = crate::ui_kit::text_field_reserving(ui, v, "", 0.0).1;
+                    crate::scenario::publish_target(&format!("multiphysics:case_field:{pointer}"), r.rect);
+                    changed |= r.changed();
+                }
                 _ => {
                     ui.label(tr("multiphysics.not_specified"));
                 }
@@ -1052,10 +2338,10 @@ fn field_entry(ui: &mut egui::Ui, name: &str, value: &mut Value, depth: usize) -
     });
     changed
 }
-
-/// The case is the numerical worker's explicit schema. Strings/enum discriminators stay
-/// visible, and arbitrary nested arrays use the JSON editor rather than implicit defaults.
 fn fields(ui: &mut egui::Ui, value: &mut Value, depth: usize) -> bool {
+    fields_at(ui, value, depth, "")
+}
+fn fields_at(ui: &mut egui::Ui, value: &mut Value, depth: usize, pointer: &str) -> bool {
     if depth > 5 {
         ui.monospace(pretty(value));
         return false;
@@ -1063,14 +2349,15 @@ fn fields(ui: &mut egui::Ui, value: &mut Value, depth: usize) -> bool {
     let mut changed = false;
     match value {
         Value::Object(object) => {
-            for (name, value) in object.iter_mut().take(80) {
-                changed |= field_entry(ui, name, value, depth);
+            for (name, v) in object.iter_mut().take(80) {
+                changed |= field_entry_at(ui, name, v, depth, &field_pointer(pointer, name));
             }
         }
         Value::Array(values) => {
             if values.len() <= 16 {
-                for (index, value) in values.iter_mut().enumerate() {
-                    ui.push_id(index, |ui| changed |= fields(ui, value, depth + 1));
+                for (i, v) in values.iter_mut().enumerate() {
+                    let name = i.to_string();
+                    changed |= field_entry_at(ui, &name, v, depth + 1, &field_pointer(pointer, &name));
                 }
             } else {
                 ui.label(solidcraft_ui_text::format("multiphysics.array_entries", &[("count", &values.len().to_string())]));
@@ -1079,7 +2366,7 @@ fn fields(ui: &mut egui::Ui, value: &mut Value, depth: usize) -> bool {
         _ => {
             ui.monospace(pretty(value));
         }
-    }
+    };
     changed
 }
 
@@ -1304,7 +2591,17 @@ fn results_artifacts(
     use shell::Node;
     let all = focus == Node::Results;
     let wanted = |name: &str| match focus {
-        Node::CutPlots | Node::Animation | Node::PointParams | Node::VolumeParams | Node::Compare => name.ends_with(".vtu"),
+        Node::CutPlots
+        | Node::Animation
+        | Node::PointParams
+        | Node::VolumeParams
+        | Node::Compare
+        | Node::Trajectories
+        | Node::Particles
+        | Node::Isosurfaces
+        | Node::SurfacePlots
+        | Node::SurfaceParams
+        | Node::ResultsMesh => name.ends_with(".vtu"),
         Node::XyPlots => name.ends_with(".csv"),
         Node::Results => true,
         _ => false,
@@ -1387,6 +2684,20 @@ fn results_artifacts(
     if artifact.name.ends_with(".vtu") && (all || matches!(focus, Node::PointParams | Node::VolumeParams | Node::Compare)) {
         let fields = inspected_fields(app, state, &study.id, &run.id, &artifact.name);
         field_tools(app, state, study, run, &artifact.name, &fields, ui);
+    }
+    let flow = matches!(focus, Node::Trajectories | Node::Particles | Node::Isosurfaces | Node::SurfacePlots | Node::SurfaceParams);
+    if artifact.name.ends_with(".vtu") && flow {
+        let fields = inspected_fields(app, state, &study.id, &run.id, &artifact.name);
+        let name = artifact.name.clone();
+        flow_tools(app, state, study, run, &name, &fields, focus, ui);
+    }
+    if artifact.name.ends_with(".vtu") && focus == Node::ResultsMesh {
+        mesh_view(app, state, study, run, &artifact.name, ui);
+    }
+    // The overlay belongs to the flow tools and the mesh view; other nodes show the plain field.
+    #[cfg(not(target_arch = "wasm32"))]
+    if !flow && focus != Node::ResultsMesh {
+        state.view.field_3d.overlay = None;
     }
     if artifact.name.ends_with(".csv") {
         let table = NumericTable::parse(&artifact.text);
@@ -2028,6 +3339,273 @@ fn frame_stepper(ui: &mut egui::Ui, view: &mut ViewState, frames: &[(usize, f64)
     false
 }
 
+/// Inputs and the last answer of the flow result tools (Flow Trajectories, Particle Studies,
+/// Isosurfaces, Surface Plots and Surface Parameters).
+#[derive(Default)]
+struct FlowTool {
+    /// Inputs were given their defaults (from the inspected grid when there is one).
+    ready: bool,
+    field: String,
+    color_field: String,
+    start: [f64; 3],
+    end: [f64; 3],
+    count: usize,
+    both: bool,
+    max_steps: usize,
+    diameter_um: f64,
+    density: f64,
+    viscosity: f64,
+    gravity: bool,
+    level: f64,
+    /// `None` for the whole boundary, else (axis, maximum side).
+    side: Option<(usize, bool)>,
+    /// (study, run, artifact, node) the answer belongs to, and the answer.
+    answer: Option<((String, String, String, shell::Node), Result<post::QueryResponse, String>)>,
+}
+
+const SIDES: [(Option<(usize, bool)>, &str); 7] = [
+    (None, "multiphysics.flow_side_all"),
+    (Some((0, false)), "X−"),
+    (Some((0, true)), "X+"),
+    (Some((1, false)), "Y−"),
+    (Some((1, true)), "Y+"),
+    (Some((2, false)), "Z−"),
+    (Some((2, true)), "Z+"),
+];
+
+/// The inspected grid's bounds and vector fields, when this artifact has been inspected.
+fn inspected_bounds(app: &SolveApp, state: &State, study: &str, run: &str, artifact: &str) -> Option<([[f64; 2]; 3], Vec<String>)> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(cached) = &state.inspected
+        && cached.key.matches(app, study, run, artifact)
+        && let Ok(output) = &cached.outcome
+        && let Some(Ok(grid)) = &output.spatial
+    {
+        let vectors = grid.fields.iter().filter(|field| field.components == 3).map(|field| field.name.clone()).collect();
+        return Some((grid.bounds, vectors));
+    }
+    let _ = (app, state, study, run, artifact);
+    None
+}
+
+/// The answer as geometry for the 3-D field view.
+#[cfg(not(target_arch = "wasm32"))]
+fn flow_overlay(result: &post::QueryResult) -> Option<crate::multiphysics_field_view::Overlay> {
+    use crate::multiphysics_field_view::Overlay;
+    let range = |values: &mut dyn Iterator<Item = f64>| {
+        values
+            .filter(|v| v.is_finite())
+            .fold(None, |r: Option<(f64, f64)>, v| Some(r.map_or((v, v), |(a, b)| (a.min(v), b.max(v)))))
+            .unwrap_or((0.0, 1.0))
+    };
+    match result {
+        post::QueryResult::Trajectories { lines } => Some(Overlay {
+            lines: lines.iter().map(|line| line.points.iter().copied().zip(line.speeds.iter().copied()).collect()).collect(),
+            range: range(&mut lines.iter().flat_map(|line| line.speeds.iter().copied())),
+            ..Default::default()
+        }),
+        post::QueryResult::Isosurface(iso) => {
+            let colors = |i: usize| iso.colors.get(i).copied().unwrap_or([iso.level; 3]);
+            Some(Overlay {
+                triangles: iso.triangles.iter().enumerate().map(|(i, t)| (*t, colors(i))).collect(),
+                range: if iso.colors.is_empty() { (iso.level - 1.0, iso.level + 1.0) } else { range(&mut iso.colors.iter().flatten().copied()) },
+                ..Default::default()
+            })
+        }
+        post::QueryResult::Surface(surface) => {
+            let mut triangles = Vec::new();
+            for face in &surface.faces {
+                for i in 1..face.corners.len().saturating_sub(1) {
+                    if let (Some(a), Some(b), Some(c)) = (face.corners.first(), face.corners.get(i), face.corners.get(i + 1)) {
+                        triangles.push(([*a, *b, *c], [face.value; 3]));
+                    }
+                }
+            }
+            Some(Overlay { triangles, range: (surface.min, surface.max), hide_slice: true, ..Default::default() })
+        }
+        _ => None,
+    }
+}
+
+/// Flow trajectories, particle studies, isosurfaces, surface plots and surface parameters on a
+/// retained VTU. The geometry is drawn in the 3-D field view; numbers are listed here.
+fn flow_tools(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &Study,
+    run: &solidcraft_engine::multiphysics::RunEvidence,
+    artifact: &str,
+    fields: &[String],
+    focus: shell::Node,
+    ui: &mut egui::Ui,
+) {
+    use shell::Node;
+    let inspected = inspected_bounds(app, state, &study.id, &run.id, artifact);
+    #[cfg(not(target_arch = "wasm32"))]
+    if inspected.is_none() && !inspection_busy(state) {
+        start_inspection(app, state, &study.id, &run.id, artifact);
+    }
+    let tool = &mut state.flow;
+    let tracing = matches!(focus, Node::Trajectories | Node::Particles);
+    if !tool.ready {
+        tool.ready = true;
+        tool.count = 10;
+        tool.max_steps = 2000;
+        tool.diameter_um = 10.0;
+        tool.density = 1000.0;
+        tool.viscosity = 1.8e-5;
+        tool.gravity = true;
+        // Seeds across the minimum-x face, where an inlet usually is.
+        if let Some((b, _)) = &inspected {
+            let inset = |axis: usize, f: f64| b[axis][0] + (b[axis][1] - b[axis][0]) * f;
+            tool.start = [inset(0, 0.02), inset(1, 0.1), inset(2, 0.5)];
+            tool.end = [inset(0, 0.02), inset(1, 0.9), inset(2, 0.5)];
+        }
+    }
+    let vectors = inspected.as_ref().map(|(_, v)| v.clone()).unwrap_or_default();
+    let choices: Vec<String> = if tracing && !vectors.is_empty() { vectors } else { fields.to_vec() };
+    if !choices.contains(&tool.field)
+        && let Some(first) = choices.first()
+    {
+        tool.field = first.clone();
+    }
+    let t = Tokens::get();
+    ui.label(RichText::new(tr(focus.key())).strong());
+    let current = tool.field.clone();
+    let r = crate::ui_kit::row(ui, tr("multiphysics.post_field"), |ui| {
+        crate::ui_kit::dropdown_menu(ui, "multiphysics_flow_field", &current, |ui| {
+            for name in &choices {
+                if crate::ui_kit::list_picker(ui, &format!("multiphysics_flow_field_{name}"), name, &tool.field == name).clicked() {
+                    tool.field = name.clone();
+                }
+            }
+        })
+    });
+    crate::scenario::publish_target("multiphysics:flow_field", r.rect);
+    let point = |ui: &mut egui::Ui, label: &str, handle: &str, p: &mut [f64; 3]| {
+        let r = crate::ui_kit::row(ui, tr(label), |ui| {
+            ui.horizontal(|ui| {
+                for value in p.iter_mut() {
+                    crate::ui_kit::number_field(ui, value, f64::MIN..=f64::MAX, 1e-3, "");
+                }
+            })
+            .response
+        });
+        crate::scenario::publish_target(handle, r.rect);
+    };
+    let query = match focus {
+        Node::Trajectories | Node::Particles => {
+            point(ui, "multiphysics.flow_seed_start", "multiphysics:flow_seed_start", &mut tool.start);
+            point(ui, "multiphysics.flow_seed_end", "multiphysics:flow_seed_end", &mut tool.end);
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr("multiphysics.flow_seed_count"));
+                crate::ui_kit::number_field(ui, &mut tool.count, 1..=solidcraft_engine::multiphysics::flowpost::MAX_SEEDS, 1.0, "");
+                ui.label(tr("multiphysics.flow_max_steps"));
+                crate::ui_kit::number_field(ui, &mut tool.max_steps, 1..=solidcraft_engine::multiphysics::flowpost::MAX_STEPS, 10.0, "");
+            });
+            let particle = if focus == Node::Particles {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(tr("multiphysics.flow_diameter"));
+                    crate::ui_kit::number_field(ui, &mut tool.diameter_um, 0.001..=1e6, 0.1, " µm");
+                    ui.label(tr("multiphysics.flow_density"));
+                    crate::ui_kit::number_field(ui, &mut tool.density, 1e-3..=1e5, 1.0, " kg/m³");
+                });
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(tr("multiphysics.flow_viscosity"));
+                    crate::ui_kit::number_field(ui, &mut tool.viscosity, 1e-7..=10.0, 1e-6, " Pa·s");
+                    let r = crate::ui_kit::checkbox(ui, tr("multiphysics.flow_gravity"), &mut tool.gravity);
+                    crate::scenario::publish_target("multiphysics:flow_gravity", r.rect);
+                });
+                Some(json!({
+                    "diameter_m": tool.diameter_um * 1e-6,
+                    "density_kg_per_m3": tool.density,
+                    "fluid_viscosity_pa_s": tool.viscosity,
+                    "gravity_m_per_s2": if tool.gravity { [0.0, -9.81, 0.0] } else { [0.0; 3] },
+                }))
+            } else {
+                let r = crate::ui_kit::checkbox(ui, tr("multiphysics.flow_both"), &mut tool.both);
+                crate::scenario::publish_target("multiphysics:flow_both", r.rect);
+                None
+            };
+            json!({
+                "kind": "trajectories", "artifact": artifact, "field": tool.field,
+                "seeds": {"kind": "line", "start": tool.start, "end": tool.end, "count": tool.count},
+                "options": {"max_steps": tool.max_steps, "both_directions": tool.both && particle.is_none(), "particle": particle},
+            })
+        }
+        Node::Isosurfaces => {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr("multiphysics.flow_level"));
+                let r = crate::ui_kit::number_field(ui, &mut tool.level, f64::MIN..=f64::MAX, 1e-2, "");
+                crate::scenario::publish_target("multiphysics:flow_level", r.rect);
+                ui.label(tr("multiphysics.flow_color_by"));
+                let shown = if tool.color_field.is_empty() { tr("multiphysics.flow_color_none").to_string() } else { tool.color_field.clone() };
+                crate::ui_kit::dropdown_menu(ui, "multiphysics_flow_color", &shown, |ui| {
+                    if crate::ui_kit::list_picker(ui, "multiphysics_flow_color_none", tr("multiphysics.flow_color_none"), tool.color_field.is_empty())
+                        .clicked()
+                    {
+                        tool.color_field.clear();
+                    }
+                    for name in fields {
+                        if crate::ui_kit::list_picker(ui, &format!("multiphysics_flow_color_{name}"), name, &tool.color_field == name).clicked() {
+                            tool.color_field = name.clone();
+                        }
+                    }
+                });
+            });
+            let color = (!tool.color_field.is_empty()).then(|| tool.color_field.clone());
+            json!({"kind": "isosurface", "artifact": artifact, "field": tool.field, "level": tool.level, "color_field": color})
+        }
+        _ => {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr("multiphysics.flow_side"));
+                for (index, (side, label)) in SIDES.iter().enumerate() {
+                    let text = if label.starts_with("multiphysics.") { tr(label) } else { *label };
+                    let r = crate::ui_kit::choice_chip(ui, &format!("multiphysics_flow_side_{index}"), text, tool.side == *side);
+                    crate::scenario::publish_target(&format!("multiphysics:flow_side:{index}"), r.rect);
+                    if r.clicked() {
+                        tool.side = *side;
+                    }
+                }
+            });
+            let side = tool.side.map(|(axis, max)| json!({"axis": axis, "max": max}));
+            json!({"kind": "surface", "artifact": artifact, "field": tool.field, "side": side})
+        }
+    };
+    let key = (study.id.clone(), run.id.clone(), artifact.to_string(), focus);
+    let response = crate::ui_kit::button(
+        ui,
+        tr(if tracing { "multiphysics.flow_trace" } else { "multiphysics.flow_compute" }),
+        crate::ui_kit::Button::Enabled(!tool.field.is_empty()),
+    );
+    crate::scenario::publish_target("multiphysics:flow_run", response.rect);
+    if response.clicked() {
+        let project = app.session.doc.multiphysics.clone();
+        let answer = serde_json::from_value::<post::Query>(query).map_err(|error| error.to_string()).and_then(|query| {
+            post::query(&project, &post::QueryRequest { id: study.id.clone(), run_id: run.id.clone(), query }).map_err(|e| e.to_string())
+        });
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            state.view.field_3d.overlay = answer.as_ref().ok().and_then(|a| flow_overlay(&a.result)).map(std::sync::Arc::new);
+            if state.view.field_3d.overlay.is_some() {
+                state.view.show_3d = true;
+            }
+        }
+        state.flow.answer = Some((key.clone(), answer));
+    }
+    let tool = &state.flow;
+    match &tool.answer {
+        Some((owner, Ok(answer))) if *owner == key => {
+            field_answer(ui, answer);
+            ui.small(tr("multiphysics.flow_in_view"));
+        }
+        Some((owner, Err(error))) if *owner == key => {
+            ui.colored_label(t.form_error, error);
+        }
+        _ => {}
+    }
+}
+
 /// Probe, extrema, line sample, volume integral and run-to-run difference on a retained VTU.
 fn field_tools(
     app: &SolveApp,
@@ -2212,6 +3790,64 @@ fn field_answer(ui: &mut egui::Ui, answer: &post::QueryResponse) {
                 ui.end_row();
             });
         }
+        post::QueryResult::Trajectories { lines } => {
+            use solidcraft_engine::multiphysics::flowpost::TrajectoryEnd;
+            let count = |end: TrajectoryEnd| lines.iter().filter(|line| line.end == end).count();
+            let times: Vec<f64> = lines.iter().filter(|line| line.end == TrajectoryEnd::LeftMesh).map(|line| line.residence_time).collect();
+            egui::Grid::new("multiphysics_trajectories").show(ui, |ui| {
+                for (label, value) in [
+                    ("multiphysics.flow_lines", lines.len().to_string()),
+                    ("multiphysics.flow_left_mesh", count(TrajectoryEnd::LeftMesh).to_string()),
+                    ("multiphysics.flow_stagnated", count(TrajectoryEnd::Stagnated).to_string()),
+                    ("multiphysics.flow_max_steps_reached", count(TrajectoryEnd::MaxSteps).to_string()),
+                    ("multiphysics.flow_seed_outside", count(TrajectoryEnd::SeedOutside).to_string()),
+                ] {
+                    ui.label(tr(label));
+                    ui.monospace(value);
+                    ui.end_row();
+                }
+                if !times.is_empty() {
+                    let mean = times.iter().sum::<f64>() / times.len() as f64;
+                    let max = times.iter().copied().fold(0.0, f64::max);
+                    ui.label(tr("multiphysics.flow_residence"));
+                    ui.monospace(format!("{mean:.4e} s (max {max:.4e} s)"));
+                    ui.end_row();
+                }
+            });
+        }
+        post::QueryResult::Isosurface(iso) => {
+            ui.monospace(format!("{} = {:.6e}{unit}", iso.field, iso.level));
+            ui.monospace(format!(
+                "{}: {}   {}: {:.6e}",
+                tr("multiphysics.flow_triangles"),
+                iso.triangles.len(),
+                tr("multiphysics.flow_area"),
+                iso.area
+            ));
+            if iso.truncated {
+                ui.colored_label(t.warning, tr("multiphysics.flow_truncated"));
+            }
+        }
+        post::QueryResult::Surface(surface) => {
+            egui::Grid::new("multiphysics_surface").show(ui, |ui| {
+                let mut rows = vec![
+                    ("multiphysics.flow_area", surface.area),
+                    ("multiphysics.post_mean", surface.mean),
+                    ("multiphysics.post_minimum", surface.min),
+                    ("multiphysics.post_maximum", surface.max),
+                    ("multiphysics.post_integral", surface.integral),
+                ];
+                if let Some(flux) = surface.flux {
+                    rows.push(("multiphysics.flow_flux", flux));
+                }
+                for (label, value) in rows {
+                    ui.label(tr(label));
+                    ui.monospace(format!("{value:.6e}"));
+                    ui.end_row();
+                }
+            });
+            ui.label(RichText::new(format!("{} {}", surface.faces.len(), tr("multiphysics.flow_faces"))).small().color(t.text_dim));
+        }
         post::QueryResult::Goals(_) | post::QueryResult::Components { .. } => {}
     }
 }
@@ -2248,6 +3884,142 @@ fn color_controls(ui: &mut egui::Ui, view: &mut ViewState, data: (f64, f64)) -> 
 mod tests {
     use super::*;
     use crate::scenario::Harness;
+    use std::sync::Arc;
+
+    #[test]
+    fn case_view_drags_domain_faces_and_sets_picked_faces_and_parts() {
+        use solidcraft_engine::multiphysics::case_scene::{PatchRole, patch_roles};
+        let mut h = Harness::new();
+        let reply = h.app.run("multiphysics.study.create", json!({"template":"flow-electronics-enclosure-cht","name":"Picked"})).unwrap();
+        let id = reply["study"]["id"].as_str().unwrap().to_string();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        let draft = |h: &Harness| serde_json::from_str::<Value>(&h.app.multiphysics_workspace.drafts[&id].case_text).unwrap();
+        // Computational domain: the panel's + button and a drag on the arrow both move the
+        // right face outward by whole cells, and nothing reaches the document until Apply.
+        let document = h.app.session.doc.clone();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project:domain"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:domain_out:right"}})).unwrap();
+        assert_eq!(draft(&h)["mesh"]["dimensions"][0], 21);
+        h.frames(2);
+        let base = h.at(&json!({"handle":"multiphysics:domain_arrow_base:right"})).unwrap();
+        let tip = h.at(&json!({"handle":"multiphysics:domain_arrow_tip:right"})).unwrap();
+        let (dx, dy) = (tip[0] - base[0], tip[1] - base[1]);
+        let length = (dx * dx + dy * dy).sqrt().max(1.0);
+        let end = [tip[0] + dx / length * 150.0, tip[1] + dy / length * 150.0];
+        h.step(&json!({"drag":[tip, end], "steps": 12})).unwrap();
+        let grown = draft(&h)["mesh"]["dimensions"][0].as_u64().unwrap();
+        assert!(grown > 21, "dragging the arrow outward adds cells: {grown}");
+        assert!(Arc::ptr_eq(&document, &h.app.session.doc));
+        // Boundary conditions: pick a domain face in the graphics window and make it a wall.
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert:boundary"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:case_face:top"}})).unwrap();
+        let picked = h.app.multiphysics_workspace.case_view.patches();
+        assert_eq!(picked.len(), 1, "one face picked");
+        h.step(&json!({"click":{"handle":"multiphysics:case_set_symmetry"}})).unwrap();
+        assert_eq!(patch_roles(&draft(&h))[picked[0]], PatchRole::Symmetry);
+        // Solid materials: pick a part and give it a conductivity.
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert:solid_materials"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:case_part:processor_block"}})).unwrap();
+        let parts = h.app.multiphysics_workspace.case_view.parts();
+        assert_eq!(parts.len(), 1, "one part picked");
+        material_library_text(&mut h, "multiphysics:case_conductivity", "150");
+        h.step(&json!({"click":{"handle":"multiphysics:case_apply_material"}})).unwrap();
+        let case = draft(&h);
+        let row = case["thermal"]["solids"].as_array().unwrap().iter().find(|row| row["obstacle"] == parts[0].as_str()).cloned().unwrap();
+        assert_eq!(row["conductivity_w_per_m_k"], json!([150.0, 150.0, 150.0]));
+        assert!(Arc::ptr_eq(&document, &h.app.session.doc));
+    }
+
+    #[test]
+    fn reference_menus_insert_apply_and_clone_without_running() {
+        let mut h = Harness::new();
+        let reply = h.app.run("multiphysics.study.create", json!({"template":"flow-channel","name":"Reviewed flow"})).unwrap();
+        let id = reply["study"]["id"].as_str().unwrap().to_string();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        let document = h.app.session.doc.clone();
+        let camera = h.app.cam;
+        let history = h.app.session.undo.len();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert:leds"}})).unwrap();
+        assert!(Arc::ptr_eq(&document, &h.app.session.doc), "unavailable model must be inert");
+        h.step(&json!({"key":"Escape"})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:insert:porous"}})).unwrap();
+        material_library_text(&mut h, "multiphysics:feature_name", "reviewed_filter");
+        h.step(&json!({"click":{"handle":"multiphysics:feature_add"}})).unwrap();
+        assert!(Arc::ptr_eq(&document, &h.app.session.doc));
+        assert_eq!(history, h.app.session.undo.len());
+        material_library_text(&mut h, "multiphysics:case_field:/porous_blocks/0/max/0", "2");
+        let case: Value = serde_json::from_str(&h.app.multiphysics_workspace.drafts[&id].case_text).unwrap();
+        assert_eq!(case["porous_blocks"][0]["max"][0], 2, "scalar array fields must be editable");
+        assert_eq!(case["porous_blocks"][0]["name"], "reviewed_filter");
+        h.step(&json!({"click":{"handle":"multiphysics:apply"}})).unwrap();
+        assert_eq!(h.app.session.doc.multiphysics.study(&id).unwrap().case, case);
+        assert_eq!(h.app.session.undo.len(), history + 1);
+        assert!(h.app.session.multiphysics_jobs().is_empty());
+        assert_eq!(h.app.cam, camera);
+        let evidence = std::env::var("SOLIDCRAFT_MULTIPHYSICS_EVIDENCE").ok();
+        for (w, height) in [(1440., 900.), (1280., 800.)] {
+            render_frame(&mut h.app, w, height, evidence.as_deref(), "reference-porous");
+        }
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project:clone"}})).unwrap();
+        assert_eq!(h.app.session.doc.multiphysics.studies.len(), 2);
+        assert_eq!(h.app.session.doc.multiphysics.studies[1].case, case);
+        assert!(h.app.session.doc.multiphysics.studies[1].runs.is_empty());
+        assert_eq!(h.app.session.undo.len(), history + 2);
+        h.app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(h.app.session.doc.multiphysics.studies.len(), 1);
+    }
+
+    #[test]
+    fn reference_seven_step_wizard_preserves_edits_and_creates_atomically() {
+        let mut h = Harness::new();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        let document = h.app.session.doc.clone();
+        let history = h.app.session.undo.len();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:menu:project:wizard"}})).unwrap();
+        material_library_text(&mut h, "multiphysics:wizard_name", "Reviewed seven step flow");
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_next"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_category_menu"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_category:Flow"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_template:flow-channel"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_next"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_next"}})).unwrap();
+        material_library_text(&mut h, "multiphysics:case_field:/method", "simple");
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_back"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_next"}})).unwrap();
+        for _ in 0..3 {
+            h.step(&json!({"click":{"handle":"multiphysics:wizard_next"}})).unwrap();
+        }
+        assert_eq!(crate::scenario::count_of("multiphysics:wizard_step"), Some(6.0));
+        assert!(Arc::ptr_eq(&document, &h.app.session.doc));
+        assert_eq!(history, h.app.session.undo.len());
+        let evidence = std::env::var("SOLIDCRAFT_MULTIPHYSICS_EVIDENCE").ok();
+        for (w, height) in [(1440., 900.), (1280., 800.)] {
+            render_frame(&mut h.app, w, height, evidence.as_deref(), "reference-wizard");
+        }
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:wizard_finish"}})).unwrap();
+        assert!(h.app.multiphysics_workspace.wizard.is_none());
+        assert_eq!(h.app.session.doc.multiphysics.studies.len(), 1);
+        assert_eq!(h.app.session.doc.multiphysics.studies[0].case["method"], "simple");
+        assert_eq!(h.app.session.doc.multiphysics.studies[0].name, "Reviewed seven step flow");
+        assert_eq!(h.app.session.undo.len(), history + 1);
+        h.app.run("edit.undo", json!({})).unwrap();
+        assert!(h.app.session.doc.multiphysics.studies.is_empty());
+    }
 
     #[test]
     fn dirty_cache_preserves_semantic_edits_and_invalid_drafts() {

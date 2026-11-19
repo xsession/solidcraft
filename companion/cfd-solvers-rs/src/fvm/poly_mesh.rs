@@ -265,6 +265,87 @@ pub fn make_cartesian_hexa_mesh(
     }
     PolyMesh::new(cells, faces, patches)
 }
+/// Check one axis of rectilinear node coordinates: at least two, finite, starting at 0 and
+/// strictly increasing. Returns the cell count.
+pub fn check_axis_nodes(nodes: &[f64], axis: &str) -> Result<usize> {
+    require(nodes.len() >= 2, format!("{axis} needs at least two mesh nodes"))?;
+    require(
+        nodes.first() == Some(&0.0),
+        format!("{axis} mesh nodes must start at 0"),
+    )?;
+    require(
+        nodes.iter().all(|v| v.is_finite()) && nodes.windows(2).all(|w| w[1] > w[0]),
+        format!("{axis} mesh nodes must be finite and strictly increasing"),
+    )?;
+    Ok(nodes.len() - 1)
+}
+
+/// A hexahedral mesh on a tensor product of node coordinates (cells may differ in size along
+/// each axis). Cell, face and patch ordering match [`make_cartesian_hexa_mesh`], which this
+/// reproduces exactly for evenly spaced nodes.
+pub fn make_rectilinear_hexa_mesh(xs: &[f64], ys: &[f64], zs: &[f64]) -> Result<PolyMesh> {
+    let nx = check_axis_nodes(xs, "x")?;
+    let ny = check_axis_nodes(ys, "y")?;
+    let nz = check_axis_nodes(zs, "z")?;
+    let count = nx
+        .checked_mul(ny)
+        .and_then(|v| v.checked_mul(nz))
+        .ok_or_else(|| SolverError::InvalidInput("poly mesh size overflow".into()))?;
+    let id = |i, j, k| (k * ny + j) * nx + i;
+    let mid = |v: &[f64], i: usize| 0.5 * (v[i] + v[i + 1]);
+    let width = |v: &[f64], i: usize| v[i + 1] - v[i];
+    let mut cells = Vec::with_capacity(count);
+    for k in 0..nz {
+        for j in 0..ny {
+            for i in 0..nx {
+                let volume = width(xs, i) * width(ys, j) * width(zs, k);
+                positive(volume, "poly cell volume")?;
+                cells.push(PolyCell {
+                    center: Vec3::new(mid(xs, i), mid(ys, j), mid(zs, k)),
+                    volume,
+                });
+            }
+        }
+    }
+    let patches = ["left", "right", "bottom", "top", "front", "back"]
+        .into_iter()
+        .map(|name| BoundaryPatch { name: name.into() })
+        .collect();
+    let (lx, ly, lz) = (xs[nx], ys[ny], zs[nz]);
+    let mut faces = Vec::new();
+    for k in 0..nz {
+        for j in 0..ny {
+            let (y, z, a) = (mid(ys, j), mid(zs, k), width(ys, j) * width(zs, k));
+            faces.push(Face::boundary_face(id(0, j, k), Vec3::new(0.0, y, z), Vec3::new(-a, 0.0, 0.0), 0));
+            for i in 1..nx {
+                faces.push(Face::internal(id(i - 1, j, k), id(i, j, k), Vec3::new(xs[i], y, z), Vec3::new(a, 0.0, 0.0)));
+            }
+            faces.push(Face::boundary_face(id(nx - 1, j, k), Vec3::new(lx, y, z), Vec3::new(a, 0.0, 0.0), 1));
+        }
+    }
+    for k in 0..nz {
+        for i in 0..nx {
+            let (x, z, a) = (mid(xs, i), mid(zs, k), width(xs, i) * width(zs, k));
+            faces.push(Face::boundary_face(id(i, 0, k), Vec3::new(x, 0.0, z), Vec3::new(0.0, -a, 0.0), 2));
+            for j in 1..ny {
+                faces.push(Face::internal(id(i, j - 1, k), id(i, j, k), Vec3::new(x, ys[j], z), Vec3::new(0.0, a, 0.0)));
+            }
+            faces.push(Face::boundary_face(id(i, ny - 1, k), Vec3::new(x, ly, z), Vec3::new(0.0, a, 0.0), 3));
+        }
+    }
+    for j in 0..ny {
+        for i in 0..nx {
+            let (x, y, a) = (mid(xs, i), mid(ys, j), width(xs, i) * width(ys, j));
+            faces.push(Face::boundary_face(id(i, j, 0), Vec3::new(x, y, 0.0), Vec3::new(0.0, 0.0, -a), 4));
+            for k in 1..nz {
+                faces.push(Face::internal(id(i, j, k - 1), id(i, j, k), Vec3::new(x, y, zs[k]), Vec3::new(0.0, 0.0, a)));
+            }
+            faces.push(Face::boundary_face(id(i, j, nz - 1), Vec3::new(x, y, lz), Vec3::new(0.0, 0.0, a), 5));
+        }
+    }
+    PolyMesh::new(cells, faces, patches)
+}
+
 pub fn make_sheared_cartesian_hexa_mesh(
     nx: usize,
     ny: usize,

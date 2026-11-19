@@ -13,7 +13,7 @@ pub(super) struct SolidLayout {
 }
 
 pub(super) fn layout(
-    spec: PolyMeshSpec,
+    spec: &PolyMeshSpec,
     obstacles: &[GridObstacle],
     bodies: &[super::bodies::SurfaceBody],
 ) -> Result<SolidLayout> {
@@ -102,7 +102,7 @@ pub(super) fn layout(
 }
 
 pub(super) fn build(
-    spec: PolyMeshSpec,
+    spec: &PolyMeshSpec,
     obstacles: &[GridObstacle],
     bodies: &[super::bodies::SurfaceBody],
 ) -> Result<(PolyMesh, VtuMesh)> {
@@ -279,19 +279,23 @@ pub(super) fn write_report(
     let background: usize = case.mesh.dimensions.iter().product();
     let mut bodies = vec![];
     if !case.bodies.is_empty() {
-        let layout = layout(case.mesh, &case.obstacles, &case.bodies)?;
-        let [nx, ny, nz] = case.mesh.dimensions;
-        let cell_volume =
-            case.mesh.lengths.x * case.mesh.lengths.y * case.mesh.lengths.z / (nx * ny * nz) as f64;
+        let layout = layout(&case.mesh, &case.obstacles, &case.bodies)?;
+        let [nx, ny, _] = case.mesh.dimensions;
+        let (xs, ys, zs) = (case.mesh.nodes(0), case.mesh.nodes(1), case.mesh.nodes(2));
+        let width = |v: &[f64], i: usize| v.get(i + 1).zip(v.get(i)).map_or(0.0, |(b, a)| b - a);
+        let cell_volume = |c: usize| width(&xs, c % nx) * width(&ys, (c / nx) % ny) * width(&zs, c / (nx * ny));
         for (bi, body) in case.bodies.iter().enumerate() {
             let index = case.obstacles.len() + bi;
-            let cells = layout
+            let owned: Vec<usize> = layout
                 .cell_solid
                 .iter()
-                .filter(|s| **s == Some(index))
-                .count();
+                .enumerate()
+                .filter(|(_, s)| **s == Some(index))
+                .map(|(c, _)| c)
+                .collect();
+            let cells = owned.len();
             let surface = body.validate()?;
-            let represented = cells as f64 * cell_volume;
+            let represented: f64 = owned.iter().map(|c| cell_volume(*c)).sum();
             bodies.push(serde_json::json!({"name": body.name, "triangles": body.triangles.len(), "cells": cells,
                 "surface_volume_m3": surface, "represented_volume_m3": represented,
                 "relative_volume_error": (represented - surface) / surface,
@@ -341,7 +345,7 @@ pub(super) fn write_report(
 /// For each face of the retained fluid mesh, the background-grid face it came from and
 /// whether its orientation was flipped. Mirrors the face filter in [`build`] exactly.
 pub(super) fn fluid_face_origins(
-    spec: PolyMeshSpec,
+    spec: &PolyMeshSpec,
     obstacles: &[GridObstacle],
     bodies: &[super::bodies::SurfaceBody],
 ) -> Result<Vec<(usize, bool)>> {

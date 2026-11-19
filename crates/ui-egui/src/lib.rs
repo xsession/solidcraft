@@ -215,6 +215,7 @@ mod fillet_spline_handle_tests;
 pub(crate) mod import_report;
 pub mod mouse_gesture;
 #[cfg(not(target_arch = "wasm32"))]
+mod multiphysics_case_view;
 mod multiphysics_field_view;
 mod multiphysics_material_library;
 pub mod multiphysics_workspace;

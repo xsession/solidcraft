@@ -1,0 +1,82 @@
+{
+  "en": {
+    "multiphysics.local_mesh_title": "Local mesh",
+    "multiphysics.local_mesh_uniform": "Uniform grid: {cells} cells, {finest} mm cells",
+    "multiphysics.local_mesh_graded": "Locally refined grid: {cells} cells, finest {finest} mm",
+    "multiphysics.local_mesh_factor": "Split cells",
+    "multiphysics.local_mesh_margin": "Margin around the parts (cells)",
+    "multiphysics.local_mesh_pick": "Pick the parts to refine around in the graphics window.",
+    "multiphysics.local_mesh_refine": "Refine around picked parts",
+    "multiphysics.local_mesh_reset": "Remove local mesh"
+  },
+  "de": {
+    "multiphysics.local_mesh_title": "Lokales Netz",
+    "multiphysics.local_mesh_uniform": "Gleichmäßiges Gitter: {cells} Zellen, Zellen {finest} mm",
+    "multiphysics.local_mesh_graded": "Lokal verfeinertes Gitter: {cells} Zellen, feinste {finest} mm",
+    "multiphysics.local_mesh_factor": "Zellen teilen",
+    "multiphysics.local_mesh_margin": "Rand um die Teile (Zellen)",
+    "multiphysics.local_mesh_pick": "Wählen Sie im Grafikfenster die Teile, um die verfeinert wird.",
+    "multiphysics.local_mesh_refine": "Um ausgewählte Teile verfeinern",
+    "multiphysics.local_mesh_reset": "Lokales Netz entfernen"
+  },
+  "ar": {
+    "multiphysics.local_mesh_title": "الشبكة الموضعية",
+    "multiphysics.local_mesh_uniform": "شبكة منتظمة: {cells} خلية، خلايا {finest} مم",
+    "multiphysics.local_mesh_graded": "شبكة منقحة موضعيًا: {cells} خلية، الأدق {finest} مم",
+    "multiphysics.local_mesh_factor": "تقسيم الخلايا",
+    "multiphysics.local_mesh_margin": "الهامش حول الأجزاء (خلايا)",
+    "multiphysics.local_mesh_pick": "اختر في نافذة الرسومات الأجزاء التي سيُنقّح حولها.",
+    "multiphysics.local_mesh_refine": "التنقيح حول الأجزاء المحددة",
+    "multiphysics.local_mesh_reset": "إزالة الشبكة الموضعية"
+  },
+  "he": {
+    "multiphysics.local_mesh_title": "רשת מקומית",
+    "multiphysics.local_mesh_uniform": "רשת אחידה: {cells} תאים, תאים של {finest} מ\"מ",
+    "multiphysics.local_mesh_graded": "רשת מעודנת מקומית: {cells} תאים, העדין ביותר {finest} מ\"מ",
+    "multiphysics.local_mesh_factor": "פצל תאים",
+    "multiphysics.local_mesh_margin": "שוליים סביב החלקים (תאים)",
+    "multiphysics.local_mesh_pick": "בחר בחלון הגרפיקה את החלקים שסביבם יעודן.",
+    "multiphysics.local_mesh_refine": "עדן סביב החלקים שנבחרו",
+    "multiphysics.local_mesh_reset": "הסר רשת מקומית"
+  },
+  "ja": {
+    "multiphysics.local_mesh_title": "ローカル メッシュ",
+    "multiphysics.local_mesh_uniform": "均一グリッド: {cells} セル、セル {finest} mm",
+    "multiphysics.local_mesh_graded": "局所細分グリッド: {cells} セル、最小 {finest} mm",
+    "multiphysics.local_mesh_factor": "セル分割",
+    "multiphysics.local_mesh_margin": "部品周りの余白 (セル)",
+    "multiphysics.local_mesh_pick": "グラフィックス ウィンドウで細分する部品を選択します。",
+    "multiphysics.local_mesh_refine": "選択部品の周りを細分",
+    "multiphysics.local_mesh_reset": "ローカル メッシュを削除"
+  },
+  "ko": {
+    "multiphysics.local_mesh_title": "로컬 메시",
+    "multiphysics.local_mesh_uniform": "균일 격자: {cells}개 셀, 셀 {finest} mm",
+    "multiphysics.local_mesh_graded": "국부 세분 격자: {cells}개 셀, 최소 {finest} mm",
+    "multiphysics.local_mesh_factor": "셀 분할",
+    "multiphysics.local_mesh_margin": "부품 주위 여유(셀)",
+    "multiphysics.local_mesh_pick": "그래픽 창에서 세분할 부품을 선택하세요.",
+    "multiphysics.local_mesh_refine": "선택한 부품 주위 세분",
+    "multiphysics.local_mesh_reset": "로컬 메시 제거"
+  },
+  "vi": {
+    "multiphysics.local_mesh_title": "Lưới cục bộ",
+    "multiphysics.local_mesh_uniform": "Lưới đều: {cells} ô, ô {finest} mm",
+    "multiphysics.local_mesh_graded": "Lưới làm mịn cục bộ: {cells} ô, mịn nhất {finest} mm",
+    "multiphysics.local_mesh_factor": "Chia ô",
+    "multiphysics.local_mesh_margin": "Lề quanh chi tiết (ô)",
+    "multiphysics.local_mesh_pick": "Chọn trong cửa sổ đồ họa các chi tiết cần làm mịn xung quanh.",
+    "multiphysics.local_mesh_refine": "Làm mịn quanh chi tiết đã chọn",
+    "multiphysics.local_mesh_reset": "Bỏ lưới cục bộ"
+  },
+  "zh": {
+    "multiphysics.local_mesh_title": "局部网格",
+    "multiphysics.local_mesh_uniform": "均匀网格：{cells} 个单元，单元 {finest} mm",
+    "multiphysics.local_mesh_graded": "局部加密网格：{cells} 个单元，最细 {finest} mm",
+    "multiphysics.local_mesh_factor": "单元细分",
+    "multiphysics.local_mesh_margin": "零件周围裕量（单元）",
+    "multiphysics.local_mesh_pick": "在图形窗口中选取要在其周围加密的零件。",
+    "multiphysics.local_mesh_refine": "在选取零件周围加密",
+    "multiphysics.local_mesh_reset": "移除局部网格"
+  }
+}

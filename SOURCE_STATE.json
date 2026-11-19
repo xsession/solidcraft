@@ -1,0 +1,24 @@
+{
+  "base_revision": "50145b4482f531e2b4e99f10deb0c449ac8ef2dc",
+  "product": "SolidCraft",
+  "version": "0.44.0",
+  "date": "2026-11-18",
+  "uncommitted_changes": [
+    "crates/engine/src/cmd/multiphysics.rs",
+    "crates/engine/src/multiphysics_jobs/tests.rs",
+    "crates/engine/src/schema/multiphysics.rs",
+    "crates/multiphysics/src/lib.rs",
+    "crates/multiphysics/src/tests.rs",
+    "crates/multiphysics/src/vtk.rs",
+    "crates/ui-egui/src/multiphysics_shell.rs",
+    "crates/ui-egui/src/multiphysics_workspace.rs",
+    "assets/locales/pending/multiphysics-project-wizard.json",
+    "assets/locales/pending/multiphysics-reference-menus.json",
+    "crates/multiphysics/src/authoring.rs",
+    "crates/ui-egui/src/multiphysics_menus.rs",
+    "docs/multiphysics-reference-inputs.json",
+    "docs/multiphysics-reference-menu-map.md",
+    "docs/multiphysics-reference-verification.md"
+  ],
+  "checks": "See docs/multiphysics-reference-verification.md"
+}

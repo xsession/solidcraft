@@ -1,0 +1,12 @@
+{
+  "en": {
+    "multiphysics.wizard_case_scope": "Edit only fields declared by the selected case adapter. Unsupported physics is not introduced by a label.",
+    "multiphysics.wizard_no_case_fields": "This case has no explicit fields in this category; its declared defaults remain in effect.",
+    "multiphysics.wizard_setup_analysis": "Analysis and template",
+    "multiphysics.wizard_setup_general": "General settings and models",
+    "multiphysics.wizard_setup_initial": "Initial state",
+    "multiphysics.wizard_setup_materials": "Materials and boundaries",
+    "multiphysics.wizard_setup_units": "Unit conventions",
+    "multiphysics.wizard_si_scope": "Numerical case values use SI units: metres, seconds, kilograms, pascals and kelvin. These controls do not perform implicit unit conversion."
+  }
+}

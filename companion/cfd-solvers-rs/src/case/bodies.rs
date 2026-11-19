@@ -79,7 +79,7 @@ impl SurfaceBody {
     }
 
     /// Solid flags per background cell (x fastest), from cell-centre winding numbers.
-    pub fn voxelize(&self, spec: PolyMeshSpec) -> Result<Vec<bool>> {
+    pub fn voxelize(&self, spec: &PolyMeshSpec) -> Result<Vec<bool>> {
         self.validate()?;
         require(spec.xy_shear == 0.0, "surface bodies require zero xy_shear")?;
         let [nx, ny, nz] = spec.dimensions;
@@ -88,6 +88,20 @@ impl SurfaceBody {
             spec.lengths.y / ny as f64,
             spec.lengths.z / nz as f64,
         );
+        // Cell centres along each axis: evenly spaced, or the mid-points of explicit nodes.
+        let centres = |axis: usize, n: usize, d: f64| -> Vec<f64> {
+            match &spec.coordinates {
+                Some(_) => spec.nodes(axis).windows(2).map(|w| 0.5 * (w[0] + w[1])).collect(),
+                None => (0..n).map(|i| (i as f64 + 0.5) * d).collect(),
+            }
+        };
+        let (cx, cy, cz) = (centres(0, nx, dx), centres(1, ny, dy), centres(2, nz, dz));
+        // First and last centre index within [lo, hi] (None if no centre lies there).
+        let span = |c: &[f64], lo: f64, hi: f64| -> Option<(usize, usize)> {
+            let first = c.partition_point(|v| *v < lo);
+            let end = c.partition_point(|v| *v <= hi);
+            (first < end).then(|| (first, end - 1))
+        };
         let mut inside = vec![false; nx * ny * nz];
         // Each projected triangle contributes +-1 at its x crossing to every (y, z) column centre
         // it covers. Edges use a top-left rule so a centre on a shared edge counts once.
@@ -100,19 +114,22 @@ impl SurfaceBody {
             }
             let (ymin, ymax) = (a[1].min(b[1]).min(c[1]), a[1].max(b[1]).max(c[1]));
             let (zmin, zmax) = (a[2].min(b[2]).min(c[2]), a[2].max(b[2]).max(c[2]));
-            let j0 = ((ymin / dy - 0.5).ceil().max(0.0)) as usize;
-            let k0 = ((zmin / dz - 0.5).ceil().max(0.0)) as usize;
-            let j1 = ((ymax / dy - 0.5).floor()).min(ny as f64 - 1.0);
-            let k1 = ((zmax / dz - 0.5).floor()).min(nz as f64 - 1.0);
-            if j1 < 0.0 || k1 < 0.0 {
+            let (Some((j0, j1)), Some((k0, k1))) = (span(&cy, ymin, ymax), span(&cz, zmin, zmax)) else {
                 continue;
-            }
+            };
             let sign = if area > 0.0 { 1.0 } else { -1.0 };
-            for k in k0..=(k1 as usize) {
-                for j in j0..=(j1 as usize) {
-                    let (py, pz) = ((j as f64 + 0.5) * dy, (k as f64 + 0.5) * dz);
+            for k in k0..=k1 {
+                for j in j0..=j1 {
+                    let (py, pz) = (cy[j], cz[k]);
+                    // Evaluated with the endpoints in a fixed order, so the two triangles
+                    // sharing an edge get exactly opposite values and a centre lying on the
+                    // edge is counted once (in either order the rounding differs, and such a
+                    // centre was counted by both triangles or by neither).
                     let edge = |p: [f64; 3], q: [f64; 3]| {
-                        sign * ((q[1] - p[1]) * (pz - p[2]) - (q[2] - p[2]) * (py - p[1]))
+                        let swap = (q[1], q[2]) < (p[1], p[2]);
+                        let (p, q) = if swap { (q, p) } else { (p, q) };
+                        let w = (q[1] - p[1]) * (pz - p[2]) - (q[2] - p[2]) * (py - p[1]);
+                        sign * if swap { -w } else { w }
                     };
                     // Top-left rule in the oriented projection: an edge owns its boundary points
                     // when it points "up" (positive z) or is horizontal pointing "left" (negative y).
@@ -143,8 +160,7 @@ impl SurfaceBody {
             crossings.sort_by(|p, q| p.0.total_cmp(&q.0));
             let mut winding = 0;
             let mut next = crossings.iter().peekable();
-            for i in 0..nx {
-                let x = (i as f64 + 0.5) * dx;
+            for (i, &x) in cx.iter().enumerate() {
                 while let Some((cx, w)) = next.peek() {
                     if *cx <= x {
                         winding += w;

@@ -9,12 +9,28 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, path::Path, sync::Arc};
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+/// Node coordinates per axis for a non-uniform (rectilinear) grid (`local_mesh_v1`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshCoordinates {
+    pub x: Vec<f64>,
+    pub y: Vec<f64>,
+    pub z: Vec<f64>,
+}
+
+/// Most nodes along one axis of an explicit coordinate list.
+pub const MAX_AXIS_NODES: usize = 4097;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PolyMeshSpec {
     pub dimensions: [usize; 3],
     pub lengths: Vec3,
     pub xy_shear: f64,
+    /// Optional node coordinates (from 0 to the length, strictly increasing). When given, the
+    /// cell counts and lengths must agree with them, and every cell index refers to this grid.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coordinates: Option<MeshCoordinates>,
 }
 impl Default for PolyMeshSpec {
     fn default() -> Self {
@@ -22,16 +38,76 @@ impl Default for PolyMeshSpec {
             dimensions: [8, 6, 2],
             lengths: Vec3::new(1.0, 1.0, 0.1),
             xy_shear: 0.0,
+            coordinates: None,
         }
     }
 }
 impl PolyMeshSpec {
-    pub fn build(self) -> Result<(PolyMesh, VtuMesh)> {
+    pub fn build(&self) -> Result<(PolyMesh, VtuMesh)> {
+        if let Some(c) = &self.coordinates {
+            self.check_coordinates()?;
+            let m = make_rectilinear_hexa_mesh(&c.x, &c.y, &c.z)?;
+            let export = VtuMesh::rectilinear_cells(&c.x, &c.y, &c.z)?;
+            return Ok((m, export));
+        }
         let [nx, ny, nz] = self.dimensions;
         let l = self.lengths;
         let m = make_sheared_cartesian_hexa_mesh(nx, ny, nz, l.x, l.y, l.z, self.xy_shear)?;
         let export = VtuMesh::box_cells(self.dimensions, l, self.xy_shear)?;
         Ok((m, export))
+    }
+
+    /// Coordinates agree with the dimensions and lengths, and the grid is not sheared.
+    pub fn check_coordinates(&self) -> Result<()> {
+        let Some(c) = &self.coordinates else { return Ok(()) };
+        require(self.xy_shear == 0.0, "mesh coordinates require zero xy_shear")?;
+        for (axis, nodes) in [c.x.as_slice(), c.y.as_slice(), c.z.as_slice()].into_iter().enumerate() {
+            let name = ["x", "y", "z"][axis];
+            require(nodes.len() <= MAX_AXIS_NODES, format!("{name} has more than {MAX_AXIS_NODES} mesh nodes"))?;
+            let cells = check_axis_nodes(nodes, name)?;
+            require(cells == self.dimensions[axis], format!("{name} mesh nodes disagree with dimensions"))?;
+            let length = self.lengths.component(axis);
+            let last = nodes[cells];
+            require(
+                (last - length).abs() <= 1e-9 * length.abs().max(1e-300),
+                format!("{name} mesh nodes must end at the length"),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Node coordinates along `axis` (evenly spaced without explicit coordinates).
+    pub fn nodes(&self, axis: usize) -> Vec<f64> {
+        if let Some(c) = &self.coordinates {
+            return match axis {
+                0 => c.x.clone(),
+                1 => c.y.clone(),
+                _ => c.z.clone(),
+            };
+        }
+        let n = self.dimensions.get(axis).copied().unwrap_or(1).max(1);
+        let length = self.lengths.component(axis.min(2));
+        (0..=n).map(|i| length * i as f64 / n as f64).collect()
+    }
+
+    /// The cell along `axis` that contains coordinate `x` (half-open cells), if any.
+    pub fn cell_of(&self, axis: usize, x: f64) -> Option<usize> {
+        let nodes = self.nodes(axis);
+        let n = nodes.len().checked_sub(1)?;
+        if !(x >= nodes[0] && x < nodes[n]) {
+            return None;
+        }
+        Some(nodes.partition_point(|v| *v <= x).saturating_sub(1).min(n - 1))
+    }
+
+    /// Smallest cell width along any axis.
+    pub fn min_width(&self) -> f64 {
+        (0..3)
+            .flat_map(|a| {
+                let n = self.nodes(a);
+                n.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>()
+            })
+            .fold(f64::MAX, f64::min)
     }
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -84,7 +160,7 @@ impl Default for FlowMethod {
         Self::Piso
     }
 }
-fn unique<'a>(patches: impl Iterator<Item = &'a str>) -> Result<()> {
+pub(super) fn unique<'a>(patches: impl Iterator<Item = &'a str>) -> Result<()> {
     let mut seen = BTreeSet::new();
     for p in patches {
         require(seen.insert(p), format!("duplicate boundary patch {p}"))?;
@@ -160,6 +236,100 @@ pub struct CollocatedFlowCase {
     pub goals: Vec<super::goals::Goal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub goal_control: Option<super::goals::GoalControl>,
+    /// Boundary profiles transferred from another run (`transferred_bc_v1`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub transferred: Vec<TransferredPatch>,
+    /// Rotating regions, multiple reference frame model (`rotating_regions_v1`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rotating_regions: Vec<super::rotating::RotatingRegion>,
+    /// Internal fans, actuator blocks driven by a pressure-flow curve (`internal_fans_v1`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub internal_fans: Vec<super::internal_fan::InternalFan>,
+}
+
+/// Values for each background-grid face of one exterior patch, taken from another run
+/// (FloEFD's transferred boundary conditions). Values run over the patch's two in-plane axes
+/// in increasing axis order, the first fastest: left/right (y, z), bottom/top (x, z),
+/// front/back (x, y). Velocity needs a fixed-value velocity condition on the patch, pressure
+/// a fixed-value pressure condition; the profile replaces their uniform value face by face.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TransferredPatch {
+    pub patch: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub velocity: Option<Vec<Vec3>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pressure: Option<Vec<f64>>,
+}
+
+/// The patch's normal axis and in-plane axes, for the six exterior patches.
+fn patch_axes(name: &str) -> Option<(usize, [usize; 2])> {
+    match name {
+        "left" | "right" => Some((0, [1, 2])),
+        "bottom" | "top" => Some((1, [0, 2])),
+        "front" | "back" => Some((2, [0, 1])),
+        _ => None,
+    }
+}
+
+impl CollocatedFlowCase {
+    /// Per-face profiles of the transferred patches on the built mesh.
+    fn transferred_profiles(&self, mesh: &PolyMesh) -> Result<FaceProfiles> {
+        let mut profiles = FaceProfiles::default();
+        if self.transferred.is_empty() {
+            return Ok(profiles);
+        }
+        unique(self.transferred.iter().map(|t| t.patch.as_str()))?;
+        profiles.velocity = vec![None; mesh.face_count()];
+        profiles.pressure = vec![None; mesh.face_count()];
+        for t in &self.transferred {
+            let (_, [u, v]) = patch_axes(&t.patch)
+                .ok_or_else(|| SolverError::InvalidInput(format!("transferred patch {} is not an exterior patch", t.patch)))?;
+            require(
+                self.fan.as_ref().is_none_or(|f| f.patch != t.patch),
+                format!("the fan owns patch {}; it cannot also be transferred", t.patch),
+            )?;
+            require(t.velocity.is_some() || t.pressure.is_some(), format!("transferred patch {} has no values", t.patch))?;
+            let (nu, nv) = (self.mesh.dimensions[u], self.mesh.dimensions[v]);
+            let expected = nu * nv;
+            if let Some(values) = &t.velocity {
+                require(values.len() == expected, format!("transferred velocity on {} needs {expected} values", t.patch))?;
+                require(values.iter().all(|v| v.is_finite()), "nonfinite transferred velocity")?;
+                require(
+                    self.velocity_boundaries
+                        .iter()
+                        .any(|b| b.patch == t.patch && b.kind == VelocityBoundaryType::FixedValue),
+                    format!("transferred velocity on {} needs a fixed-value velocity condition there", t.patch),
+                )?;
+            }
+            if let Some(values) = &t.pressure {
+                require(values.len() == expected, format!("transferred pressure on {} needs {expected} values", t.patch))?;
+                require(values.iter().all(|v| v.is_finite()), "nonfinite transferred pressure")?;
+                require(
+                    self.pressure_boundaries
+                        .iter()
+                        .any(|b| b.patch == t.patch && b.kind == PressureBoundaryType::FixedValue),
+                    format!("transferred pressure on {} needs a fixed-value pressure condition there", t.patch),
+                )?;
+            }
+            let p = mesh.patch_index(&t.patch)?;
+            for (fi, face) in mesh.faces().iter().enumerate() {
+                if face.patch != Some(p) {
+                    continue;
+                }
+                let (Some(iu), Some(iv)) = (
+                    self.mesh.cell_of(u, face.center.component(u)),
+                    self.mesh.cell_of(v, face.center.component(v)),
+                ) else {
+                    return Err(SolverError::InvalidInput("transferred face outside the grid".into()));
+                };
+                let index = iv * nu + iu;
+                profiles.velocity[fi] = t.velocity.as_ref().and_then(|values| values.get(index).copied());
+                profiles.pressure[fi] = t.pressure.as_ref().and_then(|values| values.get(index).copied());
+            }
+        }
+        Ok(profiles)
+    }
 }
 impl Default for CollocatedFlowCase {
     fn default() -> Self {
@@ -182,6 +352,9 @@ impl Default for CollocatedFlowCase {
             thermal: None,
             goals: vec![],
             goal_control: None,
+            transferred: vec![],
+            rotating_regions: vec![],
+            internal_fans: vec![],
         }
     }
 }
@@ -356,7 +529,7 @@ impl CollocatedFlowCase {
     /// Build both solver and visualization topology from one retained cell set.
     /// Empty obstacles retain the original box/sheared-box behavior.
     pub fn build_mesh(&self) -> Result<(PolyMesh, VtuMesh)> {
-        super::obstacles::build(self.mesh, &self.obstacles, &self.bodies)
+        super::obstacles::build(&self.mesh, &self.obstacles, &self.bodies)
     }
 
     /// Names of all solids: grid boxes first, then surface bodies.
@@ -425,7 +598,16 @@ impl CollocatedFlowCase {
             s.set_velocity_boundary(obstacle, VelocityBoundaryType::FixedValue, Vec3::ZERO)?;
             s.set_pressure_boundary(obstacle, PressureBoundaryType::ZeroGradient, 0.0)?;
         }
-        s.set_body_acceleration(&vec![self.acceleration; mesh.cell_count()])?;
+        let frames = super::rotating::RotatingFrames::new(self, &mesh)?;
+        let mut profiles = self.transferred_profiles(&mesh)?;
+        let frame_flux = frames.rotate_walls(self, &mesh, &mut profiles)?;
+        s.set_face_profiles(profiles)?;
+        if !frames.is_empty() {
+            s.set_convective_flux_offset(frame_flux)?;
+        }
+        let mut base_acceleration = vec![self.acceleration; mesh.cell_count()];
+        s.set_body_acceleration(&base_acceleration)?;
+        let mut internal_fans = super::internal_fan::InternalFans::new(self, &mesh)?;
         let mut fan = match &self.fan {
             Some(f) => {
                 let controller = super::fan::FanController::new(self, f, &mesh)?;
@@ -456,6 +638,16 @@ impl CollocatedFlowCase {
         series_until(
             |i| {
                 let info = if i > 0 {
+                    if !frames.is_empty() || internal_fans.is_some() {
+                        let mut a = base_acceleration.clone();
+                        if let Some(fans) = &internal_fans {
+                            fans.add_to(&mut a);
+                        }
+                        if !frames.is_empty() {
+                            a = frames.acceleration(&a, s.velocity());
+                        }
+                        s.set_body_acceleration(&a)?;
+                    }
                     if let Some(zones) = &porous {
                         let beta = zones.drag(self, s.velocity())?;
                         s.set_implicit_drag(&beta)?;
@@ -470,17 +662,17 @@ impl CollocatedFlowCase {
                     last = Some((r, linear));
                     if let (Some(state), Some(heat)) = (energy.as_mut(), &self.thermal) {
                         if let Some(b) = &heat.buoyancy {
-                            state.step(s.face_flux(), heat.inflow_temperature_k, self.config.dt)?;
-                            let acceleration =
+                            state.step(&s.convective_flux(), heat.inflow_temperature_k, self.config.dt)?;
+                            base_acceleration =
                                 state.buoyancy(b, self.acceleration, heat.inflow_temperature_k);
-                            s.set_body_acceleration(&acceleration)?;
+                            s.set_body_acceleration(&base_acceleration)?;
                         }
                     }
                     if let Some(goals) = monitor.as_mut() {
                         if goals.due(i) {
                             if let (Some(state), Some(heat)) = (energy.as_mut(), &self.thermal) {
                                 if heat.buoyancy.is_none() && goals.needs_thermal_refresh(i) {
-                                    state.steady(s.face_flux(), heat.inflow_temperature_k)?;
+                                    state.steady(&s.convective_flux(), heat.inflow_temperature_k)?;
                                 }
                             }
                             let lookup =
@@ -497,6 +689,9 @@ impl CollocatedFlowCase {
                                 stop.set(true);
                             }
                         }
+                    }
+                    if let Some(fans) = internal_fans.as_mut() {
+                        fans.update(i, &mesh, s.face_flux());
                     }
                     if let Some(controller) = fan.as_mut() {
                         if let Some(velocity) = controller.update(i, &mesh, s.pressure())? {
@@ -555,9 +750,7 @@ impl CollocatedFlowCase {
         if self.mesh.xy_shear == 0.0 {
             // The collocated PISO/PIMPLE path is reliable for small viscous diffusion numbers;
             // keep this below about 0.1 (see the README).
-            let h = (0..3)
-                .map(|a| self.mesh.lengths.component(a) / self.mesh.dimensions[a] as f64)
-                .fold(f64::MAX, f64::min);
+            let h = self.mesh.min_width();
             m.metrics.insert(
                 "max_viscous_diffusion_number".into(),
                 self.config.kinematic_viscosity * self.config.dt / (h * h),
@@ -574,15 +767,23 @@ impl CollocatedFlowCase {
         if let Some(zones) = &porous {
             zones.write_report(self, &mesh, s.velocity(), out, m)?;
         }
+        if !frames.is_empty() {
+            let report = frames.report(&mesh, s.velocity());
+            std::fs::write(out.join("rotating_regions.json"), serde_json::to_vec_pretty(&report)?)?;
+            m.files.push("rotating_regions.json".into());
+        }
         if let Some(controller) = fan {
             super::fan::write_report(&controller, out, m)?;
+        }
+        if let Some(fans) = &internal_fans {
+            fans.write_report(out, m)?;
         }
         if let Some(goals) = &monitor {
             goals.write(out, m)?;
         }
         if let (Some(mut state), Some(heat)) = (energy, &self.thermal) {
             if heat.buoyancy.is_none() {
-                state.steady(s.face_flux(), heat.inflow_temperature_k)?;
+                state.steady(&s.convective_flux(), heat.inflow_temperature_k)?;
             }
             state.finish(self, heat, s.face_flux(), out, m)?;
         }

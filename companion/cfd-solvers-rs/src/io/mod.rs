@@ -130,6 +130,44 @@ impl VtuMesh {
     }
     /// Real corner connectivity in the same x-fastest cell order as PolyMesh.
     /// The affine transform is x' = x + shear*y and has unit determinant.
+/// Hexahedra on a tensor product of node coordinates (same point and cell order as
+    /// [`Self::box_cells`]).
+    pub fn rectilinear_cells(xs: &[f64], ys: &[f64], zs: &[f64]) -> Result<Self> {
+        let (nx, ny, nz) = (xs.len().saturating_sub(1), ys.len().saturating_sub(1), zs.len().saturating_sub(1));
+        require(nx > 0 && ny > 0 && nz > 0, "rectilinear mesh needs two nodes per axis")?;
+        let mut points = Vec::with_capacity((nx + 1) * (ny + 1) * (nz + 1));
+        for z in zs {
+            for y in ys {
+                for x in xs {
+                    points.push(Vec3::new(*x, *y, *z));
+                }
+            }
+        }
+        let id = |i, j, k| (k * (ny + 1) + j) * (nx + 1) + i;
+        let mut cells = vec![];
+        for k in 0..nz {
+            for j in 0..ny {
+                for i in 0..nx {
+                    cells.push(Cell {
+                        cell_type: CellType::Hexahedron,
+                        nodes: vec![
+                            id(i, j, k),
+                            id(i + 1, j, k),
+                            id(i + 1, j + 1, k),
+                            id(i, j + 1, k),
+                            id(i, j, k + 1),
+                            id(i + 1, j, k + 1),
+                            id(i + 1, j + 1, k + 1),
+                            id(i, j + 1, k + 1),
+                        ],
+                    });
+                }
+            }
+        }
+        let m = Self { points, cells };
+        m.validate()?;
+        Ok(m)
+    }
     pub fn box_cells(dimensions: [usize; 3], lengths: Vec3, shear: f64) -> Result<Self> {
         let [nx, ny, nz] = dimensions;
         require(

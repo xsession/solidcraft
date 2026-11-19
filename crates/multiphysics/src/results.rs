@@ -19,7 +19,7 @@ pub const MAX_TABLE_ROWS: usize = 100_000;
 #[error("results: {0}")]
 pub struct Error(pub String);
 
-fn bad(message: impl Into<String>) -> Error {
+pub(crate) fn bad(message: impl Into<String>) -> Error {
     Error(message.into())
 }
 
@@ -246,7 +246,7 @@ fn simplex_measure(p: &[[f64; 3]]) -> f64 {
 
 /// Barycentric weights of `x` in a segment, triangle or tetrahedron (projected onto the
 /// simplex's span) and the distance from `x` to that span.
-fn barycentric(p: &[[f64; 3]], x: [f64; 3]) -> Option<(Vec<f64>, f64)> {
+pub(crate) fn barycentric(p: &[[f64; 3]], x: [f64; 3]) -> Option<(Vec<f64>, f64)> {
     match p.len() {
         1 => Some((vec![1.0], dist(p[0], x))),
         2 => {
@@ -291,13 +291,13 @@ fn barycentric(p: &[[f64; 3]], x: [f64; 3]) -> Option<(Vec<f64>, f64)> {
 /// Precomputed cell geometry for repeated queries on one grid.
 #[derive(Clone, Debug)]
 pub struct CellIndex {
-    nodes: Vec<Vec<usize>>,
-    simplices: Vec<Vec<Vec<usize>>>,
+    pub(crate) nodes: Vec<Vec<usize>>,
+    pub(crate) simplices: Vec<Vec<Vec<usize>>>,
     pub centroids: Vec<[f64; 3]>,
     /// Length, area or volume by cell dimension.
     pub measures: Vec<f64>,
     pub dimensions: Vec<Option<usize>>,
-    bounds: Vec<[[f64; 2]; 3]>,
+    pub(crate) bounds: Vec<[[f64; 2]; 3]>,
     /// Highest cell dimension present (integrals use only cells of this dimension).
     pub dimension: usize,
 }
@@ -381,7 +381,7 @@ impl CellIndex {
     }
 }
 
-fn field<'a>(grid: &'a Grid, name: &str) -> Result<&'a Field, Error> {
+pub(crate) fn field<'a>(grid: &'a Grid, name: &str) -> Result<&'a Field, Error> {
     grid.fields.iter().find(|f| f.name == name).ok_or_else(|| bad(format!("no field named {name:?}")))
 }
 
@@ -392,12 +392,12 @@ fn scalar(f: &Field, index: usize) -> Option<f64> {
     Some(if k == 1 { slice[0] } else { slice.iter().map(|v| v * v).sum::<f64>().sqrt() })
 }
 
-fn components(f: &Field, index: usize) -> Option<Vec<f64>> {
+pub(crate) fn components(f: &Field, index: usize) -> Option<Vec<f64>> {
     let k = f.components.max(1);
     f.values.get(index * k..index * k + k).map(<[f64]>::to_vec)
 }
 
-fn check_field(grid: &Grid, f: &Field) -> Result<(), Error> {
+pub(crate) fn check_field(grid: &Grid, f: &Field) -> Result<(), Error> {
     let k = f.components.max(1);
     let count = match f.association {
         Association::Point => grid.points.len(),
@@ -411,7 +411,7 @@ fn check_field(grid: &Grid, f: &Field) -> Result<(), Error> {
 
 /// A cell field's mean over a cell's nodes is used for point fields where one value per
 /// cell is needed.
-fn cell_value(grid: &Grid, idx: &CellIndex, f: &Field, cell: usize) -> Option<Vec<f64>> {
+pub(crate) fn cell_value(grid: &Grid, idx: &CellIndex, f: &Field, cell: usize) -> Option<Vec<f64>> {
     match f.association {
         Association::Cell => components(f, cell),
         Association::Point => {
@@ -429,7 +429,7 @@ fn cell_value(grid: &Grid, idx: &CellIndex, f: &Field, cell: usize) -> Option<Ve
     }
 }
 
-fn magnitude(v: &[f64]) -> f64 {
+pub(crate) fn magnitude(v: &[f64]) -> f64 {
     if v.len() == 1 { v[0] } else { v.iter().map(|x| x * x).sum::<f64>().sqrt() }
 }
 
@@ -906,6 +906,28 @@ pub enum Query {
     },
     Goals,
     Components,
+    /// Flow trajectories (or particle paths) of a vector field.
+    Trajectories {
+        artifact: String,
+        field: String,
+        seeds: crate::flowpost::Seeds,
+        #[serde(default)]
+        options: crate::flowpost::TrajectoryOptions,
+    },
+    Isosurface {
+        artifact: String,
+        field: String,
+        level: f64,
+        #[serde(default)]
+        color_field: Option<String>,
+    },
+    /// The mesh boundary (or one side of its bounding box) with the field on it.
+    Surface {
+        artifact: String,
+        field: String,
+        #[serde(default)]
+        side: Option<crate::flowpost::BoxSide>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, Serialize, schemars::JsonSchema)]
@@ -926,6 +948,9 @@ pub enum QueryResult {
     Compare(FieldDifference),
     Goals(GoalReport),
     Components { rows: Vec<ComponentRow> },
+    Trajectories { lines: Vec<crate::flowpost::Trajectory> },
+    Isosurface(crate::flowpost::Isosurface),
+    Surface(crate::flowpost::Surface),
 }
 
 /// A query answer with the provenance needed to trust it.
@@ -961,6 +986,22 @@ fn grid(run: &crate::RunEvidence, name: &str) -> Result<Grid, Error> {
         return Err(bad("field queries need a VTU artifact"));
     }
     crate::vtk::parse_vtu(artifact(run, name)?).map_err(|e| bad(e.to_string()))
+}
+
+/// A zoom-in child case cut out of a retained run (see [`crate::zoom`]). The run's own input
+/// case is the parent, so the child matches the results it is fed from even after later edits.
+pub fn zoom_from_run(
+    project: &crate::Project,
+    id: &str,
+    run_id: &str,
+    artifact_name: &str,
+    low: [f64; 3],
+    high: [f64; 3],
+    refine: usize,
+) -> Result<crate::zoom::Zoom, Error> {
+    let (_, run) = run_of(project, id, run_id)?;
+    let g = grid(run, artifact_name)?;
+    crate::zoom::zoom_case(&run.input_case, &g, low, high, refine).map_err(|e| bad(e.to_string()))
 }
 
 /// Answer one query about a retained run.
@@ -1000,6 +1041,23 @@ pub fn query(project: &crate::Project, request: &QueryRequest) -> Result<QueryRe
             (None, QueryResult::Goals(goals(csv, json)?))
         }
         Query::Components => (Some("K"), QueryResult::Components { rows: components_from_report(artifact(run, "thermal_report.json")?)? }),
+        Query::Trajectories { artifact, field, seeds, options } => {
+            let g = grid(run, artifact)?;
+            let idx = CellIndex::new(&g)?;
+            let lines = crate::flowpost::trajectories(&g, &idx, field, &seeds.points(), options)?;
+            (unit_hint(field), QueryResult::Trajectories { lines })
+        }
+        Query::Isosurface { artifact, field, level, color_field } => {
+            let g = grid(run, artifact)?;
+            let idx = CellIndex::new(&g)?;
+            let unit = unit_hint(color_field.as_deref().unwrap_or(field));
+            (unit, QueryResult::Isosurface(crate::flowpost::isosurface(&g, &idx, field, *level, color_field.as_deref())?))
+        }
+        Query::Surface { artifact, field, side } => {
+            let g = grid(run, artifact)?;
+            let idx = CellIndex::new(&g)?;
+            (unit_hint(field), QueryResult::Surface(crate::flowpost::surface(&g, &idx, field, *side)?))
+        }
     };
     Ok(QueryResponse {
         id: request.id.clone(),
@@ -1267,5 +1325,51 @@ mod tests {
         let table = compare_studies(&project, &[]).expect("table");
         assert_eq!(table.runs, vec!["Fan · run-1"]);
         assert!(compare_studies(&project, &["mp-study-404".into()]).is_err());
+    }
+
+    #[test]
+    fn flow_result_queries_trace_cut_and_integrate_retained_fields() {
+        // One unit hexahedron: velocity (1, 0, 0) and t = x at its points.
+        let vtu = r#"<?xml version="1.0"?><VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian"><UnstructuredGrid><Piece NumberOfPoints="8" NumberOfCells="1"><PointData><DataArray type="Float64" Name="velocity_m_per_s" NumberOfComponents="3" format="ascii">1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0</DataArray><DataArray type="Float64" Name="t" NumberOfComponents="1" format="ascii">0 1 1 0 0 1 1 0</DataArray></PointData><Points><DataArray type="Float64" NumberOfComponents="3" format="ascii">0 0 0 1 0 0 1 1 0 0 1 0 0 0 1 1 0 1 1 1 1 0 1 1</DataArray></Points><Cells><DataArray type="Int64" Name="connectivity" format="ascii">0 1 2 3 4 5 6 7</DataArray><DataArray type="Int64" Name="offsets" format="ascii">8</DataArray><DataArray type="UInt8" Name="types" format="ascii">12</DataArray></Cells></Piece></UnstructuredGrid></VTKFile>"#;
+        let mut project = crate::Project::default();
+        let study = project.create("flow-channel", "Flow").expect("create");
+        let run = crate::RunEvidence {
+            id: "run-1".into(),
+            study_revision: study.revision,
+            case_hash: crate::case_hash(&study.case).expect("hash"),
+            input_case: study.case.clone(),
+            manifest: serde_json::json!({}),
+            artifacts: vec![crate::Artifact { name: "flow.vtu".into(), text: vtu.into() }],
+        };
+        project.studies[0].runs.push(run);
+        let ask = |query| query_result(&project, &study.id, query);
+        let request: Query = serde_json::from_value(serde_json::json!({
+            "kind": "trajectories", "artifact": "flow.vtu", "field": "velocity_m_per_s",
+            "seeds": {"kind": "line", "start": [0.1, 0.2, 0.5], "end": [0.1, 0.8, 0.5], "count": 3}
+        }))
+        .expect("trajectory request");
+        let QueryResult::Trajectories { lines } = ask(request).expect("trajectories") else { panic!("trajectories expected") };
+        assert_eq!(lines.len(), 3);
+        assert!(lines.iter().all(|l| l.end == crate::flowpost::TrajectoryEnd::LeftMesh && (l.residence_time - 0.9).abs() < 1e-9));
+        let iso = Query::Isosurface { artifact: "flow.vtu".into(), field: "t".into(), level: 0.5, color_field: None };
+        let QueryResult::Isosurface(iso) = ask(iso).expect("isosurface") else { panic!("isosurface expected") };
+        assert!((iso.area - 1.0).abs() < 1e-12);
+        let outlet = Query::Surface {
+            artifact: "flow.vtu".into(),
+            field: "velocity_m_per_s".into(),
+            side: Some(crate::flowpost::BoxSide { axis: 0, max: true }),
+        };
+        let QueryResult::Surface(outlet) = ask(outlet).expect("surface") else { panic!("surface expected") };
+        assert_eq!(outlet.flux, Some(1.0));
+        assert!(
+            serde_json::from_value::<Query>(
+                serde_json::json!({"kind":"surface","artifact":"flow.vtu","field":"t","side":{"axis":0,"max":true,"extra":1}})
+            )
+            .is_err()
+        );
+    }
+
+    fn query_result(project: &crate::Project, id: &str, query: Query) -> Result<QueryResult, Error> {
+        super::query(project, &QueryRequest { id: id.into(), run_id: "run-1".into(), query }).map(|r| r.result)
     }
 }

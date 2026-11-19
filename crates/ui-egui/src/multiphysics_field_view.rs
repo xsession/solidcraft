@@ -3,6 +3,7 @@
 //! This is a planar scientific layer and a wireframe domain, not a volume renderer,
 //! CAD body display or particle-path integrator. Display normalization leaves the
 //! retained coordinates and original field arrays untouched.
+use solidcraft_engine::geom::Vec3Geom as _;
 use std::fmt;
 use std::sync::Arc;
 
@@ -38,7 +39,25 @@ pub(crate) struct State3d {
     initialized: bool,
     viewport: Box<ViewportState>,
     cache: Option<SliceCache>,
+    /// Result-tool geometry drawn over the slice (trajectories, isosurfaces, surfaces).
+    pub(crate) overlay: Option<Arc<Overlay>>,
 }
+
+/// Geometry from a result tool, in the result's coordinates, with a value at each vertex for
+/// colouring on the overlay's own scale.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Overlay {
+    pub(crate) lines: Vec<Vec<([f64; 3], f64)>>,
+    pub(crate) triangles: Vec<([[f64; 3]; 3], [f64; 3])>,
+    pub(crate) range: (f64, f64),
+    /// Draw only the overlay (surface plots cover the slice anyway).
+    pub(crate) hide_slice: bool,
+}
+
+/// Overlay triangles drawn per frame at most (the rest are skipped, coarsest first).
+const MAX_OVERLAY_TRIANGLES: usize = 60_000;
+/// Overlay line segments drawn per frame at most.
+const MAX_OVERLAY_SEGMENTS: usize = 80_000;
 
 impl Default for State3d {
     fn default() -> Self {
@@ -50,6 +69,7 @@ impl Default for State3d {
             initialized: false,
             viewport: Box::default(),
             cache: None,
+            overlay: None,
         }
     }
 }
@@ -64,6 +84,7 @@ impl Clone for State3d {
             initialized: self.initialized,
             viewport: Box::default(),
             cache: self.cache.clone(),
+            overlay: self.overlay.clone(),
         }
     }
 }
@@ -201,6 +222,42 @@ fn navigate(app: &mut SolveApp, ui: &mut egui::Ui, state: &mut State3d, rect: eg
     app.preferences.middle_double_click = original_middle;
 }
 
+/// The case view's camera: fit to `bounds` when first shown or asked, let the navigation
+/// engine move it unless `navigate_now` is false (a handle drag owns the pointer), and return
+/// the projection to draw and pick with.
+pub(crate) fn camera(
+    app: &mut SolveApp,
+    ui: &mut egui::Ui,
+    state: &mut State3d,
+    rect: egui::Rect,
+    response: &egui::Response,
+    bounds: &Bounds,
+    refit: bool,
+    navigate_now: bool,
+) -> crate::viewport::Proj {
+    if !state.camera.is_valid() {
+        state.camera = Camera::default();
+        state.initialized = false;
+    }
+    if !state.initialized || refit {
+        fit(state, bounds, f64::from(rect.width() / rect.height().max(1.0)));
+    }
+    if navigate_now {
+        navigate(app, ui, state, rect, response);
+    }
+    projection(state, rect, bounds)
+}
+
+/// The projection of `state`'s camera onto `rect`, framing `bounds`.
+pub(crate) fn projection(state: &State3d, rect: egui::Rect, bounds: &Bounds) -> crate::viewport::Proj {
+    crate::viewport::Proj {
+        cam: state.camera,
+        vp: state.camera.view_proj_bounds(f64::from(rect.width() / rect.height().max(1.0)), bounds),
+        rect,
+        bounds: Some(solidcraft_engine::geom::Aabb3 { min: bounds.min, max: bounds.max }),
+    }
+}
+
 /// Draw a single selected plane and return the number of visible source cells.
 /// The parent supplies total remaining height before its common field legend.
 pub(crate) fn show(
@@ -328,7 +385,8 @@ pub(crate) fn show(
     let (low, high) = state.color_range.unwrap_or(cached.range);
     let scale = low.abs().max(high.abs()).max(1.0);
     let mut visible = 0;
-    for cell in cached.cells.iter() {
+    let hide_slice = state.overlay.as_ref().is_some_and(|overlay| overlay.hide_slice);
+    for cell in cached.cells.iter().filter(|_| !hide_slice) {
         let points: Option<Vec<Pos2>> = cell.corners.iter().map(|&p| transform.point(p).and_then(project)).collect();
         let Some(points) = points else { continue };
         if !egui::Rect::from_points(&points).intersects(rect) {
@@ -345,6 +403,9 @@ pub(crate) fn show(
         mesh.add_triangle(0, 2, 3);
         painter.add(Shape::mesh(mesh));
         visible += 1;
+    }
+    if let Some(overlay) = state.overlay.clone() {
+        draw_overlay(&painter, &overlay, state.color_map, state.camera.eye(), &transform, &project, rect);
     }
     for (a, b) in front {
         draw_line(a, b);
@@ -389,4 +450,56 @@ pub(crate) fn show(
         }
     }
     Ok(visible)
+}
+
+/// Overlay triangles back to front, then lines, coloured on the overlay's scale.
+fn draw_overlay(
+    painter: &egui::Painter,
+    overlay: &Overlay,
+    map: solidcraft_engine::multiphysics::results::ColorMap,
+    eye: Vec3,
+    transform: &DisplayTransform,
+    project: &dyn Fn(Vec3) -> Option<Pos2>,
+    rect: egui::Rect,
+) {
+    let (low, high) = overlay.range;
+    let color = |value: f64| {
+        let fraction = if high > low && value.is_finite() { ((value - low) / (high - low)).clamp(0.0, 1.0) } else { 0.5 };
+        let [r, g, b] = map.color(fraction);
+        egui::Color32::from_rgb(r, g, b)
+    };
+    let stride = overlay.triangles.len().div_ceil(MAX_OVERLAY_TRIANGLES).max(1);
+    let mut faces: Vec<(f64, [Pos2; 3], [f64; 3])> = Vec::new();
+    for (corners, values) in overlay.triangles.iter().step_by(stride) {
+        let shown: Option<Vec<Vec3>> = corners.iter().map(|&p| transform.point(p)).collect();
+        let Some(shown) = shown else { continue };
+        let screen: Option<Vec<Pos2>> = shown.iter().map(|&p| project(p)).collect();
+        let Some(&[a, b, c]) = screen.as_deref() else { continue };
+        if !egui::Rect::from_points(&[a, b, c]).intersects(rect) {
+            continue;
+        }
+        let centre = (shown[0] + shown[1] + shown[2]) * (1.0 / 3.0);
+        let d = centre - eye;
+        faces.push((d.dot(d), [a, b, c], *values));
+    }
+    faces.sort_by(|x, y| y.0.total_cmp(&x.0));
+    let mut mesh = egui::Mesh::default();
+    for (_, points, values) in faces {
+        let base = mesh.vertices.len() as u32;
+        for (point, value) in points.into_iter().zip(values) {
+            mesh.colored_vertex(point, color(value));
+        }
+        mesh.add_triangle(base, base + 1, base + 2);
+    }
+    painter.add(Shape::mesh(mesh));
+    let segments: usize = overlay.lines.iter().map(|line| line.len().saturating_sub(1)).sum();
+    let stride = segments.div_ceil(MAX_OVERLAY_SEGMENTS).max(1);
+    for line in &overlay.lines {
+        let points: Vec<(Option<Pos2>, f64)> = line.iter().step_by(stride).map(|&(p, v)| (transform.point(p).and_then(|p| project(p)), v)).collect();
+        for pair in points.windows(2) {
+            if let [(Some(a), va), (Some(b), vb)] = pair {
+                painter.line_segment([*a, *b], Stroke::new(2.0, color((va + vb) * 0.5)));
+            }
+        }
+    }
 }

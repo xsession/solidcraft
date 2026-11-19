@@ -14,6 +14,11 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 pub mod airflow;
+pub mod authoring;
+pub mod case_scene;
+pub mod devices;
+pub mod flowpost;
+pub mod fluid_volume;
 pub mod mesh_diagnostics;
 mod obstacles;
 pub mod results;
@@ -21,11 +26,12 @@ pub mod setup;
 mod templates;
 pub mod vtk;
 pub mod wizard;
+pub mod zoom;
 
 pub use templates::templates;
 
 /// Pinned producer whose case and run schemas this initial adapter understands.
-pub const SOLVER_VERSION: &str = "0.7.0";
+pub const SOLVER_VERSION: &str = "0.12.0";
 pub const SOLVER_REVISION: &str = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a";
 /// Variants one sweep may create.
 pub const MAX_SWEEP_VARIANTS: usize = 16;
@@ -38,7 +44,7 @@ pub const MAX_ARTIFACTS: usize = 128;
 const MAX_PROJECT_BYTES: usize = 64 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 const MAX_NODES: usize = 200_000;
-const MAX_CELLS: u64 = 32_768;
+pub(crate) const MAX_CELLS: u64 = 32_768;
 const MAX_STEPS: u64 = 20_000;
 const MAX_WORK: u64 = 50_000_000;
 
@@ -591,7 +597,8 @@ pub fn validate_producer(manifest: &Value, input_case: &Value) -> Result<()> {
         }
     }
     let version = manifest.get("rust_port_version").and_then(Value::as_str);
-    if !matches!(version, Some("0.2.0" | "0.3.0" | "0.4.0" | "0.5.0" | "0.6.0" | SOLVER_VERSION)) {
+    if !matches!(version, Some("0.2.0" | "0.3.0" | "0.4.0" | "0.5.0" | "0.6.0" | "0.7.0" | "0.8.0" | "0.9.0" | "0.10.0" | "0.11.0" | SOLVER_VERSION))
+    {
         return Err(Error::Invalid("unsupported run rust_port_version".into()));
     }
     let capabilities = match manifest.get("capabilities") {

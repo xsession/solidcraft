@@ -1043,3 +1043,161 @@ fn cloned_projects_copy_the_case_but_not_its_evidence() {
     assert!(project.clone_study("mp-study-missing", "x").is_err());
     assert_eq!(project, before, "a failed clone changes nothing");
 }
+
+#[test]
+fn reference_feature_drafts_are_read_only_and_require_explicit_apply() {
+    use crate::authoring::{FeatureKind, prepare_feature, prepare_feature_with_options};
+    let mut project = Project::default();
+    let study = project.create("flow-channel", "Reference workflow").unwrap();
+    let original = project.clone();
+    for (kind, name, pointer) in [(FeatureKind::Porous, "filter", "/porous_blocks/0"), (FeatureKind::Goal, "outlet_flow", "/goals/0")] {
+        let prepared = prepare_feature(&study.case, kind, name).unwrap();
+        assert_eq!(prepared.pointer, pointer);
+        assert!(prepared.case.pointer(pointer).is_some());
+        assert!(prepared.issues.is_empty(), "{:?}", prepared.issues);
+        assert_eq!(project, original, "preparation must not commit a document");
+        assert!(prepare_feature(&prepared.case, kind, name).is_err(), "duplicate refused");
+    }
+    let unreviewed = prepare_feature(&study.case, FeatureKind::Fan, "fan").unwrap();
+    assert!(!unreviewed.issues.is_empty(), "a fixed inlet and fan must conflict visibly");
+    assert_eq!(unreviewed.case["velocity_boundaries"], study.case["velocity_boundaries"]);
+    let reviewed = prepare_feature_with_options(&study.case, FeatureKind::Fan, "fan", true).unwrap();
+    assert!(reviewed.issues.is_empty(), "{:?}", reviewed.issues);
+    assert_eq!(reviewed.case["pressure_boundaries"], study.case["pressure_boundaries"]);
+    assert_eq!(reviewed.case["velocity_boundaries"].as_array().unwrap().len() + 1, study.case["velocity_boundaries"].as_array().unwrap().len());
+    assert!(prepare_feature(&reviewed.case, FeatureKind::Fan, "second").is_err());
+    assert_eq!(project, original);
+    project.update(&study.id, study.revision, &study.name, &study.question, reviewed.case.clone()).unwrap();
+    assert_eq!(project.study(&study.id).unwrap().case, reviewed.case);
+}
+
+#[test]
+fn reference_feature_drafts_bound_input_and_do_not_guess_surface_regions() {
+    use crate::authoring::{FeatureKind, prepare_feature, prepare_feature_with_options};
+    let case = Project::default().create("flow-channel", "Case").unwrap().case;
+    for name in ["", "../body", "white space", "é", "_leading"] {
+        assert!(prepare_feature(&case, FeatureKind::Porous, name).is_err(), "{name}");
+    }
+    assert!(prepare_feature(&case, FeatureKind::Porous, &"a".repeat(61)).is_err());
+    assert!(prepare_feature(&json!([]), FeatureKind::Goal, "goal").is_err());
+    assert!(prepare_feature(&json!({"solver":"poisson1d"}), FeatureKind::Goal, "goal").is_err());
+    assert!(prepare_feature_with_options(&case, FeatureKind::Goal, "goal", true).is_err());
+    let mut surface = case.clone();
+    surface["bodies"] = json!([{"name":"case"}]);
+    assert!(prepare_feature(&surface, FeatureKind::Porous, "filter").is_err());
+    let mut huge = case.clone();
+    huge["mesh"]["dimensions"] = json!([u64::MAX, u64::MAX, 2]);
+    assert!(prepare_feature(&huge, FeatureKind::Porous, "filter").is_err());
+    assert!(prepare_feature(&case, FeatureKind::SolidMaterial, "missing").is_err());
+    let mut body = case.clone();
+    body["obstacles"] = json!([{"name":"chip","min":[2,2,0],"max":[3,3,1]}]);
+    let prepared = prepare_feature(&body, FeatureKind::SolidMaterial, "chip").unwrap();
+    assert!(prepared.issues.is_empty(), "{:?}", prepared.issues);
+    assert_eq!(prepared.pointer, "/thermal/solids/0");
+    assert_eq!(prepared.case.pointer("/thermal/solids/0/obstacle"), Some(&json!("chip")));
+    assert!(prepare_feature(&prepared.case, FeatureKind::SolidMaterial, "chip").is_err());
+    assert!(body.get("thermal").is_none());
+    let mut full = case.clone();
+    full["obstacles"] = json!([{"name":"block","min":[0,0,0],"max":[8,6,2]}]);
+    assert!(prepare_feature(&full, FeatureKind::Porous, "filter").is_err());
+}
+
+#[test]
+fn thermal_devices_and_goals_v2_need_producer_0_8_0_and_are_validated() {
+    let base: Value = serde_json::from_str(include_str!("../data/templates/flow-electronics-enclosure-cht.json")).expect("template");
+    validate_case(&base).expect("the template is valid");
+    let plain = airflow::requirements(&base);
+    assert!(!plain.contains(&airflow::THERMAL_DEVICES) && !plain.contains(&airflow::GOALS_V2), "unused features are not required");
+    let mut devices = base.clone();
+    devices["thermal"]["solids"][5]["junction_to_case_k_per_w"] = json!(2.5);
+    devices["thermal"]["solids"][4]["contact_resistance_m2_k_per_w"] = json!(1e-4);
+    devices["thermal"]["solids"][6]["heat_pipe"] = json!({"axis": 0, "effective_resistance_k_per_w": 0.4});
+    devices["thermal"]["thermoelectric_coolers"] = json!([{
+        "name": "tec", "cold_solid": "processor_block", "hot_solid": "pcb_block", "heat_pumped_w": 1.0, "electrical_power_w": 0.5
+    }]);
+    validate_case(&devices).expect("device fields are accepted");
+    assert!(airflow::requirements(&devices).contains(&airflow::THERMAL_DEVICES));
+    for (pointer, bad) in [
+        ("/thermal/solids/5/junction_to_case_k_per_w", json!(-1.0)),
+        ("/thermal/solids/6/heat_pipe", json!({"axis": 3, "effective_resistance_k_per_w": 0.4})),
+        ("/thermal/thermoelectric_coolers/0/hot_solid", json!("processor_block")),
+        ("/thermal/thermoelectric_coolers/0/cold_solid", json!("missing")),
+    ] {
+        let mut case = devices.clone();
+        *case.pointer_mut(pointer).expect("pointer") = bad;
+        assert!(validate_case(&case).is_err(), "{pointer} must be refused");
+    }
+    let mut goals = base.clone();
+    let list = goals["goals"].as_array_mut().expect("goals");
+    list.push(json!({"name": "air_max", "kind": "global_max_fluid_temperature"}));
+    list.push(json!({"name": "probe", "kind": "point_temperature", "point": [0.1, 0.06, 0.04]}));
+    list.push(json!({"name": "margin", "kind": "equation", "expression": "358.15 - processor_max"}));
+    validate_case(&goals).expect("v2 goals are accepted");
+    assert!(airflow::requirements(&goals).contains(&airflow::GOALS_V2));
+    for (index, field, bad) in [
+        (4, "point", json!([0.5, 0.06, 0.04])),
+        (5, "expression", json!("margin + 1")),
+        (5, "expression", json!("unknown * 2")),
+        (5, "expression", json!("processor_max ; 1")),
+    ] {
+        let mut case = goals.clone();
+        case["goals"][index][field] = bad;
+        assert!(validate_case(&case).is_err(), "goal {index} {field} must be refused");
+    }
+    // A 0.7.0 producer cannot run them; a 0.8.0 one with the capabilities can.
+    let manifest = |version: &str, capabilities: &[&str]| {
+        json!({"schema": "cfd-solvers-rs/run/1", "upstream_revision": SOLVER_REVISION, "backend": "native_rust_serial_cpu",
+               "rust_port_version": version, "capabilities": capabilities})
+    };
+    let all = [
+        "grid_obstacles_v1",
+        "fan_curve_v1",
+        "porous_blocks_v1",
+        "conjugate_heat_v1",
+        "surface_bodies_v1",
+        "goals_v1",
+        "natural_convection_v1",
+        "domain_cases_v1",
+        "thermal_devices_v1",
+        "goals_v2",
+    ];
+    assert!(validate_producer(&manifest("0.7.0", &all[..8]), &devices).is_err());
+    assert!(validate_producer(&manifest("0.8.0", &all), &devices).is_ok());
+    assert!(validate_producer(&manifest("0.8.0", &all[..9]), &goals).is_err(), "goals_v2 must be advertised");
+    assert!(validate_producer(&manifest("0.7.0", &all[..8]), &base).is_ok(), "older producers still run older cases");
+}
+
+#[test]
+fn device_and_goal_drafts_are_valid_and_refuse_what_they_cannot_place() {
+    use crate::authoring::{FeatureKind, prepare_feature};
+    let base: Value = serde_json::from_str(include_str!("../data/templates/flow-electronics-enclosure-cht.json")).expect("template");
+    for (kind, name, pointer) in [
+        (FeatureKind::ContactResistance, "processor_block", "/thermal/solids/5/contact_resistance_m2_k_per_w"),
+        (FeatureKind::TwoResistor, "processor_block", "/thermal/solids/5/junction_to_case_k_per_w"),
+        (FeatureKind::HeatPipe, "power_block", "/thermal/solids/6/heat_pipe"),
+        (FeatureKind::ThermoelectricCooler, "tec1", "/thermal/thermoelectric_coolers/0"),
+        (FeatureKind::GlobalGoal, "air_max", "/goals/3"),
+        (FeatureKind::PointGoal, "centre", "/goals/3"),
+        (FeatureKind::VolumeGoal, "first_solid", "/goals/3"),
+        (FeatureKind::EquationGoal, "derived", "/goals/3"),
+    ] {
+        let prepared = prepare_feature(&base, kind, name).expect("draft");
+        assert_eq!(prepared.pointer, pointer, "{kind:?}");
+        assert!(prepared.issues.is_empty(), "{kind:?}: {:?}", prepared.issues);
+        assert!(prepared.case.pointer(pointer).is_some());
+        assert_eq!(base, serde_json::from_str::<Value>(include_str!("../data/templates/flow-electronics-enclosure-cht.json")).expect("template"));
+    }
+    assert_eq!(prepare_feature(&base, FeatureKind::PointGoal, "centre").expect("draft").case["goals"][3]["point"], json!([0.1, 0.06, 0.04]));
+    // Devices need an existing solid record and cannot be set twice.
+    assert!(prepare_feature(&base, FeatureKind::HeatPipe, "missing").is_err());
+    let twice = prepare_feature(&base, FeatureKind::TwoResistor, "processor_block").expect("draft").case;
+    assert!(prepare_feature(&twice, FeatureKind::TwoResistor, "processor_block").is_err());
+    // Without a thermal block there are no global temperature or volume goals.
+    let mut cold = base.clone();
+    cold.as_object_mut().expect("object").remove("thermal");
+    cold["goals"] = json!([{"name":"fan_flow","kind":"patch_volume_flow","target":"right"}]);
+    assert!(prepare_feature(&cold, FeatureKind::GlobalGoal, "g").is_err());
+    assert!(prepare_feature(&cold, FeatureKind::VolumeGoal, "v").is_err());
+    let point = prepare_feature(&cold, FeatureKind::PointGoal, "p").expect("draft");
+    assert_eq!(point.case["goals"][1]["kind"], "point_pressure");
+}

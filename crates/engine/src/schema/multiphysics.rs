@@ -19,6 +19,8 @@ pub struct Empty {}
 pub struct Create {
     pub template: String,
     pub name: String,
+    #[serde(default)]
+    pub case: Option<Value>,
 }
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -277,4 +279,35 @@ pub struct Removed {
 #[derive(Serialize, JsonSchema)]
 pub struct Exported {
     pub files: Vec<String>,
+}
+
+/// CAD bodies to bring into a 3-D airflow case (see `case_scene::import_components`).
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ComponentImport {
+    pub case: Value,
+    /// Body names of the current model; empty means every body.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    /// Tessellation quality: standard (default), fine or finest.
+    #[serde(default)]
+    pub quality: Option<String>,
+    #[serde(default)]
+    pub options: solidcraft_multiphysics::case_scene::ImportOptions,
+}
+
+/// The bodies of the current model, by name.
+#[derive(Serialize, JsonSchema)]
+pub struct CadBodies {
+    pub bodies: Vec<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FeaturePrepare {
+    pub case: Value,
+    pub kind: solidcraft_multiphysics::authoring::FeatureKind,
+    pub name: String,
+    #[serde(default)]
+    pub replace_fan_patch_conditions: bool,
 }

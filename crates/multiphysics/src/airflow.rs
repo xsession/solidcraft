@@ -18,15 +18,54 @@ pub struct Requirement {
     pub versions: &'static [&'static str],
 }
 
-pub const GRID_OBSTACLES: Requirement = Requirement { capability: "grid_obstacles_v1", versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0"] };
-pub const FAN_CURVE: Requirement = Requirement { capability: "fan_curve_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0"] };
-pub const POROUS_BLOCKS: Requirement = Requirement { capability: "porous_blocks_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0"] };
-pub const CONJUGATE_HEAT: Requirement = Requirement { capability: "conjugate_heat_v1", versions: &["0.5.0", "0.6.0", "0.7.0"] };
-pub const SURFACE_BODIES: Requirement = Requirement { capability: "surface_bodies_v1", versions: &["0.6.0", "0.7.0"] };
-pub const GOALS: Requirement = Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0"] };
-pub const NATURAL_CONVECTION: Requirement = Requirement { capability: "natural_convection_v1", versions: &["0.6.0", "0.7.0"] };
+pub const GRID_OBSTACLES: Requirement = Requirement {
+    capability: "grid_obstacles_v1",
+    versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"],
+};
+pub const FAN_CURVE: Requirement =
+    Requirement { capability: "fan_curve_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const POROUS_BLOCKS: Requirement =
+    Requirement { capability: "porous_blocks_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const CONJUGATE_HEAT: Requirement =
+    Requirement { capability: "conjugate_heat_v1", versions: &["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const SURFACE_BODIES: Requirement =
+    Requirement { capability: "surface_bodies_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const GOALS: Requirement = Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const NATURAL_CONVECTION: Requirement =
+    Requirement { capability: "natural_convection_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
 /// Electrical, mechanics, particle, kinetic and coupled domain cases added in 0.7.0.
-pub const DOMAIN_CASES: Requirement = Requirement { capability: "domain_cases_v1", versions: &["0.7.0"] };
+pub const DOMAIN_CASES: Requirement =
+    Requirement { capability: "domain_cases_v1", versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+/// Contact resistance, two-resistor junctions, heat pipes and thermoelectric coolers (0.8.0).
+pub const THERMAL_DEVICES: Requirement =
+    Requirement { capability: "thermal_devices_v1", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+/// Global, point and equation goals (0.8.0).
+/// Explicit rectilinear mesh coordinates (local mesh refinement, 0.9.0).
+pub const LOCAL_MESH: Requirement = Requirement { capability: "local_mesh_v1", versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+/// Per-face transferred boundary profiles (zoom-in from a parent run, 0.10.0).
+pub const TRANSFERRED: Requirement = Requirement { capability: "transferred_bc_v1", versions: &["0.10.0", "0.11.0", "0.12.0"] };
+/// Rotating regions, the multiple reference frame model (0.11.0).
+pub const ROTATING: Requirement = Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0"] };
+/// PISO correctors that rebuild H(u)/a_P (stable at larger time steps, 0.11.0).
+pub const PISO_UPDATE: Requirement = Requirement { capability: "piso_neighbour_update_v1", versions: &["0.11.0", "0.12.0"] };
+/// Internal fans: actuator blocks following a pressure-flow curve (0.12.0).
+pub const INTERNAL_FANS: Requirement = Requirement { capability: "internal_fans_v1", versions: &["0.12.0"] };
+/// Balanced-force pressure and body-force coupling (0.12.0).
+pub const BALANCED_FORCES: Requirement = Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0"] };
+pub const GOALS_V2: Requirement = Requirement { capability: "goals_v2", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+
+/// Goal kinds added with `goals_v2`.
+pub const GOAL_KINDS_V2: &[&str] = &[
+    "global_max_fluid_temperature",
+    "global_mean_fluid_temperature",
+    "global_max_solid_temperature",
+    "point_temperature",
+    "point_pressure",
+    "equation",
+];
+
+/// Thermal-solid fields added with `thermal_devices_v1`.
+const SOLID_DEVICE_FIELDS: &[&str] = &["contact_resistance_m2_k_per_w", "junction_to_case_k_per_w", "heat_pipe"];
 
 /// Solvers whose case adapters first appear in producer 0.7.0.
 pub const DOMAIN_SOLVERS: &[&str] = &[
@@ -90,7 +129,278 @@ pub fn requirements(case: &Value) -> Vec<Requirement> {
     if case.get("thermal").and_then(|thermal| thermal.get("buoyancy")).is_some_and(|b| !b.is_null()) {
         out.push(NATURAL_CONVECTION);
     }
+    let thermal = case.get("thermal").filter(|t| !t.is_null());
+    let devices = thermal.is_some_and(|t| {
+        nonempty_array(t, "thermoelectric_coolers")
+            || t.get("solids")
+                .and_then(Value::as_array)
+                .is_some_and(|solids| solids.iter().any(|s| SOLID_DEVICE_FIELDS.iter().any(|f| s.get(*f).is_some_and(|v| !v.is_null()))))
+    });
+    if devices {
+        out.push(THERMAL_DEVICES);
+    }
+    let goals_v2 = case
+        .get("goals")
+        .and_then(Value::as_array)
+        .is_some_and(|goals| goals.iter().any(|g| g.get("kind").and_then(Value::as_str).is_some_and(|k| GOAL_KINDS_V2.contains(&k))));
+    if goals_v2 {
+        out.push(GOALS_V2);
+    }
+    if case.pointer("/mesh/coordinates").is_some_and(|c| !c.is_null()) {
+        out.push(LOCAL_MESH);
+    }
+    if case.get("transferred").and_then(Value::as_array).is_some_and(|rows| !rows.is_empty()) {
+        out.push(TRANSFERRED);
+    }
+    if nonempty_array(case, "rotating_regions") {
+        out.push(ROTATING);
+    }
+    if case.pointer("/config/piso_neighbour_update").and_then(Value::as_bool) == Some(true) {
+        out.push(PISO_UPDATE);
+    }
+    if nonempty_array(case, "internal_fans") {
+        out.push(INTERNAL_FANS);
+    }
+    if case.pointer("/config/balanced_body_force").and_then(Value::as_bool) == Some(true) {
+        out.push(BALANCED_FORCES);
+    }
     out
+}
+
+/// The blowing directions of internal fans.
+pub const FAN_DIRECTIONS: [&str; 6] = ["+x", "-x", "+y", "-y", "+z", "-z"];
+const MAX_INTERNAL_FANS: usize = 16;
+
+/// Internal fans: named fluid cell blocks inside the grid, apart from solids, porous blocks
+/// and each other, blowing along a grid direction with a falling pressure-flow curve.
+fn validate_internal_fans(case: &Value, rows: &Value) -> Result<()> {
+    flow_solver(case, "internal fans")?;
+    let rows = rows.as_array().ok_or_else(|| Error::Invalid("internal_fans must be an array".into()))?;
+    if rows.len() > MAX_INTERNAL_FANS {
+        return Err(Error::Invalid(format!("at most {MAX_INTERNAL_FANS} internal fans")));
+    }
+    let dimensions: [usize; 3] = serde_json::from_value(case.pointer("/mesh/dimensions").cloned().unwrap_or(Value::Null))
+        .map_err(|_| Error::Invalid("internal fans need three mesh dimensions".into()))?;
+    let block = |row: &Value| -> Option<([usize; 3], [usize; 3])> {
+        Some((serde_json::from_value(row.get("min")?.clone()).ok()?, serde_json::from_value(row.get("max")?.clone()).ok()?))
+    };
+    let overlaps = |a: ([usize; 3], [usize; 3]), b: ([usize; 3], [usize; 3])| (0..3).all(|i| a.0[i] < b.1[i] && b.0[i] < a.1[i]);
+    let others: Vec<([usize; 3], [usize; 3])> = ["obstacles", "porous_blocks"]
+        .iter()
+        .flat_map(|key| case.get(*key).and_then(Value::as_array).into_iter().flatten())
+        .filter_map(block)
+        .collect();
+    let mut names = BTreeSet::new();
+    let mut fans: Vec<([usize; 3], [usize; 3])> = vec![];
+    for row in rows {
+        let object = row.as_object().ok_or_else(|| Error::Invalid("an internal fan must be an object".into()))?;
+        if object.keys().any(|k| !matches!(k.as_str(), "name" | "min" | "max" | "direction" | "curve" | "relaxation")) {
+            return Err(Error::Invalid("internal fans take name, min, max, direction, curve and relaxation only".into()));
+        }
+        let name = row["name"].as_str().unwrap_or("");
+        let bytes = name.as_bytes();
+        if bytes.is_empty() || bytes.len() > 60 || !bytes.iter().all(|c| c.is_ascii_alphanumeric() || *c == b'_') || !names.insert(name) {
+            return Err(Error::Invalid("internal fan names must be unique identifiers of letters, digits and underscores".into()));
+        }
+        let Some(cells) = block(row) else {
+            return Err(Error::Invalid(format!("internal fan {name} needs min and max cell indices")));
+        };
+        if (0..3).any(|a| cells.0[a] >= cells.1[a] || cells.1[a] > dimensions[a]) {
+            return Err(Error::Invalid(format!("internal fan {name} must be a non-empty block inside the grid")));
+        }
+        if others.iter().any(|b| overlaps(cells, *b)) {
+            return Err(Error::Invalid(format!("internal fan {name} overlaps a solid or porous block; its cells must be open fluid")));
+        }
+        if fans.iter().any(|b| overlaps(cells, *b)) {
+            return Err(Error::Invalid(format!("internal fan {name} overlaps another fan")));
+        }
+        fans.push(cells);
+        if !row["direction"].as_str().is_some_and(|d| FAN_DIRECTIONS.contains(&d)) {
+            return Err(Error::Invalid(format!("internal fan {name} needs a direction: +x, -x, +y, -y, +z or -z")));
+        }
+        let curve: Vec<(f64, f64)> = row["curve"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|p| (p["volume_flow_m3_per_s"].as_f64().unwrap_or(f64::NAN), p["pressure_rise_pa"].as_f64().unwrap_or(f64::NAN)))
+            .collect();
+        let points_ok = row["curve"].as_array().is_some_and(|list| {
+            list.iter()
+                .all(|p| p.as_object().is_some_and(|o| o.len() == 2 && o.contains_key("volume_flow_m3_per_s") && o.contains_key("pressure_rise_pa")))
+        });
+        if !points_ok
+            || !(2..=MAX_CURVE_POINTS).contains(&curve.len())
+            || !curve.iter().all(|(q, p)| q.is_finite() && p.is_finite() && *q >= 0.0 && *p >= 0.0)
+            || !curve.windows(2).all(|w| w[1].0 > w[0].0 && w[1].1 < w[0].1)
+        {
+            return Err(Error::Invalid(format!(
+                "internal fan {name} needs a curve of 2..{MAX_CURVE_POINTS} points with rising flow and falling pressure rise"
+            )));
+        }
+        if let Some(r) = row.get("relaxation")
+            && !r.as_f64().is_some_and(|r| r.is_finite() && r > 0.0 && r <= 1.0)
+        {
+            return Err(Error::Invalid(format!("internal fan {name} relaxation must be in (0, 1]")));
+        }
+    }
+    Ok(())
+}
+
+/// The largest |Ω|·Δt the companion accepts for a rotating region.
+pub const MAX_ROTATION_PER_STEP: f64 = 0.2;
+const MAX_ROTATING_REGIONS: usize = 16;
+
+/// Rotating regions: named cell blocks inside the grid, apart from each other, with a
+/// finite non-zero axis and a speed the time step can follow (|Ω|·Δt ≤ 0.2).
+fn validate_rotating(case: &Value, rows: &Value) -> Result<()> {
+    flow_solver(case, "rotating regions")?;
+    let rows = rows.as_array().ok_or_else(|| Error::Invalid("rotating_regions must be an array".into()))?;
+    if rows.len() > MAX_ROTATING_REGIONS {
+        return Err(Error::Invalid(format!("at most {MAX_ROTATING_REGIONS} rotating regions")));
+    }
+    let dimensions: [usize; 3] = serde_json::from_value(case.pointer("/mesh/dimensions").cloned().unwrap_or(Value::Null))
+        .map_err(|_| Error::Invalid("rotating regions need three mesh dimensions".into()))?;
+    let dt = case.pointer("/config/dt").and_then(Value::as_f64).unwrap_or(1e-2);
+    let vector = |v: &Value| -> Option<[f64; 3]> {
+        let out = ["x", "y", "z"].map(|a| v.get(a).and_then(Value::as_f64).unwrap_or(f64::NAN));
+        (v.as_object().is_some_and(|o| o.len() == 3) && out.iter().all(|c| c.is_finite())).then_some(out)
+    };
+    let mut names = BTreeSet::new();
+    let mut boxes: Vec<([usize; 3], [usize; 3])> = vec![];
+    for row in rows {
+        let object = row.as_object().ok_or_else(|| Error::Invalid("a rotating region must be an object".into()))?;
+        if object.keys().any(|k| !matches!(k.as_str(), "name" | "min" | "max" | "axis_point" | "axis" | "rpm")) {
+            return Err(Error::Invalid("rotating regions take name, min, max, axis_point, axis and rpm only".into()));
+        }
+        let name = row["name"].as_str().unwrap_or("");
+        let bytes = name.as_bytes();
+        if bytes.is_empty() || bytes.len() > 60 || !bytes.iter().all(|c| c.is_ascii_alphanumeric() || *c == b'_') || !names.insert(name) {
+            return Err(Error::Invalid("rotating region names must be unique identifiers of letters, digits and underscores".into()));
+        }
+        let min: Option<[usize; 3]> = serde_json::from_value(row["min"].clone()).ok();
+        let max: Option<[usize; 3]> = serde_json::from_value(row["max"].clone()).ok();
+        let (Some(min), Some(max)) = (min, max) else {
+            return Err(Error::Invalid(format!("rotating region {name} needs min and max cell indices")));
+        };
+        if (0..3).any(|a| min[a] >= max[a] || max[a] > dimensions[a]) {
+            return Err(Error::Invalid(format!("rotating region {name} must be a non-empty block inside the grid")));
+        }
+        if boxes.iter().any(|(lo, hi)| (0..3).all(|a| min[a] < hi[a] && lo[a] < max[a])) {
+            return Err(Error::Invalid(format!("rotating region {name} overlaps another region")));
+        }
+        boxes.push((min, max));
+        let axis = vector(&row["axis"]).filter(|a| a.iter().map(|c| c * c).sum::<f64>() > 0.0);
+        if axis.is_none() || vector(&row["axis_point"]).is_none() {
+            return Err(Error::Invalid(format!("rotating region {name} needs a finite axis point and a non-zero axis")));
+        }
+        let rpm =
+            row["rpm"].as_f64().filter(|v| v.is_finite()).ok_or_else(|| Error::Invalid(format!("rotating region {name} needs a finite rpm")))?;
+        let omega = rpm.abs() * std::f64::consts::TAU / 60.0;
+        if omega * dt > MAX_ROTATION_PER_STEP {
+            return Err(Error::Invalid(format!(
+                "rotating region {name} turns {:.3} rad per time step; at most {MAX_ROTATION_PER_STEP} (shorten the time step or lower the speed)",
+                omega * dt
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Transferred profiles: an exterior patch each (once, not the fan's), one value per
+/// background face of the patch, on a fixed-value velocity or pressure condition.
+fn validate_transferred(case: &Value, rows: &Value) -> Result<()> {
+    flow_solver(case, "transferred boundary conditions")?;
+    let rows = rows.as_array().ok_or_else(|| Error::Invalid("transferred must be an array".into()))?;
+    let dimensions: [usize; 3] = serde_json::from_value(case.pointer("/mesh/dimensions").cloned().unwrap_or(Value::Null))
+        .map_err(|_| Error::Invalid("transferred profiles need three mesh dimensions".into()))?;
+    let fixed = |key: &str, patch: &str| {
+        case.get(key)
+            .and_then(Value::as_array)
+            .is_some_and(|list| list.iter().any(|row| row["patch"].as_str() == Some(patch) && row["kind"].as_str() == Some("fixed_value")))
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    for row in rows {
+        let object = row.as_object().ok_or_else(|| Error::Invalid("a transferred entry must be an object".into()))?;
+        if object.keys().any(|key| !matches!(key.as_str(), "patch" | "velocity" | "pressure")) {
+            return Err(Error::Invalid("transferred entries take patch, velocity and pressure only".into()));
+        }
+        let patch = row["patch"].as_str().unwrap_or("");
+        let in_plane = match patch {
+            "left" | "right" => [1, 2],
+            "bottom" | "top" => [0, 2],
+            "front" | "back" => [0, 1],
+            _ => return Err(Error::Invalid(format!("transferred patch {patch:?} is not an exterior patch"))),
+        };
+        if !seen.insert(patch) {
+            return Err(Error::Invalid(format!("patch {patch} is transferred twice")));
+        }
+        if case.pointer("/fan/patch").and_then(Value::as_str) == Some(patch) {
+            return Err(Error::Invalid(format!("the fan owns patch {patch}")));
+        }
+        let expected = dimensions[in_plane[0]] * dimensions[in_plane[1]];
+        let (velocity, pressure) = (row.get("velocity").filter(|v| !v.is_null()), row.get("pressure").filter(|v| !v.is_null()));
+        if velocity.is_none() && pressure.is_none() {
+            return Err(Error::Invalid(format!("transferred patch {patch} has no values")));
+        }
+        if let Some(values) = velocity {
+            let list = values
+                .as_array()
+                .filter(|list| list.len() == expected)
+                .ok_or_else(|| Error::Invalid(format!("transferred velocity on {patch} needs {expected} values")))?;
+            let finite = list.iter().all(|v| ["x", "y", "z"].iter().all(|a| v.get(*a).and_then(Value::as_f64).is_some_and(f64::is_finite)));
+            if !finite || !fixed("velocity_boundaries", patch) {
+                return Err(Error::Invalid(format!(
+                    "transferred velocity on {patch} needs finite x, y, z values and a fixed-value velocity condition"
+                )));
+            }
+        }
+        if let Some(values) = pressure {
+            let list = values
+                .as_array()
+                .filter(|list| list.len() == expected)
+                .ok_or_else(|| Error::Invalid(format!("transferred pressure on {patch} needs {expected} values")))?;
+            if !list.iter().all(|v| v.as_f64().is_some_and(f64::is_finite)) || !fixed("pressure_boundaries", patch) {
+                return Err(Error::Invalid(format!("transferred pressure on {patch} needs finite values and a fixed-value pressure condition")));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Most nodes along one axis of explicit mesh coordinates (as the producer allows).
+pub const MAX_AXIS_NODES: usize = 4097;
+
+/// Explicit mesh coordinates: three lists from 0 to each length, strictly increasing, one more
+/// entry than the axis's cells, on an unsheared `collocated_flow3d` grid.
+fn validate_coordinates(case: &Value, coordinates: &Value) -> Result<()> {
+    flow_solver(case, "mesh coordinates")?;
+    let object = coordinates.as_object().ok_or_else(|| Error::Invalid("mesh coordinates must be an object".into()))?;
+    if object.keys().any(|key| !matches!(key.as_str(), "x" | "y" | "z")) || object.len() != 3 {
+        return Err(Error::Invalid("mesh coordinates need exactly x, y and z".into()));
+    }
+    if case.pointer("/mesh/xy_shear").is_some_and(|v| v.as_f64() != Some(0.0)) {
+        return Err(Error::Invalid("mesh coordinates require zero xy_shear".into()));
+    }
+    let dimensions: [usize; 3] = serde_json::from_value(case.pointer("/mesh/dimensions").cloned().unwrap_or(Value::Null))
+        .map_err(|_| Error::Invalid("mesh coordinates need three mesh dimensions".into()))?;
+    for (axis, name) in ["x", "y", "z"].into_iter().enumerate() {
+        let nodes: Vec<f64> = serde_json::from_value(object.get(name).cloned().unwrap_or(Value::Null))
+            .map_err(|_| Error::Invalid(format!("mesh coordinates {name} must be a list of numbers")))?;
+        let length = case.pointer(&format!("/mesh/lengths/{name}")).and_then(Value::as_f64).unwrap_or(f64::NAN);
+        let last = nodes.last().copied().unwrap_or(f64::NAN);
+        if nodes.len() > MAX_AXIS_NODES
+            || nodes.len() != dimensions[axis] + 1
+            || nodes.first() != Some(&0.0)
+            || !nodes.iter().all(|v| v.is_finite())
+            || !nodes.windows(2).all(|w| w[1] > w[0])
+            || !(last - length).abs().le(&(1e-9 * length.abs()))
+        {
+            return Err(Error::Invalid(format!(
+                "mesh coordinates {name} must run strictly upward from 0 to the length with one entry more than the cells"
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -286,6 +596,29 @@ struct ThermalSolid {
     density_kg_per_m3: Option<f64>,
     #[serde(default)]
     specific_heat_j_per_kg_k: Option<f64>,
+    #[serde(default)]
+    contact_resistance_m2_k_per_w: Option<f64>,
+    #[serde(default)]
+    junction_to_case_k_per_w: Option<f64>,
+    #[serde(default)]
+    heat_pipe: Option<HeatPipeInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HeatPipeInput {
+    axis: u64,
+    effective_resistance_k_per_w: f64,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoolerInput {
+    name: String,
+    cold_solid: String,
+    hot_solid: String,
+    heat_pumped_w: f64,
+    electrical_power_w: f64,
 }
 
 #[derive(Deserialize)]
@@ -322,6 +655,8 @@ struct Thermal {
     boundaries: Vec<ThermalPatch>,
     #[serde(default)]
     buoyancy: Option<BuoyancyInput>,
+    #[serde(default)]
+    thermoelectric_coolers: Vec<CoolerInput>,
 }
 
 fn kelvin(value: f64) -> bool {
@@ -365,6 +700,29 @@ fn validate_thermal(case: &Value, value: &Value) -> Result<()> {
         }
         if solid.density_kg_per_m3.is_some_and(|v| !kelvin(v)) || solid.specific_heat_j_per_kg_k.is_some_and(|v| !kelvin(v)) {
             return Err(Error::Invalid("solid density and specific heat must be positive".into()));
+        }
+        let resistance = |r: Option<f64>| r.is_none_or(|r| r.is_finite() && r >= 0.0);
+        if !resistance(solid.contact_resistance_m2_k_per_w) || !resistance(solid.junction_to_case_k_per_w) {
+            return Err(Error::Invalid(format!("{}: contact and junction resistances must be finite and non-negative", solid.obstacle)));
+        }
+        if solid.heat_pipe.as_ref().is_some_and(|pipe| pipe.axis > 2 || !kelvin(pipe.effective_resistance_k_per_w)) {
+            return Err(Error::Invalid(format!("{}: a heat pipe needs axis 0, 1 or 2 and a positive resistance", solid.obstacle)));
+        }
+    }
+    if thermal.thermoelectric_coolers.len() > 32 {
+        return Err(Error::Limit("at most 32 thermoelectric coolers".into()));
+    }
+    let mut coolers = BTreeSet::new();
+    for tec in &thermal.thermoelectric_coolers {
+        if tec.name.is_empty() || tec.name.len() > 60 || !coolers.insert(tec.name.as_str()) {
+            return Err(Error::Invalid("thermoelectric coolers need unique names of at most 60 characters".into()));
+        }
+        if tec.cold_solid == tec.hot_solid || !named.contains(tec.cold_solid.as_str()) || !named.contains(tec.hot_solid.as_str()) {
+            return Err(Error::Invalid(format!("{}: cold and hot sides must be two different thermal solids", tec.name)));
+        }
+        let watts = |w: f64| w.is_finite() && w >= 0.0;
+        if !watts(tec.heat_pumped_w) || !watts(tec.electrical_power_w) {
+            return Err(Error::Invalid(format!("{}: pumped heat and electrical power must be finite and non-negative", tec.name)));
         }
     }
     // No solid material is implied: every obstacle must be described.
@@ -472,7 +830,12 @@ fn validate_bodies(case: &Value, value: &Value) -> Result<()> {
 struct GoalInput {
     name: String,
     kind: GoalKindInput,
+    #[serde(default)]
     target: String,
+    #[serde(default)]
+    point: Option<[f64; 3]>,
+    #[serde(default)]
+    expression: Option<String>,
 }
 
 #[derive(Deserialize, PartialEq)]
@@ -483,6 +846,12 @@ enum GoalKindInput {
     PatchHeatOut,
     SolidMaxTemperature,
     SolidMeanTemperature,
+    GlobalMaxFluidTemperature,
+    GlobalMeanFluidTemperature,
+    GlobalMaxSolidTemperature,
+    PointTemperature,
+    PointPressure,
+    Equation,
 }
 
 #[derive(Deserialize)]
@@ -529,6 +898,8 @@ fn validate_goals(case: &Value) -> Result<()> {
         .filter_map(|o| o.get("name").and_then(Value::as_str).map(String::from))
         .collect();
     solids.extend(body_names(case));
+    let lengths: [Option<f64>; 3] = ["x", "y", "z"]
+        .map(|axis| case.get("mesh").and_then(|mesh| mesh.get("lengths")).and_then(|lengths| lengths.get(axis)).and_then(Value::as_f64));
     let mut names = BTreeSet::new();
     for goal in &goals {
         let n = goal.name.as_bytes();
@@ -541,6 +912,14 @@ fn validate_goals(case: &Value) -> Result<()> {
             GoalKindInput::PatchVolumeFlow | GoalKindInput::PatchMeanPressure => {
                 EXTERIOR.contains(&goal.target.as_str()) || solids.contains(&goal.target)
             }
+            GoalKindInput::GlobalMaxFluidTemperature | GoalKindInput::GlobalMeanFluidTemperature | GoalKindInput::GlobalMaxSolidTemperature => {
+                thermal
+            }
+            GoalKindInput::PointTemperature | GoalKindInput::PointPressure => {
+                (goal.kind == GoalKindInput::PointPressure || thermal)
+                    && goal.point.is_some_and(|p| p.iter().zip(lengths).all(|(v, l)| v.is_finite() && *v >= 0.0 && l.is_none_or(|l| *v <= l)))
+            }
+            GoalKindInput::Equation => equation_refers_to_goals(goal.expression.as_deref(), &goals),
         };
         if !ok {
             return Err(Error::Invalid(format!("goal {} has an unknown target or needs a thermal block", goal.name)));
@@ -549,7 +928,41 @@ fn validate_goals(case: &Value) -> Result<()> {
     Ok(())
 }
 
+/// An equation goal's text uses only `+ - * / ( )`, numbers and the names of non-equation goals
+/// (the solver parses it fully; this keeps unknown names out of the authored case).
+fn equation_refers_to_goals(expression: Option<&str>, goals: &[GoalInput]) -> bool {
+    let Some(text) = expression.filter(|t| !t.trim().is_empty() && t.len() <= 400) else { return false };
+    if !text.chars().all(|c| c.is_ascii_alphanumeric() || "_+-*/(). ".contains(c)) {
+        return false;
+    }
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
+        .filter(|word| word.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_'))
+        .all(|word| goals.iter().any(|g| g.name == word && g.kind != GoalKindInput::Equation))
+}
+
 pub(crate) fn validate(case: &Value) -> Result<()> {
+    if let Some(update) = case.pointer("/config/piso_neighbour_update") {
+        if !update.is_boolean() {
+            return Err(Error::Invalid("config.piso_neighbour_update must be true or false".into()));
+        }
+    }
+    if let Some(rows) = case.get("rotating_regions").filter(|rows| !rows.is_null()) {
+        validate_rotating(case, rows)?;
+    }
+    if let Some(flag) = case.pointer("/config/balanced_body_force")
+        && !flag.is_boolean()
+    {
+        return Err(Error::Invalid("config.balanced_body_force must be true or false".into()));
+    }
+    if let Some(rows) = case.get("internal_fans").filter(|rows| !rows.is_null()) {
+        validate_internal_fans(case, rows)?;
+    }
+    if let Some(rows) = case.get("transferred").filter(|rows| !rows.is_null()) {
+        validate_transferred(case, rows)?;
+    }
+    if let Some(coordinates) = case.pointer("/mesh/coordinates").filter(|c| !c.is_null()) {
+        validate_coordinates(case, coordinates)?;
+    }
     if let Some(bodies) = case.get("bodies") {
         validate_bodies(case, bodies)?;
     }

@@ -1,0 +1,90 @@
+{
+  "en": {
+    "multiphysics.rotating_title": "Rotating region",
+    "multiphysics.rotating_name": "Region name",
+    "multiphysics.rotating_rpm": "Speed (rpm, negative turns the other way)",
+    "multiphysics.rotating_axis": "Axis",
+    "multiphysics.rotating_margin": "Margin around the parts (cells)",
+    "multiphysics.rotating_pick": "Pick the parts that rotate (rotor, impeller, fan blades) in the graphics window.",
+    "multiphysics.rotating_add": "Add rotating region around picked parts",
+    "multiphysics.rotating_row": "{name}: {rpm} rpm about {axis}",
+    "multiphysics.rotating_remove": "Remove"
+  },
+  "de": {
+    "multiphysics.rotating_title": "Rotierender Bereich",
+    "multiphysics.rotating_name": "Name des Bereichs",
+    "multiphysics.rotating_rpm": "Drehzahl (U/min, negativ dreht andersherum)",
+    "multiphysics.rotating_axis": "Achse",
+    "multiphysics.rotating_margin": "Rand um die Teile (Zellen)",
+    "multiphysics.rotating_pick": "Wählen Sie im Grafikfenster die rotierenden Teile (Rotor, Laufrad, Lüfterflügel).",
+    "multiphysics.rotating_add": "Rotierenden Bereich um ausgewählte Teile hinzufügen",
+    "multiphysics.rotating_row": "{name}: {rpm} U/min um {axis}",
+    "multiphysics.rotating_remove": "Entfernen"
+  },
+  "ar": {
+    "multiphysics.rotating_title": "منطقة دوارة",
+    "multiphysics.rotating_name": "اسم المنطقة",
+    "multiphysics.rotating_rpm": "السرعة (دورة/دقيقة، القيمة السالبة تعكس الاتجاه)",
+    "multiphysics.rotating_axis": "المحور",
+    "multiphysics.rotating_margin": "الهامش حول الأجزاء (خلايا)",
+    "multiphysics.rotating_pick": "اختر الأجزاء الدوارة (الدوار، المروحة الدافعة، شفرات المروحة) في نافذة الرسوميات.",
+    "multiphysics.rotating_add": "إضافة منطقة دوارة حول الأجزاء المختارة",
+    "multiphysics.rotating_row": "{name}: {rpm} دورة/دقيقة حول {axis}",
+    "multiphysics.rotating_remove": "إزالة"
+  },
+  "he": {
+    "multiphysics.rotating_title": "אזור מסתובב",
+    "multiphysics.rotating_name": "שם האזור",
+    "multiphysics.rotating_rpm": "מהירות (סל״ד, ערך שלילי מסתובב בכיוון ההפוך)",
+    "multiphysics.rotating_axis": "ציר",
+    "multiphysics.rotating_margin": "שוליים סביב החלקים (תאים)",
+    "multiphysics.rotating_pick": "בחר בחלון הגרפיקה את החלקים המסתובבים (רוטור, מאיץ, להבי מאוורר).",
+    "multiphysics.rotating_add": "הוסף אזור מסתובב סביב החלקים שנבחרו",
+    "multiphysics.rotating_row": "{name}: {rpm} סל״ד סביב {axis}",
+    "multiphysics.rotating_remove": "הסר"
+  },
+  "ja": {
+    "multiphysics.rotating_title": "回転領域",
+    "multiphysics.rotating_name": "領域名",
+    "multiphysics.rotating_rpm": "回転数 (rpm、負の値で逆回転)",
+    "multiphysics.rotating_axis": "軸",
+    "multiphysics.rotating_margin": "部品周りのマージン (セル)",
+    "multiphysics.rotating_pick": "グラフィックウィンドウで回転する部品 (ロータ、インペラ、ファンブレード) を選択してください。",
+    "multiphysics.rotating_add": "選択した部品の周りに回転領域を追加",
+    "multiphysics.rotating_row": "{name}: {axis} 軸周り {rpm} rpm",
+    "multiphysics.rotating_remove": "削除"
+  },
+  "ko": {
+    "multiphysics.rotating_title": "회전 영역",
+    "multiphysics.rotating_name": "영역 이름",
+    "multiphysics.rotating_rpm": "회전 속도 (rpm, 음수는 반대 방향)",
+    "multiphysics.rotating_axis": "축",
+    "multiphysics.rotating_margin": "부품 주위 여유 (셀)",
+    "multiphysics.rotating_pick": "그래픽 창에서 회전하는 부품(로터, 임펠러, 팬 블레이드)을 선택하세요.",
+    "multiphysics.rotating_add": "선택한 부품 주위에 회전 영역 추가",
+    "multiphysics.rotating_row": "{name}: {axis}축 기준 {rpm} rpm",
+    "multiphysics.rotating_remove": "제거"
+  },
+  "vi": {
+    "multiphysics.rotating_title": "Vùng quay",
+    "multiphysics.rotating_name": "Tên vùng",
+    "multiphysics.rotating_rpm": "Tốc độ (vòng/phút, giá trị âm quay ngược chiều)",
+    "multiphysics.rotating_axis": "Trục",
+    "multiphysics.rotating_margin": "Lề quanh các chi tiết (ô)",
+    "multiphysics.rotating_pick": "Chọn các chi tiết quay (rôto, bánh công tác, cánh quạt) trong cửa sổ đồ họa.",
+    "multiphysics.rotating_add": "Thêm vùng quay quanh các chi tiết đã chọn",
+    "multiphysics.rotating_row": "{name}: {rpm} vòng/phút quanh {axis}",
+    "multiphysics.rotating_remove": "Xóa"
+  },
+  "zh": {
+    "multiphysics.rotating_title": "旋转区域",
+    "multiphysics.rotating_name": "区域名称",
+    "multiphysics.rotating_rpm": "转速 (rpm，负值反向旋转)",
+    "multiphysics.rotating_axis": "轴",
+    "multiphysics.rotating_margin": "零件周围的余量 (单元)",
+    "multiphysics.rotating_pick": "在图形窗口中选择旋转的零件 (转子、叶轮、风扇叶片)。",
+    "multiphysics.rotating_add": "在所选零件周围添加旋转区域",
+    "multiphysics.rotating_row": "{name}: 绕 {axis} 轴 {rpm} rpm",
+    "multiphysics.rotating_remove": "移除"
+  }
+}

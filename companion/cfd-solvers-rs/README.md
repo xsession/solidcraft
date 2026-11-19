@@ -1,4 +1,103 @@
-# cfd-solvers-rs 0.7.0
+# cfd-solvers-rs 0.12.0
+
+## Internal fans (0.12.0)
+
+`collocated_flow3d` cases may list `internal_fans` (`internal_fans_v1`): `{"name": "blower",
+"min": [i, j, k], "max": [i, j, k], "direction": "+x", "curve": [{"volume_flow_m3_per_s": ..,
+"pressure_rise_pa": ..}, ...], "relaxation": 0.2}`. The block of fluid cells (half-open grid
+indices) raises the pressure of the air crossing it along `direction` (`+x`, `-x`, `+y`,
+`-y`, `+z` or `-z`). Each step the fan measures its volume flow from the face fluxes through
+its cross-section and relaxes its pressure rise towards the curve's rise at that flow. The
+rise is applied as the body force Δp/(ρL) along the direction over the block's length L. The
+curve takes the external fan's form: flow strictly increasing, pressure rise strictly
+decreasing. It is not extrapolated; a flow outside it takes the end value and is reported. A
+fan may not overlap solids, porous blocks or another fan. A run writes `internal_fans.json`
+with each fan's flow, pressure rise, curve value, mean speed and history, and the metrics
+`internal_fan_<name>_volume_flow_m3_per_s` and `_pressure_rise_pa`. In a slip-walled channel
+against a fixed back-pressure, the fan delivers the curve's flow at that pressure to five
+digits (`tests/internal_fans.rs`). Use it with `config.balanced_body_force`.
+
+## Balanced body forces (0.12.0)
+
+`config.balanced_body_force` (`balanced_body_force_v1`, default `false`) rebuilds each cell's
+∇p − a by least squares from its faces' normal components: the compact face pressure gradient
+minus the face body force. The face fluxes carry the face body force in the same way, so a
+force balanced by pressure leaves no spurious velocity, even where the force jumps. The
+default keeps parity with the C++ cfd_solvers, which adds the cell body force to the cell
+Gauss gradient. At the edge of a fan block that put errors of about d·f/4 into the
+neighbouring cells: 2.1 m/s of checkerboard against a 0.5 m/s flow. With the balanced form the
+same channel is uniform to 1e-9. It also makes the rotating-region (MRF) solid-body test
+exact to round-off, where it was 0.49 % off on 16² cells. Front ends should turn it on with
+`piso_neighbour_update`.
+
+## Rotating regions (0.11.0)
+
+`collocated_flow3d` cases may list `rotating_regions` (`rotating_regions_v1`), the multiple
+reference frame (MRF) model for fans, impellers and stirrers:
+`{"name": "rotor", "min": [i, j, k], "max": [i, j, k], "axis_point": {"x":..,"y":..,"z":..},
+"axis": {"x":0,"y":0,"z":1}, "rpm": 1500}`. `min`/`max` are half-open background-grid cell
+ranges. The velocity stays absolute. In region cells momentum is carried by the flux
+relative to the frame, (u − Ω×r)·S, and gains the source −Ω×u. Walls of solids, and
+stationary no-slip exterior walls, whose cells lie in a region turn with it (u = Ω×r).
+Regions may not overlap, need a non-zero axis and |Ω|·Δt ≤ 0.2, and a transferred patch
+cannot also turn. A run writes `rotating_regions.json` with each region's cell count, Ω
+and swirl ratio (mean tangential speed over the frame speed). A box turning with its
+frame settles into solid-body rotation to round-off, with the pressure curvature exactly
+½Ω², when `config.balanced_body_force` is on (`tests/rotating.rs`).
+
+## PISO neighbour updates (0.11.0)
+
+`config.piso_neighbour_update` (`piso_neighbour_update_v1`, default `false`) rebuilds
+H(u)/a_P from the corrected velocity before each further PISO corrector and solves the
+pressure to a tolerance relative to the cell flux scale. The default keeps parity with the
+C++ cfd_solvers, whose correctors re-solve the same pressure equation, so a step is one
+unrelaxed SIMPLE iteration that diverges once ν·Δt/h² passes about 0.3. With the update a
+20² lid-driven cavity is stable at 0.4 and a 16² rotating box at 1.3
+(`tests/piso_neighbour_update.rs`). Front ends should turn it on for new cases.
+
+## Transferred boundary conditions (0.10.0)
+
+`collocated_flow3d` cases may list `transferred` patches (`transferred_bc_v1`). Each is
+`{"patch": "left", "velocity": [{"x":..,"y":..,"z":..}, ...]}` and/or `"pressure": [...]`.
+There is one value per background-grid face of that exterior patch. Values run over the
+patch's in-plane axes in increasing axis order, the first fastest: left/right (y, z),
+bottom/top (x, z), front/back (x, y). A velocity profile needs a fixed-value velocity
+condition on the patch, and a pressure profile a fixed-value pressure condition. The profile
+replaces the uniform value face by face in the momentum equation, the Rhie–Chow fluxes and
+the pressure equation. The fan's patch cannot be transferred. This is how a smaller child
+domain takes its boundary values from a parent run (zooming).
+
+## Local mesh (0.9.0)
+
+`collocated_flow3d` meshes may give explicit node coordinates (`local_mesh_v1`):
+`"mesh": {"dimensions": [nx, ny, nz], "lengths": {...}, "coordinates": {"x": [...], "y": [...], "z": [...]}}`.
+Each list starts at 0, increases strictly and ends at that axis's length. It has `n + 1`
+entries, at most 4097, and needs zero `xy_shear`. Cells are the tensor product of these
+nodes, so a refined interval refines every cell row through it. Obstacle, porous-block and
+lid indices refer to the graded cells. Surface bodies are voxelized at the graded cell
+centres. Heat pipes, reports and VTU output use the actual cell sizes. Without
+`coordinates` the uniform grid is unchanged.
+
+## Thermal devices and goals v2 (0.8.0)
+
+Version 0.8.0 adds `thermal_devices_v1` and `goals_v2` to `collocated_flow3d` conjugate-heat cases.
+
+- `thermal.solids[].contact_resistance_m2_k_per_w`: interface resistance between this solid
+  and a different touching solid. The face conductance is `A/(dp/kp + dq/kq + max(Rp, Rq))`.
+- `thermal.solids[].junction_to_case_k_per_w`: two-resistor junction. The report adds
+  `junction_temperature_k = case max + R_jc * power`, and the verdict uses the junction.
+- `thermal.solids[].heat_pipe`: `{axis (0, 1, 2), effective_resistance_k_per_w}`. The solid's
+  conductivity along `axis` becomes `L/(R*A)`, where L is the cell-centre extent plus one cell and A = volume/L.
+- `thermal.thermoelectric_coolers[]`: `{name, cold_solid, hot_solid, heat_pumped_w,
+  electrical_power_w}`. The cooler removes `heat_pumped_w` from the cold solid and releases
+  `heat_pumped_w + electrical_power_w` in the hot solid, spread by cell volume. The report lists COP and the mean
+  temperatures of both sides.
+- Goal kinds `global_max_fluid_temperature`, `global_mean_fluid_temperature`,
+  `global_max_solid_temperature` (no `target`), `point_temperature` and `point_pressure`
+  (`point: [x, y, z]` in metres, inside the domain), and `equation` (`expression` over other
+  goal names with `+ - * /`, parentheses and numbers; equations cannot refer to equations).
+  `goals.json` records each goal's unit, point and expression.
+
 
 ## Domain cases
 

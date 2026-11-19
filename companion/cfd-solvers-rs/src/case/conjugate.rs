@@ -11,7 +11,7 @@ use super::{obstacles, CollocatedFlowCase, PolyMeshSpec, RunManifest};
 use crate::{
     core::{restarted_gmres, CsrBuilder, Ilu0Preconditioner, LinearConfig, Vec3},
     fvm::PolyMesh,
-    io::{DataArray, VtuMesh},
+    io::DataArray,
     require, Result, SolverError,
 };
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,40 @@ pub struct ThermalSolid {
     pub density_kg_per_m3: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub specific_heat_j_per_kg_k: Option<f64>,
+    /// Thermal contact resistance on every face this solid shares with another solid, m^2 K/W
+    /// (`thermal_devices_v1`). Faces in contact with fluid are not affected, as for a contact
+    /// resistance between parts. Where both solids carry one, the larger applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_resistance_m2_k_per_w: Option<f64>,
+    /// Two-resistor component: the junction temperature reported (and checked against
+    /// `max_temperature_k`) is the solid's maximum plus `power_w` times this resistance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub junction_to_case_k_per_w: Option<f64>,
+    /// Heat pipe: replaces the conductivity along one grid axis by the effective value that
+    /// gives this end-to-end resistance over the solid's length.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heat_pipe: Option<HeatPipe>,
+}
+
+/// Effective-conductivity heat pipe along grid axis 0 (x), 1 (y) or 2 (z):
+/// `k = L / (R A)` with `L` the solid's extent along the axis and `A = volume / L`.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct HeatPipe {
+    pub axis: usize,
+    pub effective_resistance_k_per_w: f64,
+}
+
+/// Thermoelectric cooler in fixed-pumping mode: `heat_pumped_w` is absorbed uniformly in the
+/// cold solid and that heat plus `electrical_power_w` is released in the hot solid.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ThermoelectricCooler {
+    pub name: String,
+    pub cold_solid: String,
+    pub hot_solid: String,
+    pub heat_pumped_w: f64,
+    pub electrical_power_w: f64,
 }
 
 /// Boussinesq natural convection: body acceleration -beta (T - T_ref) g on fluid cells.
@@ -79,6 +113,20 @@ pub struct ConjugateHeat {
     /// Two-way coupling: energy advances with every flow step and drives buoyancy.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub buoyancy: Option<Buoyancy>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub thermoelectric_coolers: Vec<ThermoelectricCooler>,
+}
+
+impl ConjugateHeat {
+    /// Whether the case uses any `thermal_devices_v1` feature.
+    pub fn uses_devices(&self) -> bool {
+        !self.thermoelectric_coolers.is_empty()
+            || self.solids.iter().any(|s| {
+                s.contact_resistance_m2_k_per_w.is_some()
+                    || s.junction_to_case_k_per_w.is_some()
+                    || s.heat_pipe.is_some()
+            })
+    }
 }
 
 /// The solved field and its boundary heat accounting.
@@ -160,6 +208,7 @@ fn solve_rise(
     condition: &[ThermalCondition],
     inflow_temperature_k: f64,
     transient: Option<(&[f64], &[f64])>,
+    contact: Option<(&[usize], &[f64])>,
     guess: &mut [f64],
 ) -> Result<(usize, f64)> {
     let n = mesh.cell_count();
@@ -185,7 +234,16 @@ fn solve_rise(
             Some(q) => {
                 let kq = component(conductivity[q], axis);
                 let dq = half(mesh, q, f.center, f.area);
-                let g = area / (dp / kp + dq / kq);
+                // A contact resistance acts between two different solids only.
+                let r = contact.map_or(0.0, |(region, resistance)| {
+                    let (rp, rq) = (region[p], region[q]);
+                    if rp > 0 && rq > 0 && rp != rq {
+                        resistance[p].max(resistance[q])
+                    } else {
+                        0.0
+                    }
+                });
+                let g = area / (dp / kp + dq / kq + r);
                 a.add(p, p, g)?;
                 a.add(q, q, g)?;
                 a.add(p, q, -g)?;
@@ -335,7 +393,7 @@ fn account(
 /// `source_w` the heat generated in each cell. This is the operator used by conjugate runs
 /// and by the verification suite.
 pub fn solve_energy(
-    spec: PolyMeshSpec,
+    spec: &PolyMeshSpec,
     conductivity: &[[f64; 3]],
     heat_capacity_flux: &[f64],
     source_w: &[f64],
@@ -379,6 +437,7 @@ pub fn solve_energy(
         &condition,
         inflow_temperature_k,
         None,
+        None,
         &mut rise,
     )?;
     Ok(account(
@@ -412,6 +471,8 @@ pub(super) struct EnergyState {
     region: Vec<usize>,
     names: Vec<String>,
     conductivity: Vec<[f64; 3]>,
+    /// Contact resistance of each cell's solid (0 for fluid), m^2 K/W.
+    contact: Vec<f64>,
     source: Vec<f64>,
     capacity_j_per_k: Vec<f64>,
     pseudo_capacity: bool,
@@ -427,7 +488,7 @@ pub(super) struct EnergyState {
 
 impl EnergyState {
     pub fn new(case: &CollocatedFlowCase, heat: &ConjugateHeat) -> Result<Self> {
-        let spec = case.mesh;
+        let spec = &case.mesh;
         require(
             spec.xy_shear == 0.0,
             "conjugate heat transfer requires zero xy_shear",
@@ -473,6 +534,41 @@ impl EnergyState {
                         .is_none_or(|v| v.is_finite() && v > 0.0),
                 "solid density and specific heat must be positive",
             )?;
+            require(
+                s.contact_resistance_m2_k_per_w
+                    .is_none_or(|r| r.is_finite() && r >= 0.0)
+                    && s.junction_to_case_k_per_w
+                        .is_none_or(|r| r.is_finite() && r >= 0.0),
+                format!("{}: contact and junction resistances must be finite and non-negative", s.obstacle),
+            )?;
+            if let Some(pipe) = s.heat_pipe {
+                require(
+                    pipe.axis < 3
+                        && pipe.effective_resistance_k_per_w.is_finite()
+                        && pipe.effective_resistance_k_per_w > 0.0,
+                    format!("{}: a heat pipe needs axis 0, 1 or 2 and a positive resistance", s.obstacle),
+                )?;
+            }
+        }
+        let mut coolers = BTreeSet::new();
+        for tec in &heat.thermoelectric_coolers {
+            require(
+                coolers.insert(tec.name.as_str()) && !tec.name.is_empty(),
+                "thermoelectric coolers need unique names",
+            )?;
+            require(
+                solid_names.contains(&tec.cold_solid.as_str())
+                    && solid_names.contains(&tec.hot_solid.as_str())
+                    && tec.cold_solid != tec.hot_solid,
+                format!("{}: cold and hot sides must be two different solids", tec.name),
+            )?;
+            require(
+                tec.heat_pumped_w.is_finite()
+                    && tec.heat_pumped_w >= 0.0
+                    && tec.electrical_power_w.is_finite()
+                    && tec.electrical_power_w >= 0.0,
+                format!("{}: pumped heat and electrical power must be finite and non-negative", tec.name),
+            )?;
         }
         require(
             named.len() == solid_names.len(),
@@ -503,6 +599,7 @@ impl EnergyState {
             obstacles::layout(spec, &case.obstacles, &case.bodies)?.cell_solid
         };
         let mut region = vec![0usize; n];
+        let mut contact = vec![0.0; n];
         let mut conductivity = vec![[fluid.conductivity_w_per_m_k; 3]; n];
         let mut source = vec![0.0; n];
         let mut capacity: Vec<f64> = mesh.cells().iter().map(|c| rho_cp * c.volume).collect();
@@ -524,11 +621,52 @@ impl EnergyState {
                     rho_cp
                 }
             };
+            let mut k = solid.conductivity_w_per_m_k;
+            if let Some(pipe) = solid.heat_pipe {
+                // Extent along the axis from the cell centres plus one cell, area from volume.
+                // Extent along the axis from the faces of the outermost cells.
+                let along = |c: &usize| match pipe.axis {
+                    0 => mesh.cells()[*c].center.x,
+                    1 => mesh.cells()[*c].center.y,
+                    _ => mesh.cells()[*c].center.z,
+                };
+                let nodes = spec.nodes(pipe.axis);
+                let face = |x: f64, upper: bool| {
+                    spec.cell_of(pipe.axis, x)
+                        .and_then(|i| nodes.get(if upper { i + 1 } else { i }).copied())
+                        .unwrap_or(x)
+                };
+                let low = face(cells.iter().map(along).fold(f64::MAX, f64::min), false);
+                let high = face(cells.iter().map(along).fold(f64::MIN, f64::max), true);
+                let length = high - low;
+                let volume: f64 = cells.iter().map(|c| mesh.cells()[*c].volume).sum();
+                require(
+                    length > 0.0 && volume > 0.0,
+                    format!("heat pipe {name} covers no cells"),
+                )?;
+                let area = volume / length;
+                k[pipe.axis] = length / (pipe.effective_resistance_k_per_w * area);
+            }
             for c in cells {
                 region[c] = si + 1;
-                conductivity[c] = solid.conductivity_w_per_m_k;
+                conductivity[c] = k;
+                contact[c] = solid.contact_resistance_m2_k_per_w.unwrap_or(0.0);
                 source[c] = per_cell;
                 capacity[c] = solid_rho_cp * mesh.cells()[c].volume;
+            }
+        }
+        for tec in &heat.thermoelectric_coolers {
+            for (side, watts) in [
+                (&tec.cold_solid, -tec.heat_pumped_w),
+                (&tec.hot_solid, tec.heat_pumped_w + tec.electrical_power_w),
+            ] {
+                let index = solid_names.iter().position(|s| s == side).map(|i| i + 1);
+                let cells: Vec<usize> = (0..n).filter(|c| Some(region[*c]) == index).collect();
+                require(!cells.is_empty(), format!("{}: {side} covers no cells", tec.name))?;
+                let per_cell = watts / cells.len() as f64;
+                for c in cells {
+                    source[c] += per_cell;
+                }
             }
         }
         let condition = conditions(&mesh, &heat.boundaries)?;
@@ -539,6 +677,7 @@ impl EnergyState {
             region,
             names: solid_names.iter().map(|s| s.to_string()).collect(),
             conductivity,
+            contact,
             source,
             capacity_j_per_k: capacity,
             pseudo_capacity,
@@ -578,6 +717,7 @@ impl EnergyState {
             &self.condition,
             inflow_k,
             None,
+            Some((&self.region, &self.contact)),
             &mut rise,
         )?;
         self.rise = rise;
@@ -605,6 +745,7 @@ impl EnergyState {
             &self.condition,
             inflow_k,
             Some((&capacity, &old)),
+            Some((&self.region, &self.contact)),
             &mut rise,
         )?;
         self.storage_w = capacity
@@ -647,7 +788,7 @@ impl EnergyState {
         out: &Path,
         m: &mut RunManifest,
     ) -> Result<()> {
-        let spec = case.mesh;
+        let spec = &case.mesh;
         let flux = self.capacity_flux(fluid_flux)?;
         let solution = account(
             &self.mesh,
@@ -703,7 +844,13 @@ impl EnergyState {
             let max = values.iter().map(|(t, _)| *t).fold(f64::MIN, f64::max);
             let min = values.iter().map(|(t, _)| *t).fold(f64::MAX, f64::min);
             let mean = values.iter().map(|(t, v)| t * v).sum::<f64>() / volume;
-            let (status, code) = verdict(max, solid.max_temperature_k, heat.inflow_temperature_k);
+            // A two-resistor component is judged on its junction, not on its case.
+            let junction = solid.junction_to_case_k_per_w.map(|r| max + solid.power_w * r);
+            let (status, code) = verdict(
+                junction.unwrap_or(max),
+                solid.max_temperature_k,
+                heat.inflow_temperature_k,
+            );
             if code == 2.0 {
                 fails += 1.0;
             } else if code == 1.0 {
@@ -720,7 +867,13 @@ impl EnergyState {
                 "conductivity_w_per_m_k": solid.conductivity_w_per_m_k,
                 "min_temperature_k": min, "mean_temperature_k": mean, "max_temperature_k": max,
                 "max_temperature_c": max - 273.15, "limit_k": solid.max_temperature_k,
-                "margin_k": solid.max_temperature_k.map(|l| l - max), "status": status
+                "margin_k": solid.max_temperature_k.map(|l| l - junction.unwrap_or(max)), "status": status,
+                "junction_temperature_k": junction,
+                "contact_resistance_m2_k_per_w": solid.contact_resistance_m2_k_per_w,
+                "heat_pipe": solid.heat_pipe.map(|p| serde_json::json!({
+                    "axis": p.axis, "effective_resistance_k_per_w": p.effective_resistance_k_per_w,
+                    "axial_conductivity_w_per_m_k": (0..n).find(|c| region[*c] == si + 1).map(|c| self.conductivity[c][p.axis])
+                }))
             }));
         }
         let fluid_max = (0..n)
@@ -750,6 +903,19 @@ impl EnergyState {
             "flow_net_boundary_flux_m3_per_s": solution.net_boundary_flux_m3_per_s,
             "max_fluid_temperature_k": fluid_max,
             "components": components,
+            "thermoelectric_coolers": heat.thermoelectric_coolers.iter().map(|tec| {
+                let side = |name: &str| self.solid_temperature(name, heat.inflow_temperature_k).map(|(_, mean)| mean);
+                let cold = side(&tec.cold_solid);
+                let hot = side(&tec.hot_solid);
+                serde_json::json!({
+                    "name": tec.name, "cold_solid": tec.cold_solid, "hot_solid": tec.hot_solid,
+                    "heat_pumped_w": tec.heat_pumped_w, "electrical_power_w": tec.electrical_power_w,
+                    "heat_released_w": tec.heat_pumped_w + tec.electrical_power_w,
+                    "cop": if tec.electrical_power_w > 0.0 { Some(tec.heat_pumped_w / tec.electrical_power_w) } else { None },
+                    "cold_mean_temperature_k": cold, "hot_mean_temperature_k": hot,
+                    "model": "fixed_heat_pumping"
+                })
+            }).collect::<Vec<_>>(),
             "warn_rule": "margin below 5% of the allowed rise above the inflow temperature",
             "linear": {"iterations": solution.iterations, "residual_rms": solution.residual_rms},
             "physical_validation": "not_established"
@@ -771,7 +937,7 @@ impl EnergyState {
             ],
         )?;
         m.files.push("thermal_components.csv".into());
-        let export = VtuMesh::box_cells(spec.dimensions, spec.lengths, 0.0)?;
+        let (_, export) = spec.build()?;
         super::write_field(
             out,
             m,
@@ -828,6 +994,37 @@ impl EnergyState {
             .find(|(p, _)| p == patch)
             .map(|(_, q)| *q)
             .ok_or_else(|| SolverError::InvalidInput(format!("unknown patch {patch}")))
+    }
+
+    /// Max and volume-mean temperature of the fluid cells (`solid == false`) or of all solid
+    /// cells, K; `None` when there are no such cells.
+    pub fn region_temperature(&self, solid: bool, inflow_k: f64) -> Option<(f64, f64)> {
+        let cells: Vec<usize> = (0..self.region.len())
+            .filter(|c| (self.region[*c] > 0) == solid)
+            .collect();
+        let volume: f64 = cells.iter().map(|c| self.mesh.cells()[*c].volume).sum();
+        if cells.is_empty() || volume <= 0.0 {
+            return None;
+        }
+        let max = cells.iter().map(|c| self.rise[*c]).fold(f64::MIN, f64::max) + inflow_k;
+        let mean = cells
+            .iter()
+            .map(|c| self.rise[*c] * self.mesh.cells()[*c].volume)
+            .sum::<f64>()
+            / volume
+            + inflow_k;
+        Some((max, mean))
+    }
+
+    /// Temperature of the cell whose centre is nearest to `point`, K.
+    pub fn point_temperature(&self, point: [f64; 3], inflow_k: f64) -> Option<f64> {
+        let at = Vec3::new(point[0], point[1], point[2]);
+        let cell = (0..self.mesh.cell_count()).min_by(|a, b| {
+            let da = (self.mesh.cells()[*a].center - at).norm();
+            let db = (self.mesh.cells()[*b].center - at).norm();
+            da.total_cmp(&db)
+        })?;
+        Some(self.rise.get(cell).copied()? + inflow_k)
     }
 
     /// Max and volume-mean temperature of a named solid, K.

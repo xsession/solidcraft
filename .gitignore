@@ -17,3 +17,8 @@ mutants.out*/
 /corpus/
 
 # Separately compiled original plugin example.
+
+# Offline dependency archive and Multiphysics check log (scripts/offline-vendor.*, scripts/multiphysics-check.*)
+/vendor-crates/
+/solidcraft-vendor.*
+/multiphysics-check.log

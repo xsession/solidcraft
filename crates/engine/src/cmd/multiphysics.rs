@@ -9,6 +9,15 @@ use solidcraft_multiphysics::{Study, catalog as solver_catalog, preflight, templ
 use std::sync::Arc;
 
 pub static COMMANDS: &[CommandSpec] = &[
+ CommandSpec::new("multiphysics.case.feature.prepare", "Prepare Multiphysics Feature", crate::checked!("multiphysics.case.feature.prepare", prepare_feature))
+ .doc_only().noundo().icon("settings").contract(&TypedContract::<FeaturePrepare>::new()).output(output_schema_for::<solidcraft_multiphysics::authoring::PreparedFeature>)
+ .params("case, kind: fan|porous|solid_material|goal|global_goal|point_goal|volume_goal|equation_goal|contact_resistance|two_resistor|heat_pipe|thermoelectric_cooler, name (new porous/goal/cooler identifier or existing thermal solid; reserved for singleton fan), replace_fan_patch_conditions?: false. Returns an unapplied reviewable candidate; no document mutation or solver run."),
+    CommandSpec::new("multiphysics.case.component.import", "Add Components to Multiphysics Case", crate::checked!("multiphysics.case.component.import", import_components))
+        .doc_only().noundo().icon("import").contract(&TypedContract::<ComponentImport>::new()).output(output_schema_for::<solidcraft_multiphysics::case_scene::Imported>)
+        .params("case: collocated_flow3d case; bodies: model body names (empty: all); quality?: standard|fine|finest; options: {representation: auto|obstacle|surface, origin_mm?, fit_domain, margin_mm, cell_mm?, replace_parts}. Tessellates the bodies (mm) into grid blocks or surface bodies. Returns an unapplied candidate and the CAD origin used; no document mutation."),
+    CommandSpec::new("multiphysics.cad.bodies", "List Bodies for Multiphysics", crate::checked!("multiphysics.cad.bodies", cad_bodies))
+        .doc_only().noundo().icon("list").contract(&TypedContract::<Empty>::new()).output(output_schema_for::<CadBodies>)
+        .params("No parameters. Names of the current model's bodies, as multiphysics.case.component.import takes them."),
     CommandSpec::new("multiphysics.surface.inspect", "Inspect Multiphysics Surface", crate::checked!("multiphysics.surface.inspect", inspect_surface))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<SurfaceInput>::new()).output(output_schema_for::<solidcraft_multiphysics::mesh_diagnostics::SurfaceReport>)
         .params("mesh: bounded indexed triangle surface. Reports index connectivity only; does not establish watertight geometry or solver readiness."),
@@ -20,7 +29,7 @@ pub static COMMANDS: &[CommandSpec] = &[
         .params("No parameters. Document-owned study and run summaries with case hashes; case payloads, manifests and artifact bytes are omitted."),
     CommandSpec::new("multiphysics.study.create", "Create Multiphysics Study", crate::checked!("multiphysics.study.create", create))
         .doc_only().icon("new").contract(&TypedContract::<Create>::new()).output(output_schema_for::<StudyReply>)
-        .params("template: known case id; name: nonblank name. Creates one saved study and undo step without CAD-to-mesh conversion or execution."),
+        .params("template: known case id; name: nonblank name; case?: reviewed template-compatible candidate. Creates one saved study atomically in one undo step without CAD-to-mesh conversion or execution."),
     CommandSpec::new("multiphysics.study.update", "Apply Multiphysics Study", crate::checked!("multiphysics.study.update", update))
         .doc_only().icon("settings").contract(&TypedContract::<Update>::new()).output(output_schema_for::<StudyReply>)
         .params("id, expected_revision, name, question, case: bounded JSON object. Atomic Apply; detailed solver schema and physical prerequisites are checked at execution."),
@@ -109,10 +118,18 @@ fn create(session: &mut Session, params: &Value) -> Result<Value> {
     let mut project = session.doc.multiphysics.as_ref().clone();
     // Undo must never allocate an old live identity to a different study.
     project.next_id = project.next_id.max(session.multiphysics_jobs.next_study);
-    let study = project.create(&input.template, &input.name).map_err(|e| bad("", e.to_string()))?;
+    let mut study = project.create(&input.template, &input.name).map_err(|e| bad("", e.to_string()))?;
+    if let Some(case) = input.case {
+        if case["solver"] != study.case["solver"] {
+            return Err(bad("", "wizard case must use the selected template solver"));
+        }
+        solidcraft_multiphysics::validate_case(&case).map_err(|e| bad("", e.to_string()))?;
+        study = project.update(&study.id, study.revision, &study.name, &study.question, case).map_err(|e| bad("", e.to_string()))?;
+    }
+    let reply = study_reply(&study)?;
     session.multiphysics_jobs.next_study = project.next_id;
     session.doc_mut().multiphysics = Arc::new(project);
-    study_reply(&study)
+    Ok(reply)
 }
 fn update(session: &mut Session, params: &Value) -> Result<Value> {
     let input: Update = parse(params)?;
@@ -289,4 +306,29 @@ fn inspect_result(session: &mut Session, params: &Value) -> Result<Value> {
         stale: run.study_revision != study.revision || run.case_hash != hash,
         content,
     })
+}
+
+fn import_components(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ComponentImport = parse(params)?;
+    let quality = match input.quality.as_deref() {
+        None => solidcraft_io::MeshQuality::default(),
+        Some(name) => solidcraft_io::MeshQuality::from_name(name).ok_or_else(|| bad("quality", "quality must be standard, fine or finest"))?,
+    };
+    let state = session.world_state()?;
+    let painted = session.doc.painted(&state);
+    let files = solidcraft_io::export_obj(&painted, &input.bodies, "components.mtl", quality).map_err(|e| bad("bodies", e.to_string()))?;
+    reply(solidcraft_multiphysics::case_scene::import_components(&input.case, &files.obj, &input.options).map_err(|e| bad("", e.to_string()))?)
+}
+
+fn cad_bodies(session: &mut Session, _: &Value) -> Result<Value> {
+    let state = session.world_state()?;
+    reply(CadBodies { bodies: state.bodies.iter().map(|body| body.name.clone()).collect() })
+}
+
+fn prepare_feature(_: &mut Session, params: &Value) -> Result<Value> {
+    let input: FeaturePrepare = parse(params)?;
+    reply(
+        solidcraft_multiphysics::authoring::prepare_feature_with_options(&input.case, input.kind, &input.name, input.replace_fan_patch_conditions)
+            .map_err(|e| bad("", e.to_string()))?,
+    )
 }

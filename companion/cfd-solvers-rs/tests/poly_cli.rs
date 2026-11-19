@@ -24,6 +24,7 @@ fn sheared_hex_exports_match_actual_control_volumes() {
         dimensions: [3, 4, 2],
         lengths: Vec3::new(1.2, 0.8, 0.3),
         xy_shear: 0.35,
+        coordinates: None,
     };
     let (mesh, export) = spec.build().unwrap();
     assert_eq!(mesh.cell_count(), export.cells.len());
@@ -102,6 +103,7 @@ fn blocked_flow() -> CollocatedFlowCase {
             dimensions: [8, 6, 4],
             lengths: Vec3::new(0.08, 0.06, 0.04),
             xy_shear: 0.0,
+            coordinates: None,
         },
         obstacles: vec![GridObstacle {
             name: "component".into(),
@@ -291,6 +293,7 @@ fn fan_channel(curve: &[(f64, f64)]) -> CollocatedFlowCase {
             dimensions: [12, 6, 1],
             lengths: Vec3::new(0.12, 0.02, 0.01),
             xy_shear: 0.0,
+            coordinates: None,
         },
         method: FlowMethod::Piso,
         output: PolyOutput {
@@ -511,6 +514,7 @@ fn porous_plug(viscous: f64, inertial: f64) -> CollocatedFlowCase {
         dimensions: [20, 2, 2],
         lengths: Vec3::new(0.2, 0.02, 0.02),
         xy_shear: 0.0,
+        coordinates: None,
     };
     case.output = PolyOutput {
         steps: 200,
@@ -658,6 +662,7 @@ mod conjugate_heat {
                 dimensions: [n, n, 1],
                 lengths: Vec3::new(1.0, 1.0, 0.1),
                 xy_shear: 0.0,
+                coordinates: None,
             };
             let (mesh, _) = spec.build().unwrap();
             let pi = std::f64::consts::PI;
@@ -677,7 +682,7 @@ mod conjugate_heat {
                 .map(|p| wall(p, 300.0))
                 .collect();
             let s = solve_energy(
-                spec,
+                &spec,
                 &vec![[1.0; 3]; n * n],
                 &vec![0.0; mesh.face_count()],
                 &source,
@@ -711,12 +716,13 @@ mod conjugate_heat {
             dimensions: [6, 1, 1],
             lengths: Vec3::new(0.06, 0.01, 0.01),
             xy_shear: 0.0,
+            coordinates: None,
         };
         let (mesh, _) = spec.build().unwrap();
         let k = [1.0, 1.0, 0.1, 0.1, 10.0, 10.0];
         let conductivity: Vec<[f64; 3]> = k.iter().map(|k| [*k, 5.0, 5.0]).collect();
         let s = solve_energy(
-            spec,
+            &spec,
             &conductivity,
             &vec![0.0; mesh.face_count()],
             &[0.0; 6],
@@ -768,9 +774,13 @@ mod conjugate_heat {
                 max_temperature_k: limit,
                 density_kg_per_m3: None,
                 specific_heat_j_per_kg_k: None,
+                contact_resistance_m2_k_per_w: None,
+                junction_to_case_k_per_w: None,
+                heat_pipe: None,
             }],
             boundaries: vec![],
             buoyancy: None,
+            thermoelectric_coolers: vec![],
         });
         case
     }
@@ -925,6 +935,7 @@ fn buoyancy_inputs_are_validated_and_drive_flow_in_a_heated_cavity() {
             dimensions: [10, 10, 1],
             lengths: Vec3::new(1.0, 1.0, 0.1),
             xy_shear: 0.0,
+            coordinates: None,
         },
         method: FlowMethod::Piso,
         output: PolyOutput {
@@ -976,6 +987,7 @@ fn buoyancy_inputs_are_validated_and_drive_flow_in_a_heated_cavity() {
             expansion_per_k: 0.071,
             reference_temperature_k: 300.0,
         }),
+        thermoelectric_coolers: vec![],
     });
     let manifest = Case::CollocatedFlow3d(case.clone())
         .run(&scratch.0.join("cavity"))
@@ -1146,15 +1158,16 @@ mod surface_bodies {
             dimensions: [10, 10, 10],
             lengths: Vec3::new(1.0, 1.0, 1.0),
             xy_shear: 0.0,
+            coordinates: None,
         };
         // Box faces between cell centres: exactly 3 x 4 x 2 cells.
         let b = box_body("block", [0.21, 0.11, 0.42], [0.49, 0.48, 0.61]);
         assert!((b.validate().unwrap() - 0.28 * 0.37 * 0.19).abs() < 1e-12);
-        let inside = b.voxelize(spec).unwrap();
+        let inside = b.voxelize(&spec).unwrap();
         assert_eq!(inside.iter().filter(|v| **v).count(), 3 * 4 * 2);
         // A face passing exactly through cell centres is counted once, by the tie rule.
         let edge = box_body("edge", [0.25, 0.25, 0.25], [0.75, 0.75, 0.75])
-            .voxelize(spec)
+            .voxelize(&spec)
             .unwrap();
         assert_eq!(edge.iter().filter(|v| **v).count(), 5 * 5 * 5);
         let mut flipped = b.clone();
@@ -1176,8 +1189,9 @@ mod surface_bodies {
                 dimensions: [n, n, n],
                 lengths: Vec3::new(1.0, 1.0, 1.0),
                 xy_shear: 0.0,
+                coordinates: None,
             };
-            let cells = s.voxelize(spec).unwrap().iter().filter(|v| **v).count();
+            let cells = s.voxelize(&spec).unwrap().iter().filter(|v| **v).count();
             errors.push(
                 (cells as f64 / (n * n * n) as f64 - s.validate().unwrap()).abs()
                     / s.validate().unwrap(),
@@ -1206,9 +1220,13 @@ mod surface_bodies {
                 max_temperature_k: None,
                 density_kg_per_m3: None,
                 specific_heat_j_per_kg_k: None,
+                contact_resistance_m2_k_per_w: None,
+                junction_to_case_k_per_w: None,
+                heat_pipe: None,
             }],
             boundaries: vec![],
             buoyancy: None,
+            thermoelectric_coolers: vec![],
         });
         let manifest = Case::CollocatedFlow3d(case.clone())
             .run(&scratch.0.join("ball"))
@@ -1278,6 +1296,9 @@ fn goals_converge_stop_the_run_and_match_the_final_reports() {
             max_temperature_k: None,
             density_kg_per_m3: None,
             specific_heat_j_per_kg_k: None,
+            contact_resistance_m2_k_per_w: None,
+            junction_to_case_k_per_w: None,
+            heat_pipe: None,
         }],
         boundaries: vec![ThermalPatch {
             patch: "top".into(),
@@ -1287,11 +1308,14 @@ fn goals_converge_stop_the_run_and_match_the_final_reports() {
             },
         }],
         buoyancy: None,
+        thermoelectric_coolers: vec![],
     });
     let goal = |name: &str, kind, target: &str| Goal {
         name: name.into(),
         kind,
         target: target.into(),
+        point: None,
+        expression: None,
     };
     case.goals = vec![
         goal("chip_max", GoalKind::SolidMaxTemperature, "chip"),

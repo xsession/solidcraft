@@ -27,6 +27,7 @@ fn energy_order() -> Result<Value> {
             dimensions: [n, n, 1],
             lengths: Vec3::new(1.0, 1.0, 0.1),
             xy_shear: 0.0,
+            coordinates: None,
         };
         let (mesh, _) = spec.build()?;
         let pi = std::f64::consts::PI;
@@ -46,7 +47,7 @@ fn energy_order() -> Result<Value> {
             .map(|p| wall(p, 300.0))
             .collect();
         let s = conjugate::solve_energy(
-            spec,
+            &spec,
             &vec![[1.0; 3]; n * n],
             &vec![0.0; mesh.face_count()],
             &source,
@@ -79,12 +80,13 @@ fn layered_wall() -> Result<Value> {
         dimensions: [6, 1, 1],
         lengths: Vec3::new(0.06, 0.01, 0.01),
         xy_shear: 0.0,
+        coordinates: None,
     };
     let (mesh, _) = spec.build()?;
     let k = [1.0, 1.0, 0.1, 0.1, 10.0, 10.0];
     let conductivity: Vec<[f64; 3]> = k.iter().map(|k| [*k; 3]).collect();
     let s = conjugate::solve_energy(
-        spec,
+        &spec,
         &conductivity,
         &vec![0.0; mesh.face_count()],
         &[0.0; 6],

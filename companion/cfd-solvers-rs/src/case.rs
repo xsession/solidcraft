@@ -20,9 +20,11 @@ pub mod conjugate;
 pub mod domains;
 mod fan;
 pub mod goals;
+pub mod internal_fan;
 mod obstacles;
 mod poly;
 mod porous;
+pub mod rotating;
 pub mod verification;
 pub use bodies::SurfaceBody;
 pub use domains::{electrical::*, mechanics::*, physics::*};
@@ -468,6 +470,14 @@ impl Case {
                 "goals_v1".into(),
                 "natural_convection_v1".into(),
                 "domain_cases_v1".into(),
+                "thermal_devices_v1".into(),
+                "goals_v2".into(),
+                "local_mesh_v1".into(),
+                "transferred_bc_v1".into(),
+                "rotating_regions_v1".into(),
+                "piso_neighbour_update_v1".into(),
+                "internal_fans_v1".into(),
+                "balanced_body_force_v1".into(),
             ],
             complete_clone: false,
             execution_completed: false,

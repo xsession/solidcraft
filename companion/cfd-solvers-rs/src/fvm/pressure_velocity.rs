@@ -105,6 +105,68 @@ pub fn boundary_velocity_values(
     }
     Ok(b)
 }
+/// Per-face values that replace a fixed-value patch's uniform value (transferred boundary
+/// profiles). Indexed by mesh face; `None` keeps the patch value. Overrides on faces whose
+/// patch is not fixed-value are ignored.
+#[derive(Clone, Debug, Default)]
+pub struct FaceProfiles {
+    pub velocity: Vec<Option<Vec3>>,
+    pub pressure: Vec<Option<f64>>,
+}
+impl FaceProfiles {
+    pub fn velocity(&self, face: usize) -> Option<Vec3> {
+        self.velocity.get(face).copied().flatten()
+    }
+    pub fn pressure(&self, face: usize) -> Option<f64> {
+        self.pressure.get(face).copied().flatten()
+    }
+    pub fn validate(&self, m: &PolyMesh) -> Result<()> {
+        require(
+            (self.velocity.is_empty() || self.velocity.len() == m.face_count())
+                && (self.pressure.is_empty() || self.pressure.len() == m.face_count()),
+            "face profile size",
+        )?;
+        require(
+            self.velocity.iter().flatten().all(|v| v.is_finite())
+                && self.pressure.iter().flatten().all(|v| v.is_finite()),
+            "nonfinite face profile",
+        )
+    }
+}
+/// [`boundary_velocity_values`] with per-face profiles on fixed-value patches.
+pub fn boundary_velocity_values_with(
+    m: &PolyMesh,
+    u: &[Vec3],
+    bc: &[VelocityBoundaryCondition],
+    profiles: &FaceProfiles,
+) -> Result<Vec<Vec3>> {
+    let mut b = boundary_velocity_values(m, u, bc)?;
+    for (fi, f) in m.faces().iter().enumerate() {
+        if let (Some(p), Some(v)) = (f.patch, profiles.velocity(fi)) {
+            if bc[p].boundary_type == VelocityBoundaryType::FixedValue {
+                b[fi] = v;
+            }
+        }
+    }
+    Ok(b)
+}
+/// [`boundary_pressure_values`] with per-face profiles on fixed-value patches.
+pub fn boundary_pressure_values_with(
+    m: &PolyMesh,
+    p: &[f64],
+    bc: &[PressureBoundaryCondition],
+    profiles: &FaceProfiles,
+) -> Result<Vec<f64>> {
+    let mut b = boundary_pressure_values(m, p, bc)?;
+    for (fi, f) in m.faces().iter().enumerate() {
+        if let (Some(patch), Some(v)) = (f.patch, profiles.pressure(fi)) {
+            if bc[patch].boundary_type == PressureBoundaryType::FixedValue {
+                b[fi] = v;
+            }
+        }
+    }
+    Ok(b)
+}
 pub fn boundary_pressure_values(
     m: &PolyMesh,
     p: &[f64],
@@ -137,11 +199,34 @@ pub fn rhie_chow_face_flux(
     pressure_bc: &[PressureBoundaryCondition],
     include_nonorthogonal: bool,
 ) -> Result<Vec<f64>> {
+    rhie_chow_face_flux_with(
+        m,
+        h,
+        mobility,
+        p,
+        velocity_bc,
+        pressure_bc,
+        include_nonorthogonal,
+        &FaceProfiles::default(),
+    )
+}
+/// [`rhie_chow_face_flux`] with per-face profiles on fixed-value patches.
+#[allow(clippy::too_many_arguments)]
+pub fn rhie_chow_face_flux_with(
+    m: &PolyMesh,
+    h: &[Vec3],
+    mobility: &[f64],
+    p: &[f64],
+    velocity_bc: &[VelocityBoundaryCondition],
+    pressure_bc: &[PressureBoundaryCondition],
+    include_nonorthogonal: bool,
+    profiles: &FaceProfiles,
+) -> Result<Vec<f64>> {
     vector_sizes(m, h, &[])?;
     scalar_sizes(m, mobility, &[])?;
     scalar_sizes(m, p, &[])?;
-    let pb = boundary_pressure_values(m, p, pressure_bc)?;
-    let hb = boundary_velocity_values(m, h, velocity_bc)?;
+    let pb = boundary_pressure_values_with(m, p, pressure_bc, profiles)?;
+    let hb = boundary_velocity_values_with(m, h, velocity_bc, profiles)?;
     let gp = gauss_gradient_scalar(m, p, &pb)?;
     let mut r = vec![0.0; m.face_count()];
     for (fi, out) in r.iter_mut().enumerate() {

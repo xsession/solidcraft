@@ -38,6 +38,19 @@ pub struct CollocatedIncompressibleConfig {
     pub temporal_scheme: TemporalScheme,
     pub crank_nicolson_off_centering: f64,
     pub pressure_preconditioner: PressurePreconditionerKind,
+    /// Rebuild H(u)/a_P from the corrected velocity before each further PISO corrector,
+    /// and solve the pressure to a tolerance relative to the cell flux scale. Off by
+    /// default for parity with the C++ cfd_solvers, whose correctors skip both, which
+    /// limits the stable time step to diffusion numbers ν·Δt/h² of roughly 0.3.
+    pub piso_neighbour_update: bool,
+    /// Balanced-force pressure and body-force coupling: each cell's pressure-gradient-minus-
+    /// body-force term is rebuilt by least squares from the face values (compact face pressure
+    /// gradient minus face body force), and the face fluxes carry the face body force the same
+    /// way. A force balanced by pressure then leaves no spurious velocity, also where the force
+    /// jumps (a fan block, a porous edge, a buoyant plume's edge). Off by default for parity
+    /// with the C++ cfd_solvers, which adds the cell body force to the cell Gauss gradient.
+    #[serde(default)]
+    pub balanced_body_force: bool,
 }
 impl Default for CollocatedIncompressibleConfig {
     fn default() -> Self {
@@ -61,6 +74,8 @@ impl Default for CollocatedIncompressibleConfig {
             temporal_scheme: TemporalScheme::Euler,
             crank_nicolson_off_centering: 1.0,
             pressure_preconditioner: PressurePreconditionerKind::None,
+            piso_neighbour_update: false,
+            balanced_body_force: false,
         }
     }
 }
@@ -117,9 +132,17 @@ pub struct CollocatedIncompressible<'a> {
     config: CollocatedIncompressibleConfig,
     velocity_boundary: Vec<VelocityBoundaryCondition>,
     pressure_boundary: Vec<PressureBoundaryCondition>,
+    profiles: FaceProfiles,
+    /// Subtracted from the face flux in momentum convection: the frame flux (Ω×r)·S of
+    /// rotating regions (MRF), so momentum is carried by the flux relative to the frame.
+    convective_offset: Vec<f64>,
     velocity: Vec<Vec3>,
     old_velocity: Vec<Vec3>,
     h_by_a: Vec<Vec3>,
+    /// The last momentum operator and its source without the pressure gradient, kept
+    /// so each further PISO corrector can rebuild H(u)/a_P from the corrected velocity.
+    momentum_operator: Option<crate::core::CsrMatrix>,
+    momentum_source: Vec<Vec3>,
     pressure_mobility: Vec<f64>,
     pressure: Vec<f64>,
     face_flux: Vec<f64>,
@@ -130,6 +153,42 @@ pub struct CollocatedIncompressible<'a> {
     momentum_results: [IterativeSolverResult; 3],
     time: f64,
     steps: usize,
+}
+/// Solve a 3 × 3 system by Cramer's rule (None when singular).
+fn solve3(a: [[f64; 3]; 3], b: Vec3) -> Option<Vec3> {
+    let det = |m: [[f64; 3]; 3]| {
+        m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+    };
+    let d = det(a);
+    let scale = a.iter().flatten().fold(0.0f64, |s, v| s.max(v.abs()));
+    if !(d.is_finite() && d.abs() > 1e-12 * scale * scale * scale) {
+        return None;
+    }
+    let rhs = [b.x, b.y, b.z];
+    let column = |k: usize| {
+        let mut m = a;
+        for (row, value) in m.iter_mut().zip(rhs) {
+            row[k] = value;
+        }
+        det(m) / d
+    };
+    Some(Vec3::new(column(0), column(1), column(2)))
+}
+/// Root-mean-square over cells of the summed face flux magnitudes; 1 without flow.
+fn flux_scale(m: &PolyMesh, flux: &[f64]) -> f64 {
+    let n = m.cell_count();
+    if n == 0 {
+        return 1.0;
+    }
+    let sum: f64 = (0..n)
+        .map(|c| {
+            let t: f64 = m.cell_faces()[c].iter().map(|&fi| flux[fi].abs()).sum();
+            t * t
+        })
+        .sum();
+    let s = (sum / n as f64).sqrt();
+    if s.is_finite() && s > 0.0 { s } else { 1.0 }
 }
 fn empty_result() -> IterativeSolverResult {
     IterativeSolverResult {
@@ -149,9 +208,13 @@ impl<'a> CollocatedIncompressible<'a> {
             config,
             velocity_boundary: vec![VelocityBoundaryCondition::default(); np],
             pressure_boundary: vec![PressureBoundaryCondition::default(); np],
+            profiles: FaceProfiles::default(),
+            convective_offset: Vec::new(),
             velocity: vec![Vec3::ZERO; n],
             old_velocity: vec![Vec3::ZERO; n],
             h_by_a: vec![Vec3::ZERO; n],
+            momentum_operator: None,
+            momentum_source: Vec::new(),
             pressure_mobility: vec![config.dt; n],
             pressure: vec![0.0; n],
             face_flux: vec![0.0; nf],
@@ -228,7 +291,7 @@ impl<'a> CollocatedIncompressible<'a> {
         for (fi, face) in self.mesh.faces().iter().enumerate() {
             if face.patch == Some(p) {
                 if let Some(flux) = self.face_flux.get_mut(fi) {
-                    *flux = value.dot(face.area);
+                    *flux = self.profiles.velocity(fi).unwrap_or(value).dot(face.area);
                 }
             }
         }
@@ -247,6 +310,35 @@ impl<'a> CollocatedIncompressible<'a> {
             value,
         };
         Ok(())
+    }
+    /// Per-face boundary values on fixed-value patches (transferred boundary conditions).
+    /// Set after the patch conditions; the face fluxes are rebuilt.
+    pub fn set_face_profiles(&mut self, profiles: FaceProfiles) -> Result<()> {
+        profiles.validate(&self.mesh)?;
+        self.profiles = profiles;
+        self.rebuild_flux()
+    }
+    /// Per-face flux removed from momentum convection (rotating regions); empty for none.
+    pub fn set_convective_flux_offset(&mut self, offset: Vec<f64>) -> Result<()> {
+        require(
+            offset.is_empty() || offset.len() == self.mesh.face_count(),
+            "convective flux offset size",
+        )?;
+        finite_slice(&offset, "convective flux offset")?;
+        self.convective_offset = offset;
+        Ok(())
+    }
+    /// The flux that convects transported quantities: the face flux, relative to the
+    /// rotating frame inside rotating regions.
+    pub fn convective_flux(&self) -> Vec<f64> {
+        if self.convective_offset.is_empty() {
+            return self.face_flux.clone();
+        }
+        self.face_flux
+            .iter()
+            .zip(&self.convective_offset)
+            .map(|(phi, offset)| phi - offset)
+            .collect()
     }
     pub fn initialize_uniform(&mut self, u: Vec3, p: f64) -> Result<()> {
         self.initialize_fields(|_| u, |_| p)
@@ -311,7 +403,7 @@ impl<'a> CollocatedIncompressible<'a> {
             .any(|b| b.boundary_type == PressureBoundaryType::FixedValue)
     }
     fn rebuild_flux(&mut self) -> Result<()> {
-        let b = boundary_velocity_values(&self.mesh, &self.velocity, &self.velocity_boundary)?;
+        let b = boundary_velocity_values_with(&self.mesh, &self.velocity, &self.velocity_boundary, &self.profiles)?;
         self.face_flux = face_flux_from_velocity(&self.mesh, &self.velocity, &b)?;
         Ok(())
     }
@@ -319,8 +411,11 @@ impl<'a> CollocatedIncompressible<'a> {
         let m = &self.mesh;
         let n = m.cell_count();
         require(time_source.len() == n, "momentum time source size")?;
-        let pb = boundary_pressure_values(m, &self.pressure, &self.pressure_boundary)?;
-        let gp = gauss_gradient_scalar(m, &self.pressure, &pb)?;
+        let pb = boundary_pressure_values_with(m, &self.pressure, &self.pressure_boundary, &self.profiles)?;
+        // With balanced body forces `gp` is the face-reconstructed (∇p − a); the body force
+        // is then inside it and not added again below.
+        let balanced = self.config.balanced_body_force;
+        let gp = if balanced { self.balanced_residual(&self.pressure)? } else { gauss_gradient_scalar(m, &self.pressure, &pb)? };
         let scheme = if physical {
             self.config.temporal_scheme
         } else {
@@ -339,11 +434,8 @@ impl<'a> CollocatedIncompressible<'a> {
             let mut ap = 0.0;
             for &fi in &m.cell_faces()[c] {
                 let f = m.faces()[fi];
-                let phi = if f.owner == c {
-                    self.face_flux[fi]
-                } else {
-                    -self.face_flux[fi]
-                };
+                let relative = self.face_flux[fi] - self.convective_offset.get(fi).copied().unwrap_or(0.0);
+                let phi = if f.owner == c { relative } else { -relative };
                 let diff =
                     self.config.kinematic_viscosity * decompose_face_area(m, fi)?.orthogonal_metric;
                 if let Some(neighbour) = f.neighbour {
@@ -379,7 +471,7 @@ impl<'a> CollocatedIncompressible<'a> {
                             0.0
                         };
                         ap += diff + leave;
-                        boundary_rhs[c] += bc.value * (diff + enter);
+                        boundary_rhs[c] += self.profiles.velocity(fi).unwrap_or(bc.value) * (diff + enter);
                     } else if self.config.include_convection {
                         ap += phi;
                     }
@@ -427,8 +519,8 @@ impl<'a> CollocatedIncompressible<'a> {
             } else {
                 time_source[c]
             };
-            let full = temporal * (vol / self.config.dt) + boundary_rhs[c] - gp[c] * vol
-                + self.body_acceleration[c] * vol;
+            let body = if balanced { Vec3::ZERO } else { self.body_acceleration[c] * vol };
+            let full = temporal * (vol / self.config.dt) + boundary_rhs[c] - gp[c] * vol + body;
             for axis in 0..3 {
                 rhs[axis][c] = full.component(axis) - (1.0 - theta) * old_action[axis][c];
             }
@@ -483,16 +575,46 @@ impl<'a> CollocatedIncompressible<'a> {
                 };
             }
         }
+        self.momentum_source = (0..n)
+            .map(|c| Vec3::new(rhs[0][c], rhs[1][c], rhs[2][c]) + gp[c] * m.cells()[c].volume)
+            .collect();
         for c in 0..n {
             self.velocity[c] = Vec3::new(components[0][c], components[1][c], components[2][c]);
             self.pressure_mobility[c] = m.cells()[c].volume / diagonal[c];
             self.h_by_a[c] = self.velocity[c] + gp[c] * self.pressure_mobility[c];
         }
+        self.momentum_operator = Some(a);
+        Ok(())
+    }
+    /// PISO: H(u)/a_P = (b - Σ_{N≠P} a_N u_N) / a_P with the corrected velocity, so the
+    /// next pressure corrector sees the neighbour velocity corrections. Without this
+    /// every corrector re-solves the same equation and a time step is one unrelaxed
+    /// SIMPLE iteration, which diverges once diffusion dominates (a_P ≫ V/Δt).
+    fn refresh_h_by_a(&mut self) -> Result<()> {
+        let Some(a) = self.momentum_operator.as_ref() else {
+            return Ok(());
+        };
+        let n = self.mesh.cell_count();
+        require(self.momentum_source.len() == n, "momentum source size")?;
+        for row in 0..n {
+            let mut off = Vec3::ZERO;
+            let mut diag = 0.0;
+            for k in a.row_offsets()[row]..a.row_offsets()[row + 1] {
+                let col = a.columns()[k];
+                if col == row {
+                    diag += a.values()[k];
+                } else {
+                    off += self.velocity[col] * a.values()[k];
+                }
+            }
+            require(diag.is_finite() && diag > 0.0, "nonpositive momentum diagonal")?;
+            self.h_by_a[row] = (self.momentum_source[row] - off) * (1.0 / diag);
+        }
         Ok(())
     }
     fn nonorthogonal_flux(&self, p: &[f64]) -> Result<Vec<f64>> {
         let m = &self.mesh;
-        let pb = boundary_pressure_values(m, p, &self.pressure_boundary)?;
+        let pb = boundary_pressure_values_with(m, p, &self.pressure_boundary, &self.profiles)?;
         let g = gauss_gradient_scalar(m, p, &pb)?;
         let mut out = vec![0.0; m.face_count()];
         for (fi, r) in out.iter_mut().enumerate() {
@@ -550,15 +672,21 @@ impl<'a> CollocatedIncompressible<'a> {
                     * decompose_face_area(m, fi)?.orthogonal_metric
             };
         }
-        let hb = boundary_velocity_values(m, &self.h_by_a, &self.velocity_boundary)?;
-        let phi_h = face_flux_from_velocity(m, &self.h_by_a, &hb)?;
+        let hb = boundary_velocity_values_with(m, &self.h_by_a, &self.velocity_boundary, &self.profiles)?;
+        let mut phi_h = face_flux_from_velocity(m, &self.h_by_a, &hb)?;
+        let body_flux = if self.config.balanced_body_force { Some(self.body_flux()?) } else { None };
+        if let Some(extra) = &body_flux {
+            for (phi, b) in phi_h.iter_mut().zip(extra) {
+                *phi += b;
+            }
+        }
         let mut p = self.pressure.clone();
         let fixed = self.fixed_pressure();
         let mut result = empty_result();
         let mut solves = 0;
         for _ in 0..self.config.nonorthogonal_correctors + 1 {
             let correction = self.nonorthogonal_flux(&p)?;
-            let pb = boundary_pressure_values(m, &p, &self.pressure_boundary)?;
+            let pb = boundary_pressure_values_with(m, &p, &self.pressure_boundary, &self.profiles)?;
             let mut rhs = vec![0.0; m.cell_count()];
             for (c, r) in rhs.iter_mut().enumerate() {
                 for &fi in &m.cell_faces()[c] {
@@ -579,6 +707,21 @@ impl<'a> CollocatedIncompressible<'a> {
                     rhs[i] -= mean;
                     p[i] -= pmean;
                 }
+            }
+            // The linear solvers floor their tolerance at an absolute rms of 1, which for
+            // a right-hand side in m³/s means barely solving at all. Solve for p/s with
+            // the right-hand side divided by the cell flux scale s, so the tolerance is
+            // relative to the flow actually passing through the cells.
+            let flux_scale = if self.config.piso_neighbour_update {
+                flux_scale(m, &phi_h)
+            } else {
+                1.0
+            };
+            for v in rhs.iter_mut() {
+                *v /= flux_scale;
+            }
+            for v in p.iter_mut() {
+                *v /= flux_scale;
             }
             let controls = LinearConfig {
                 max_iterations: self.config.pressure_iterations,
@@ -627,6 +770,9 @@ impl<'a> CollocatedIncompressible<'a> {
                     )?
                 }
             };
+            for v in p.iter_mut() {
+                *v *= flux_scale;
+            }
             solves += 1;
             if !result.converged {
                 break;
@@ -641,8 +787,12 @@ impl<'a> CollocatedIncompressible<'a> {
                 *v -= mean;
             }
         }
-        let pb = boundary_pressure_values(m, &self.pressure, &self.pressure_boundary)?;
-        let gp = gauss_gradient_scalar(m, &self.pressure, &pb)?;
+        let pb = boundary_pressure_values_with(m, &self.pressure, &self.pressure_boundary, &self.profiles)?;
+        let gp = if body_flux.is_some() {
+            self.balanced_residual(&self.pressure)?
+        } else {
+            gauss_gradient_scalar(m, &self.pressure, &pb)?
+        };
         for c in 0..m.cell_count() {
             let corrected = self.h_by_a[c] - gp[c] * self.pressure_mobility[c];
             let previous = self.velocity[c];
@@ -654,7 +804,7 @@ impl<'a> CollocatedIncompressible<'a> {
                         1.0
                     });
         }
-        self.face_flux = rhie_chow_face_flux(
+        self.face_flux = rhie_chow_face_flux_with(
             m,
             &self.h_by_a,
             &self.pressure_mobility,
@@ -662,8 +812,115 @@ impl<'a> CollocatedIncompressible<'a> {
             &self.velocity_boundary,
             &self.pressure_boundary,
             true,
+            &self.profiles,
         )?;
+        if let Some(extra) = &body_flux {
+            for (phi, b) in self.face_flux.iter_mut().zip(extra) {
+                *phi += b;
+            }
+        }
         Ok((result, solves))
+    }
+    /// Whether a face's Rhie-Chow flux is driven by the pressure difference across it (and so
+    /// also carries the face body force): interior faces, and boundary faces with a fixed
+    /// pressure whose velocity is not prescribed.
+    fn pressure_driven(&self, fi: usize) -> bool {
+        let f = self.mesh.faces()[fi];
+        match f.patch {
+            None => true,
+            Some(p) => {
+                self.pressure_boundary[p].boundary_type == PressureBoundaryType::FixedValue
+                    && !matches!(
+                        self.velocity_boundary[p].boundary_type,
+                        VelocityBoundaryType::FixedValue | VelocityBoundaryType::Slip
+                    )
+            }
+        }
+    }
+    /// Face body force a_f: linear between the two cells, the owner's on a boundary.
+    fn face_body_force(&self, fi: usize) -> Result<Vec3> {
+        let m = &self.mesh;
+        let f = m.faces()[fi];
+        if f.boundary() {
+            Ok(self.body_acceleration[f.owner])
+        } else {
+            linear_vector(m, f, &self.body_acceleration)
+        }
+    }
+    /// Balanced-force face flux of the body force, d_f (a_f · S), on pressure-driven faces.
+    fn body_flux(&self) -> Result<Vec<f64>> {
+        let m = &self.mesh;
+        let mut out = vec![0.0; m.face_count()];
+        for (fi, slot) in out.iter_mut().enumerate() {
+            if !self.pressure_driven(fi) {
+                continue;
+            }
+            let f = m.faces()[fi];
+            let mobility = linear_scalar(m, f, &self.pressure_mobility)?;
+            *slot = mobility * self.face_body_force(fi)?.dot(f.area);
+        }
+        Ok(out)
+    }
+    /// The cell value of (∇p − a) rebuilt by least squares from its faces' normal components,
+    /// G_f |S| = (p_N − p_P) S·d/|d|² − a_f · S, so a face in balance contributes nothing.
+    /// Faces with a zero-gradient pressure (walls) are taken as balanced; they still enter the
+    /// normal matrix, which keeps it invertible.
+    fn balanced_residual(&self, p: &[f64]) -> Result<Vec<Vec3>> {
+        let m = &self.mesh;
+        let n = m.cell_count();
+        let pb = boundary_pressure_values_with(m, p, &self.pressure_boundary, &self.profiles)?;
+        let mut matrix = vec![[[0.0f64; 3]; 3]; n];
+        let mut sum = vec![Vec3::ZERO; n];
+        for fi in 0..m.face_count() {
+            let f = m.faces()[fi];
+            let area = f.area.norm();
+            if !(area > 0.0) {
+                continue;
+            }
+            let unit = f.area * (1.0 / area);
+            let u = [unit.x, unit.y, unit.z];
+            let weight = {
+                let mut w = [[0.0; 3]; 3];
+                for (i, row) in w.iter_mut().enumerate() {
+                    for (j, v) in row.iter_mut().enumerate() {
+                        *v = u[i] * u[j] * area;
+                    }
+                }
+                w
+            };
+            let geom = decompose_face_area(m, fi)?;
+            let imbalance = match f.neighbour {
+                Some(nb) => Some(geom.orthogonal_metric * (p[nb] - p[f.owner]) - self.face_body_force(fi)?.dot(f.area)),
+                None if self.pressure_driven(fi)
+                    || f.patch.is_some_and(|b| self.pressure_boundary[b].boundary_type == PressureBoundaryType::FixedValue) =>
+                {
+                    Some(geom.orthogonal_metric * (pb[fi] - p[f.owner]) - self.face_body_force(fi)?.dot(f.area))
+                }
+                None => None,
+            };
+            let mut add = |c: usize| {
+                for i in 0..3 {
+                    for j in 0..3 {
+                        matrix[c][i][j] += weight[i][j];
+                    }
+                }
+                if let Some(g) = imbalance {
+                    sum[c] += unit * g;
+                }
+            };
+            add(f.owner);
+            if let Some(nb) = f.neighbour {
+                add(nb);
+            }
+        }
+        let mut out = Vec::with_capacity(n);
+        for c in 0..n {
+            let x = solve3(matrix[c], sum[c]).ok_or_else(|| {
+                SolverError::NumericalFailure("singular face-normal matrix in the balanced-force reconstruction".into())
+            })?;
+            out.push(x);
+        }
+        Ok(out)
     }
     fn coupled_sequence(
         &mut self,
@@ -676,7 +933,10 @@ impl<'a> CollocatedIncompressible<'a> {
         self.momentum_predictor(time_source, physical)?;
         let mut pressure = empty_result();
         let mut solves = 0;
-        for _ in 0..correctors {
+        for k in 0..correctors {
+            if k > 0 && physical && self.config.piso_neighbour_update {
+                self.refresh_h_by_a()?;
+            }
             let (r, n) = self.correct_pressure(relaxation)?;
             pressure = r;
             solves += n;

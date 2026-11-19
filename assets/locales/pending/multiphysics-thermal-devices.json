@@ -1,0 +1,82 @@
+{
+  "en": {
+    "multiphysics.feature_thermal_required": "Thermal devices need a 3-D airflow case with conjugate heat (a thermal block with solids).",
+    "multiphysics.batch_run_started": "Batch run: projects started",
+    "multiphysics.goal_kind": "Goal type",
+    "multiphysics.goal_kind_surface": "Surface goal (patch flow)",
+    "multiphysics.goal_kind_global": "Global goal (maximum fluid temperature)",
+    "multiphysics.goal_kind_point": "Point goal (at the domain centre)",
+    "multiphysics.goal_kind_volume": "Volume goal (solid maximum temperature)",
+    "multiphysics.goal_kind_equation": "Equation goal"
+  },
+  "de": {
+    "multiphysics.feature_thermal_required": "Thermische Bauteile benötigen einen 3-D-Strömungsfall mit konjugierter Wärme (Thermoblock mit Festkörpern).",
+    "multiphysics.batch_run_started": "Stapellauf: gestartete Projekte",
+    "multiphysics.goal_kind": "Zieltyp",
+    "multiphysics.goal_kind_surface": "Flächenziel (Patch-Durchfluss)",
+    "multiphysics.goal_kind_global": "Globales Ziel (maximale Fluidtemperatur)",
+    "multiphysics.goal_kind_point": "Punktziel (in der Gebietsmitte)",
+    "multiphysics.goal_kind_volume": "Volumenziel (maximale Festkörpertemperatur)",
+    "multiphysics.goal_kind_equation": "Gleichungsziel"
+  },
+  "ar": {
+    "multiphysics.feature_thermal_required": "تتطلب الأجهزة الحرارية حالة جريان ثلاثية الأبعاد مع انتقال حرارة مقترن (كتلة حرارية بها مواد صلبة).",
+    "multiphysics.batch_run_started": "التشغيل الدفعي: المشاريع التي بدأت",
+    "multiphysics.goal_kind": "نوع الهدف",
+    "multiphysics.goal_kind_surface": "هدف سطحي (تدفق الرقعة)",
+    "multiphysics.goal_kind_global": "هدف عام (أقصى درجة حرارة للمائع)",
+    "multiphysics.goal_kind_point": "هدف نقطي (في مركز المجال)",
+    "multiphysics.goal_kind_volume": "هدف حجمي (أقصى درجة حرارة للصلب)",
+    "multiphysics.goal_kind_equation": "هدف معادلة"
+  },
+  "he": {
+    "multiphysics.feature_thermal_required": "התקנים תרמיים דורשים מקרה זרימה תלת־ממדי עם חום מצומד (בלוק תרמי עם מוצקים).",
+    "multiphysics.batch_run_started": "הרצת אצווה: פרויקטים שהופעלו",
+    "multiphysics.goal_kind": "סוג יעד",
+    "multiphysics.goal_kind_surface": "יעד משטח (זרימת טלאי)",
+    "multiphysics.goal_kind_global": "יעד גלובלי (טמפרטורת זורם מרבית)",
+    "multiphysics.goal_kind_point": "יעד נקודה (במרכז התחום)",
+    "multiphysics.goal_kind_volume": "יעד נפח (טמפרטורת מוצק מרבית)",
+    "multiphysics.goal_kind_equation": "יעד משוואה"
+  },
+  "ja": {
+    "multiphysics.feature_thermal_required": "熱デバイスには共役熱伝達付きの 3D 流れケース (固体を含む熱ブロック) が必要です。",
+    "multiphysics.batch_run_started": "バッチ実行: 開始したプロジェクト",
+    "multiphysics.goal_kind": "ゴールの種類",
+    "multiphysics.goal_kind_surface": "面ゴール (パッチ流量)",
+    "multiphysics.goal_kind_global": "グローバル ゴール (最高流体温度)",
+    "multiphysics.goal_kind_point": "点ゴール (領域の中心)",
+    "multiphysics.goal_kind_volume": "体積ゴール (固体の最高温度)",
+    "multiphysics.goal_kind_equation": "式ゴール"
+  },
+  "ko": {
+    "multiphysics.feature_thermal_required": "열 장치에는 공액 열전달이 있는 3D 유동 케이스(고체가 있는 열 블록)가 필요합니다.",
+    "multiphysics.batch_run_started": "일괄 실행: 시작된 프로젝트",
+    "multiphysics.goal_kind": "목표 유형",
+    "multiphysics.goal_kind_surface": "면 목표(패치 유량)",
+    "multiphysics.goal_kind_global": "전역 목표(최대 유체 온도)",
+    "multiphysics.goal_kind_point": "점 목표(영역 중심)",
+    "multiphysics.goal_kind_volume": "체적 목표(고체 최대 온도)",
+    "multiphysics.goal_kind_equation": "수식 목표"
+  },
+  "vi": {
+    "multiphysics.feature_thermal_required": "Thiết bị nhiệt cần ca dòng chảy 3D có truyền nhiệt liên hợp (khối nhiệt có vật rắn).",
+    "multiphysics.batch_run_started": "Chạy hàng loạt: dự án đã bắt đầu",
+    "multiphysics.goal_kind": "Loại mục tiêu",
+    "multiphysics.goal_kind_surface": "Mục tiêu bề mặt (lưu lượng patch)",
+    "multiphysics.goal_kind_global": "Mục tiêu tổng thể (nhiệt độ lưu chất lớn nhất)",
+    "multiphysics.goal_kind_point": "Mục tiêu điểm (tại tâm miền)",
+    "multiphysics.goal_kind_volume": "Mục tiêu thể tích (nhiệt độ vật rắn lớn nhất)",
+    "multiphysics.goal_kind_equation": "Mục tiêu phương trình"
+  },
+  "zh": {
+    "multiphysics.feature_thermal_required": "热设备需要带共轭传热的三维流动算例（含固体的热模块）。",
+    "multiphysics.batch_run_started": "批量运行：已启动的项目",
+    "multiphysics.goal_kind": "目标类型",
+    "multiphysics.goal_kind_surface": "面目标（面片流量）",
+    "multiphysics.goal_kind_global": "全局目标（最高流体温度）",
+    "multiphysics.goal_kind_point": "点目标（位于域中心）",
+    "multiphysics.goal_kind_volume": "体积目标（固体最高温度）",
+    "multiphysics.goal_kind_equation": "方程目标"
+  }
+}

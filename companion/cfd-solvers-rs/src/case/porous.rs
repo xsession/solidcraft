@@ -33,7 +33,11 @@ pub(super) struct PorousZones {
     viscosity: f64,
 }
 
-fn background_index(mesh: &CollocatedFlowCase, center: Vec3) -> Option<[usize; 3]> {
+pub(super) fn background_index(mesh: &CollocatedFlowCase, center: Vec3) -> Option<[usize; 3]> {
+    if mesh.mesh.coordinates.is_some() {
+        let spec = &mesh.mesh;
+        return Some([spec.cell_of(0, center.x)?, spec.cell_of(1, center.y)?, spec.cell_of(2, center.z)?]);
+    }
     let d = mesh.mesh.dimensions;
     let l = mesh.mesh.lengths;
     let axis = |x: f64, len: f64, n: usize| -> Option<usize> {

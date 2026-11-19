@@ -1,0 +1,29 @@
+{
+  "en": {
+    "cmd.multiphysics.case.feature.prepare": "Prepare Multiphysics Feature",
+    "multiphysics.feature_add": "Add feature draft",
+    "multiphysics.feature_body": "Existing numerical body name",
+    "multiphysics.feature_draft_scope": "Illustrative starter values require review. Apply explicitly; adding a draft never starts a solver.",
+    "multiphysics.feature_fan_replace": "Replace prescribed velocity and fixed pressure on the fan patch",
+    "multiphysics.feature_fan_singleton": "This adapter supports one external fan curve per case; it has no separate feature name.",
+    "multiphysics.feature_name": "Feature name",
+    "multiphysics.feature_solver_required": "Feature creation requires an editable collocated_flow3d case.",
+    "multiphysics.menu_capabilities": "Solver catalogue and capabilities",
+    "multiphysics.menu_clone": "Clone active project",
+    "multiphysics.menu_create_lids": "Create opening lids",
+    "multiphysics.menu_customize": "Customize analysis tree",
+    "multiphysics.menu_fluid_volume": "Extract fluid volume",
+    "multiphysics.menu_geometry_unavailable": "General CAD fluid extraction and opening-cap creation have no connected adapter.",
+    "multiphysics.menu_help": "Help",
+    "multiphysics.menu_insert": "Insert",
+    "multiphysics.menu_job_state": "The action requires a different solver-job state.",
+    "multiphysics.menu_local_mesh": "Local mesh refinement",
+    "multiphysics.menu_model_unavailable": "This device or interface model has no connected primitive-flow authoring and solver adapter.",
+    "multiphysics.menu_needs_project": "Select or create a numerical project first.",
+    "multiphysics.menu_needs_results": "Keep a completed result in this project first.",
+    "multiphysics.menu_project": "Project",
+    "multiphysics.menu_thermal_joint": "Thermal joint",
+    "multiphysics.menu_unload": "Unload results view",
+    "multiphysics.menu_validation": "Case validation and evidence"
+  }
+}

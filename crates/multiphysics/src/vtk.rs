@@ -427,7 +427,7 @@ pub fn parse_vtu(xml: &str) -> Result<Grid, Error> {
                             if values.len() != np.saturating_mul(3) {
                                 return Err(bad("point count mismatch"));
                             }
-                            points = Some(values.chunks_exact(3).map(|v| [v[0], v[1], v[2]]).collect());
+                            points = Some(values.as_chunks::<3>().0.to_vec());
                         }
                         "Cells" => {
                             if array.components != 1 {

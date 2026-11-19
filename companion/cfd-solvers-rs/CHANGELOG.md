@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- 0.12.0: `internal_fans_v1`, internal fans as actuator blocks that follow a pressure-flow
+  curve, with the flow measured from face fluxes (`case::internal_fan`). They are exact
+  against a fixed back-pressure (`tests/internal_fans.rs`).
+- 0.12.0: `balanced_body_force_v1`, opt-in `config.balanced_body_force`. It is a balanced-force
+  pressure and body-force coupling with a least-squares face reconstruction, so a force jump
+  causes no checkerboarding. The rotating-region solid-body test is now exact. The default is
+  unchanged.
+
+- 0.11.0: `rotating_regions_v1`, multiple reference frame rotating regions for
+  `collocated_flow3d` (`case::rotating`, `CollocatedIncompressible::set_convective_flux_offset`,
+  `convective_flux`). Solid-body rotation to 0.49 % of ΩR on 16² cells, pressure curvature
+  to 0.01 %; a rotor drags the fluid both ways symmetrically (`tests/rotating.rs`).
+- 0.11.0: `piso_neighbour_update_v1`, opt-in `config.piso_neighbour_update`: PISO correctors
+  rebuild H(u)/a_P and the pressure tolerance is relative to the flux scale. Lifts the
+  diffusion-number limit of about 0.3 of the C++-parity correctors
+  (`tests/piso_neighbour_update.rs`). The default is unchanged.
+- 0.11.0: surface-body voxelization evaluates each triangle edge with its endpoints in a fixed
+  order. A cell centre on an edge shared by two triangles was counted by both or by neither,
+  because the two triangles rounded the edge test differently. That left streaks of wrong
+  cells along x: 619 cells against an exact 540 for a prism split through cell centres
+  (`tests/body_voxels.rs`, checked against the generalized winding number).
+
+- 0.10.0: `transferred_bc_v1`, per-face boundary profiles (`FaceProfiles`,
+  `boundary_*_values_with`, `rhie_chow_face_flux_with`,
+  `CollocatedIncompressible::set_face_profiles`) and the case field `transferred`. A child
+  channel fed from its parent's run matches the parent to 1.7 % of the inflow speed, against 41 % with a
+  uniform inlet (`tests/transferred.rs`).
+- 0.9.0: `local_mesh_v1`, explicit rectilinear node coordinates for `collocated_flow3d`
+  (`make_rectilinear_hexa_mesh`, `VtuMesh::rectilinear_cells`). Porous zones, surface-body
+  voxelization, the body volume report, heat-pipe lengths, the diffusion-number metric and
+  `thermal.vtu` follow graded cells. See `tests/local_mesh.rs`.
+- 0.8.0: added `thermal_devices_v1` (contact resistance, two-resistor junction, heat pipe,
+  thermoelectric cooler on conjugate-heat solids) and `goals_v2` (global, point and equation
+  goals). See the README section and `tests/thermal_devices.rs`.
 - 0.7.0: added 27 `cfd-solve` case types with embedded examples and the
   `domain_cases_v1` capability: `spice_circuit`, `tcad_diode1d`, `battery_cell`,
   `wire_antenna`, `maxwell3d`, `edge_cavity3d`, `pdn_ir_drop`, `galvanic_corrosion`,

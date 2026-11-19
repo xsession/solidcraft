@@ -82,14 +82,19 @@ The current CAD model is not automatically converted into these cases.
 
 ## Native numerical companion
 
-Use `cfd-solve` built from **cfd-solvers-rs 0.7.0**, based on upstream revision
+Use `cfd-solve` built from **cfd-solvers-rs 0.10.0**, based on upstream revision
 `7cceaaaddafaf2515e01a86406e13d6037fdbf9a`.
 The companion is a separate process, not a linked dependency or binary shipped by this change.
 Versions 0.2.0 and 0.3.0 remain supported for cases that do not need newer capabilities.
 Obstacle cases require `grid_obstacles_v1` (0.3.0 or 0.4.0). Fan cases require 0.4.0 with
 `fan_curve_v1`. Porous-zone cases require 0.4.0 or later with `porous_blocks_v1`. Conjugate heat cases
 require 0.5.0 or later with `conjugate_heat_v1`. Surface bodies, goals and natural
-convection require 0.6.0 or later. The domain cases below require 0.7.0 with `domain_cases_v1`.
+convection require 0.6.0 or later. The domain cases below require 0.7.0 or later with `domain_cases_v1`. Thermal devices need 0.8.0 with
+`thermal_devices_v1`, global, point and equation goals need 0.8.0 or later with `goals_v2`, a local mesh needs
+0.9.0 or later with `local_mesh_v1`, transferred boundary conditions need 0.10.0 or later with
+`transferred_bc_v1`, rotating regions need 0.11.0 or later with `rotating_regions_v1` and
+`piso_neighbour_update_v1`, and internal fans need 0.12.0 with `internal_fans_v1` and
+`balanced_body_force_v1`.
 Other producer versions are refused.
 
 The complete source archive includes the separate companion project. Run
@@ -454,3 +459,252 @@ Details and limits are in the companion's `docs/DOMAIN_CASES.md`.
 in its case (for example `/protocol/0/current_a`) and 1 to 16 values of the same type. It
 creates one checked study per value in one undo step, or none if any value is rejected.
 Run each study as usual and compare their metrics.
+
+## Thermal devices and goals v2 (0.8.0, offline)
+
+`collocated_flow3d` conjugate-heat cases can now carry these devices on existing thermal solids:
+
+| Analysis tree / Insert | Case field | Companion model |
+|---|---|---|
+| Contact resistances, Thermal joints | `thermal.solids[].contact_resistance_m2_k_per_w` | Series resistance on faces shared with a different solid |
+| Two-resistor components | `thermal.solids[].junction_to_case_k_per_w` | Junction = case max + R·P; the verdict uses the junction |
+| Heat pipes | `thermal.solids[].heat_pipe {axis, effective_resistance_k_per_w}` | Axial conductivity L/(R·A) |
+| Thermoelectric coolers | `thermal.thermoelectric_coolers[] {name, cold_solid, hot_solid, heat_pumped_w, electrical_power_w}` | Fixed-duty cooler; COP is reported |
+
+The Goals folder's Insert global, point, surface, volume and equation goal entries open the Goals panel
+with that goal type picked. *Add* drafts a goal. Global goals are maximum fluid temperature. Point
+goals sit at the domain centre: temperature for thermal cases, pressure otherwise. Volume goals
+are the maximum temperature of the first solid. Equation goals refer to the first non-equation goal.
+Edit the draft and apply it as usual. The admission check refuses points outside
+the domain, equations that refer to other equations, unknown solids, or non-positive resistances.
+Any of these features requires producer 0.8.0.
+
+**Batch run** (Solve) starts every project that is ready and not already queued or running. It
+skips the rest and reports how many it started.
+
+Still not available, with the reason shown on hover: rotating regions. They need a
+rotating-frame model in the solver.
+
+## Working in the graphics window (3-D airflow cases)
+
+For a `collocated_flow3d` case the graphics window draws the case itself: the computational
+domain, every obstacle, porous block and surface body, and each domain face labelled with its
+role (inlet, outlet, wall, symmetry, fan or default). The Analysis tree node decides what the
+mouse does there. Every change goes into the project's draft. *Apply* commits it, and *Show CAD
+model* switches back to the CAD window.
+
+| Node | In the graphics window | In the panel |
+|---|---|---|
+| Computational Domain | An arrow on each face; drag it to move that face out or in by whole cells (a label shows the cells and metres) | Size in cells and metres; − cell / + cell per face |
+| Solid Materials, Contact resistances, Thermal joints, Two-resistor, Heat pipes, other input nodes | Click picks a part, Ctrl+click adds or removes, a second click on the same spot takes the part behind | The picked parts. Solid Materials: a conductivity, *Apply to picked parts* (creates or updates each part's solid record). Devices: one picked part fills the solid name |
+| Boundary Conditions, Fans | Click picks a domain face (same Ctrl and repeat-click rules) | Inlet (speed along the inward normal), Outlet (pressure), Wall, Symmetry for every picked face. *Lids*: with one face picked, an opening in cells and *Create lids* |
+
+Moving a minimum face (left, bottom or front) shifts every grid part, surface body and point goal
+by the same number of cells, so the model stays where it is in the domain. A move that would cut a
+part is refused. The fan's own face cannot be given another role; edit the fan instead.
+
+*Create lids* (Tools, or the Boundary panel) closes the picked face with one-cell-thick obstacles
+`<face>_lid_1..4` everywhere except the opening. The face's condition then acts only through the
+opening, the grid version of a lid with an inlet face in it.
+
+### Bringing CAD bodies into the case
+
+*Add from components* (Insert, or the From Components tree node) turns bodies of the open model
+into case parts. Use the body check list or *Use the model selection*. The bodies are tessellated
+through the OBJ export (millimetres, welded closed).
+- *Automatic* makes a body that fills its bounding box (within 2 %) a grid block snapped to whole
+  cells, and any other body a surface body with its exact triangles. You can also force *Grid
+  blocks* or *Surface bodies*.
+- The first import fits the domain around the bodies plus a margin. The cell size is either
+  typed, or chosen to keep about the case's current cell count within the solver's limit. The
+  import records which CAD point is the domain origin.
+- Later imports can keep the domain and place bodies by that origin. A body whose case name
+  already exists replaces that part's geometry and keeps its material.
+- *Replace the case's other parts* starts from an empty domain.
+- In a thermal case, new parts get the starter solid material. Materials and goals of removed
+  parts are dropped, with a note.
+
+With *Show CAD model* on, the CAD selection works as a picker too:
+- Solid Materials and the device nodes offer *Pick the bodies selected on the model*.
+- Boundary Conditions offers *Pick the domain faces of the model faces selected*: a model face
+  lying on a domain face (within half a cell) picks that domain face.
+
+The CAD origin is kept for the session only, because the solver case has no field for it. After
+reopening, fit the domain again, or keep using the case parts.
+
+## Flow result tools
+
+The Results folder's Surface Plots, Isosurfaces, Flow Trajectories, Particle Studies and
+Surface Parameters nodes work on a run's VTU field file. They draw in the 3-D field view, which
+opens automatically and inspects the file if needed, and list their numbers in the panel.
+
+| Node | Inputs | Shows |
+|---|---|---|
+| Flow Trajectories | Vector field, a seed line (start, end, count), steps, *Also trace upstream* | Lines coloured by speed. Counts of lines that reached the boundary, stopped in still flow, hit the step limit or started outside. Mean and maximum residence time |
+| Particle Studies | As above, plus particle diameter, density, fluid viscosity, gravity (−Y) | Particle paths with Stokes drag: response time ρd²/(18μ), released at the local flow velocity, exact drag update per step |
+| Isosurfaces | Field, iso level, optional colour field | The surface (marching tetrahedra), its triangle count and area |
+| Surface Plots | Field, whole boundary or one side (X−…Z+) | The boundary faces coloured by the field |
+| Surface Parameters | As Surface Plots | Area, area-weighted mean, minimum, maximum and integral. For a vector field, the outward flux ∫v·n dA (the volume flow for velocity) |
+
+Streamlines use fourth-order Runge–Kutta with steps of a quarter of the local cell. Point data
+are interpolated linearly in the cells' tetrahedral split; cell data are constant per cell.
+The same tools are available to scripts as the `trajectories`, `isosurface` and `surface` kinds
+of `multiphysics.result.query`.
+
+## PCB, LEDs, batteries and perforated plates
+
+These device nodes compile their inputs into ordinary case fields, so any producer with conjugate
+heat transfer or porous zones runs them. Pick the part, or for plates the domain face, in the
+graphics window. Fill in the panel and choose *Apply to the draft*.
+
+| Node | Inputs | Written to the case |
+|---|---|---|
+| PCB | Board thickness, copper layers as `µm:coverage` | Solid conductivity: in-plane Σkᵢtᵢ/t, through-plane t/Σ(tᵢ/kᵢ). Each copper layer mixes copper (390 W/m·K) and FR-4 (0.3 W/m·K) by its coverage. The board normal is the part's thinnest direction |
+| LEDs | Electrical power, optical efficiency, optional junction-to-case resistance | `power_w = P (1 − η)`, plus `junction_to_case_k_per_w` (needs producer 0.8.0) |
+| Batteries | Current, internal resistance, entropic coefficient dU/dT, cells | `power_w = n (I²R − I·T·dU/dT)`, with T the inflow temperature. A net heat sink is refused |
+| Perforated Plates | Name, free-area ratio φ | A one-cell porous layer on the face, with inertial resistance C = K/h and K = (0.707(1−φ)^0.375 + 1 − φ)²/φ² (Idelchik, thin sharp-edged plate) |
+
+*Show Basic Mesh* (the Mesh folder's menu, or the graphics window's check box) draws the
+grid's cell lines on the domain faces, thinned to 64 lines per axis.
+
+## Local mesh (cfd-solvers-rs 0.9.0)
+
+The grid can be refined locally. Open *Global Mesh* (or Insert Local Mesh, or Mesh → Local Mesh
+in the ribbon). The graphics window then shows the cell lines. Pick parts there, choose a split
+(×2, ×3 or ×4) and a margin in cells, and click *Refine around picked parts*. The result is a
+draft, as with every other edit. Repeat for finer levels or other parts; *Remove local mesh* returns
+to a uniform grid at the coarsest cell size.
+
+- The grid stays a tensor product of node lines. Refining around a part splits every cell row
+  that crosses the part's box along x, y and z. The refinement therefore runs through the
+  whole domain on the other two axes, unlike FloEFD's octree cells.
+- Existing grid nodes never move, so obstacles, porous blocks and lids keep their exact
+  positions; their indices are remapped. Surface bodies and point goals are in metres and are
+  unchanged.
+- The case stores `mesh.coordinates` (`x`, `y`, `z` node lists) and needs producer 0.9.0 with
+  `local_mesh_v1`. Admission checks that each list starts at 0, rises strictly, ends at the
+  length and has one more entry than the cells. The cell limit (32 768) still applies.
+- A domain-face drag adds or removes cells of the edge cell's width. Adding components from CAD
+  snaps parts to the graded cells; fitting the domain to components starts a new uniform grid.
+
+In the solver, the mesh builder, porous zones, surface-body voxelization, the body volume
+report, heat-pipe lengths, the diffusion-number metric and `thermal.vtu` all use the actual
+cell sizes. A uniform grid gives the same results as before. In a heated channel refined around
+a chip, the chip's temperature rise matched the uniform grid to within 0.8 %.
+
+## Transferred boundary conditions: zooming in (cfd-solvers-rs 0.10.0)
+
+Run a project, open *Transferred Boundary Conditions* (Insert, or the tree), pick the parts to
+study more closely in the graphics window, and choose a margin in parent cells, a refinement
+(×1–×4) and a name. *Create zoom-in project* copies the project and drafts the child case for
+the copy. Review it and *Apply*, then run it.
+
+- The child box is the picked parts' box plus the margin, snapped outward to the parent's grid
+  nodes. Each child cell is then split by the refinement.
+- Parts inside are kept: grid parts are clipped, surface bodies and point goals are shifted.
+  Parts outside, or surface bodies crossing the box, are left out with their materials and
+  goals, and the panel lists them.
+- A child face on the parent's own boundary keeps the parent's condition. A face inside the
+  parent takes the parent run's results: where the parent flow enters on average, a
+  fixed-value velocity with the velocity sampled at every child face centre. Elsewhere, a fixed
+  pressure with the sampled pressure profile and a zero-gradient velocity. Faces lying in a
+  parent solid become walls in the velocity profile.
+- The parent is the run's own input case, so the child matches the results it is fed from.
+  Temperatures are not transferred: the child keeps the parent's inflow temperature.
+- The case stores the profiles under `transferred`. The solver applies them face by face in the
+  momentum equation, the Rhie–Chow fluxes and the pressure equation.
+
+In the solver's test, a child channel fed this way matched the parent's flow to within 1.7 % of
+the inflow speed. The same child with a uniform inlet was off by 41 %.
+
+## Rotating regions (cfd-solvers-rs 0.11.0)
+
+Open *Rotating Regions* (Insert, or the tree) and pick the parts that turn in the graphics
+window: a rotor, an impeller or fan blades. Give the region a name, a speed in rpm (negative
+turns the other way), the axis (X, Y or Z) and a margin in cells, then choose *Add rotating
+region around picked parts*. Review the draft and *Apply*. The graphics window draws each
+region as a wire box with its axis and speed, and the panel lists the regions with a
+*Remove* button.
+
+- The region is the cell block covering the parts plus the margin. It stays at least one cell
+  off the domain boundary, so the outer walls stand still. The axis runs through the block's
+  centre.
+- The model is the multiple reference frame (MRF) model. In the region the flow is solved
+  relative to the turning frame, and the walls of parts inside it turn with it. It gives the
+  steady flow a rotor drives. Blade passing is not resolved.
+- A speed the time step cannot follow is refused by the solver above 0.2 rad per step. Adding a
+  region therefore shortens the time step to 0.1 rad per step and raises the step count, so the
+  simulated time stays the same.
+- Adding a region turns on the PISO neighbour update (`config.piso_neighbour_update`), which
+  keeps the solver stable at larger time steps. Removing the region leaves it on. With
+  companion 0.12.0, also turn on balanced body forces (`config.balanced_body_force`, set by
+  adding an internal fan, or in the JSON editor). The frame forces then balance exactly: a
+  box turning with its frame reproduces solid-body rotation to round-off, against 0.5 %
+  without.
+- A run writes `rotating_regions.json`. For each region it gives the cell count, Ω and the
+  swirl ratio: the mean tangential speed over the frame speed. A solid-body rotation gives 1.
+
+## Internal fans (cfd-solvers-rs 0.12.0)
+
+Open *Fans* and choose *Inside the domain*. Pick the part that stands for the fan, such as a
+fan box brought in from the CAD model. Give it a name, the direction it blows (+x … −z) and
+its curve as `flow L/s : pressure Pa` pairs, for example `0:40, 10:20, 16:0`. Then choose
+*Make picked part an internal fan*. *On a domain face* keeps the external fan on a domain
+face, as before.
+
+- The part's cell block becomes open fluid that the fan drives. The part is removed, with its
+  solid material and the goals on it. The block must not overlap solids, porous blocks or
+  another fan.
+- The fan is an actuator block. Each step it measures its flow through its cross-section and
+  takes the pressure rise its curve gives at that flow. It applies that rise along its
+  direction, so air crossing the block gains it. The curve is not extrapolated: a flow beyond
+  it takes the end value, and the report flags it. Swirl and blade effects are not modelled.
+- Adding a fan turns on the PISO neighbour update and balanced body forces. Without balanced
+  forces, the cells beside the fan block would show a checkerboard of spurious velocity and
+  the fan would read the wrong flow.
+- A run writes `internal_fans.json` with each fan's operating point (flow, pressure rise,
+  whether it is on the curve) and its history. The metrics
+  `internal_fan_<name>_volume_flow_m3_per_s` and `_pressure_rise_pa` can be plotted like goals.
+- In the solver's test, a fan in a channel against a fixed back-pressure delivered the curve's
+  flow at that pressure to five digits.
+
+## Fluid volume
+
+*Tools → Fluid Volume* opens the Computational Domain panel and checks the case. *Check
+fluid volume* runs the check again. It is redone on its own whenever the draft changes.
+
+- It counts the fluid and solid cells and their volumes in litres. A cell is solid when a grid
+  part covers it, or when a surface body encloses its centre. This is the same rule the
+  solver uses, so the counts match its mesh report. Porous blocks and perforated plates stay
+  fluid.
+- The fluid is split into regions joined through cell faces, largest first. Each region lists
+  the inlets, outlets and fan it reaches. A region none of them reaches is *sealed*: air
+  trapped inside a closed part or between parts. The graphics window outlines sealed regions
+  in the warning colour.
+- A sealed region still conducts and stores heat, but no flow can reach it. *Fill sealed
+  pockets with solid* turns each one into grid blocks named `pocket_<n>_<m>`, merged into as
+  few boxes as it can. Review the draft and *Apply*. If a pocket is really meant to hold
+  flowing air, open it to the rest of the fluid instead.
+- The panel also warns about parts that overlap an earlier part, and about surface bodies too
+  thin to enclose any cell centre, which the solver leaves out.
+
+## Results mesh
+
+The Results folder's *Mesh* node draws the computational grid of a run's field file in the
+3-D field view. The cell lines lie on the faces of its bounding box, thinned to 64 per axis. The
+panel lists the cell count and, per axis, the number of cells and the smallest and largest width.
+
+## Checking the Multiphysics changes, online or offline
+
+`scripts/multiphysics-check.ps1` (Windows) or `scripts/multiphysics-check.sh` runs format,
+`cargo check --all-targets`, clippy with `-D warnings`, and the multiphysics tests of the
+multiphysics crate, the engine and the UI, then the companion's tests. It writes every step's
+output and exit code to `multiphysics-check.log`, and keeps going after a failure, so one log
+shows every problem.
+
+To build on a machine with no network, run `scripts/offline-vendor.ps1` (or `.sh`) once where
+crates.io is reachable. It packs every dependency of the workspace and the companion into
+`solidcraft-vendor.zip`. On the offline machine, unpack it at the repository root, copy
+`vendor-crates/cargo-config.toml` to `.cargo/config.toml`, and run the check with `-Offline`
+(or `--offline`). The workspace needs Rust 1.95 or newer (`rust-version`); the repository pins
+1.99.1 for CI, and `RUSTUP_TOOLCHAIN=stable` overrides that pin for a local offline build.
