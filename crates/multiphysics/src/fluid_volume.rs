@@ -70,6 +70,9 @@ pub struct FluidVolume {
     pub solids: Vec<SolidPart>,
     /// Surface bodies that enclose no cell centre (too thin for the grid).
     pub empty_bodies: Vec<String>,
+    /// For each domain face in `PATCHES` order, whether a fluid cell touches it. A face that
+    /// solids cover entirely has no fluid boundary, so the solver takes no condition on it.
+    pub wetted: [bool; 6],
 }
 
 impl FluidVolume {
@@ -110,9 +113,8 @@ pub fn voxelize_body(vertices: &[[f64; 3]], triangles: &[[usize; 3]], cx: &[f64]
         let (zmin, zmax) = (a[2].min(b[2]).min(c[2]), a[2].max(b[2]).max(c[2]));
         let (Some((j0, j1)), Some((k0, k1))) = (span(cy, ymin, ymax), span(cz, zmin, zmax)) else { continue };
         let sign = if area > 0.0 { 1.0 } else { -1.0 };
-        for k in k0..=k1 {
-            for j in j0..=j1 {
-                let (py, pz) = (cy[j], cz[k]);
+        for (k, &pz) in cz.iter().enumerate().take(k1 + 1).skip(k0) {
+            for (j, &py) in cy.iter().enumerate().take(j1 + 1).skip(j0) {
                 // Evaluated with the endpoints in a fixed order, so the two triangles sharing an
                 // edge get exactly opposite values and a centre on it is counted once.
                 let edge = |p: [f64; 3], q: [f64; 3]| {
@@ -164,12 +166,12 @@ pub fn voxelize_body(vertices: &[[f64; 3]], triangles: &[[usize; 3]], cx: &[f64]
 
 /// Classify the cells of a `collocated_flow3d` case and split the fluid into regions.
 pub fn fluid_volume(case: &Value) -> Result<FluidVolume> {
-    analyse(case).map(|(report, _)| report)
+    analyse(case).map(|(report, _, _)| report)
 }
 
-/// The report, and per cell the position of its region in `report.regions` (`u32::MAX` for
-/// solid cells and unlisted regions).
-fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>)> {
+/// The report; per cell the position of its region in `report.regions` (`u32::MAX` for solid
+/// cells and unlisted regions); and per cell its solid (0 for fluid, else 1 + the part).
+fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>, Vec<u32>)> {
     validate_json(case, MAX_CASE_BYTES)?;
     let (dimensions, _) = grid(case)?;
     let [nx, ny, nz] = dimensions;
@@ -225,7 +227,7 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>)> {
     let on_patch = |patch: usize, i: usize, j: usize, k: usize| {
         let at = [i, j, k];
         let axis = patch / 2;
-        if patch % 2 == 0 { at[axis] == 0 } else { at[axis] + 1 == dimensions[axis] }
+        if patch.is_multiple_of(2) { at[axis] == 0 } else { at[axis] + 1 == dimensions[axis] }
     };
     // Flood fill the fluid (face neighbours only).
     let mut label = vec![u32::MAX; total];
@@ -302,6 +304,14 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>)> {
     let regions = sorted;
     let total_volume_m3: f64 = (0..3).map(|a| grid_nodes[a].last().copied().unwrap_or(0.0) - grid_nodes[a][0]).product();
     let solid_cells = total - fluid_cells;
+    let wetted: [bool; 6] = std::array::from_fn(|patch| {
+        let (axis, last) = (patch / 2, [nx, ny, nz][patch / 2] - 1);
+        let layer = if patch.is_multiple_of(2) { 0 } else { last };
+        (0..total).any(|c| {
+            let at = [c % nx, (c / nx) % ny, c / (nx * ny)];
+            at[axis] == layer && owner[c] == 0
+        })
+    });
     let report = FluidVolume {
         total_cells: total,
         fluid_cells,
@@ -315,15 +325,16 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>)> {
         regions,
         solids,
         empty_bodies,
+        wetted,
     };
-    Ok((report, label))
+    Ok((report, label, owner))
 }
 
 /// Fill the sealed fluid pockets with solid: each pocket becomes grid obstacles named
 /// `pocket_<n>_<m>` (its cells merged into boxes), so the solver no longer carries dead
 /// fluid the inlets cannot reach. Fluid regions that reach an opening are left alone.
 pub fn fill_sealed_pockets(case: &Value) -> Result<crate::case_scene::Edit> {
-    let (report, label) = analyse(case)?;
+    let (report, label, _) = analyse(case)?;
     if report.openings.is_empty() {
         return Err(bad("the case has no inlet, outlet or fan, so every fluid region is sealed; set the openings first"));
     }
@@ -390,10 +401,90 @@ pub fn fill_sealed_pockets(case: &Value) -> Result<crate::case_scene::Edit> {
     crate::case_scene::finish(proposed, Some(format!("/obstacles/{first}")))
 }
 
+/// A path through the fluid from `from` to `to` (case metres): the shortest chain of
+/// face-neighbouring fluid cell centres from the cell holding `from` to the cell holding `to`, or
+/// `None` when no fluid connects them (the two ends lie in separate regions). Each end must lie
+/// in a fluid cell: a caller starting from a picked face steps off it into the fluid first, so a
+/// thin wall is never stepped through. This is what finds a leak: from a face inside an
+/// enclosure to one outside it, the path runs through the gap.
+pub fn fluid_path(case: &Value, from: [f64; 3], to: [f64; 3]) -> Result<Option<Vec<[f64; 3]>>> {
+    let (_, _, owner) = analyse(case)?;
+    let (dimensions, _) = grid(case)?;
+    let [nx, ny, nz] = dimensions;
+    let grid_nodes = nodes(case)?;
+    let (cx, cy, cz) = (centres(&grid_nodes[0]), centres(&grid_nodes[1]), centres(&grid_nodes[2]));
+    let centre = |c: usize| [cx[c % nx], cy[(c / nx) % ny], cz[c / (nx * ny)]];
+    let snap = |p: [f64; 3]| -> Result<usize> {
+        if p.iter().any(|v| !v.is_finite()) {
+            return Err(Error::Invalid("the path's ends must be finite".into()));
+        }
+        if (0..3).any(|a| p[a] < grid_nodes[a][0] || p[a] > grid_nodes[a][dimensions[a]]) {
+            return Err(Error::Invalid("that point lies outside the computational domain".into()));
+        }
+        let at = [0, 1, 2].map(|a| grid_nodes[a].partition_point(|n| *n <= p[a]).saturating_sub(1).min(dimensions[a] - 1));
+        let c = (at[2] * ny + at[1]) * nx + at[0];
+        if owner[c] != 0 {
+            return Err(Error::Invalid("that point is in a solid cell of the grid (a wall thinner than a cell is solid there)".into()));
+        }
+        Ok(c)
+    };
+    let (start, goal) = (snap(from)?, snap(to)?);
+    let mut parent = vec![usize::MAX; owner.len()];
+    parent[start] = start;
+    let mut queue = std::collections::VecDeque::from([start]);
+    while let Some(c) = queue.pop_front() {
+        if c == goal {
+            break;
+        }
+        let (i, j, k) = (c % nx, (c / nx) % ny, c / (nx * ny));
+        let neighbours = [
+            (i > 0).then(|| c - 1),
+            (i + 1 < nx).then(|| c + 1),
+            (j > 0).then(|| c - nx),
+            (j + 1 < ny).then(|| c + nx),
+            (k > 0).then(|| c - nx * ny),
+            (k + 1 < nz).then(|| c + nx * ny),
+        ];
+        for n in neighbours.into_iter().flatten() {
+            if owner[n] == 0 && parent[n] == usize::MAX {
+                parent[n] = c;
+                queue.push_back(n);
+            }
+        }
+    }
+    if parent[goal] == usize::MAX {
+        return Ok(None);
+    }
+    let mut path = vec![centre(goal)];
+    let mut c = goal;
+    while c != start {
+        c = parent[c];
+        path.push(centre(c));
+    }
+    path.reverse();
+    Ok(Some(path))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_leak_path_runs_through_the_gap_and_a_sealed_pocket_has_none() {
+        // The ring around cells x 4..6, y 2..4 is sealed: no path from inside it to outside.
+        let mut case = ring_case();
+        assert_eq!(fluid_path(&case, [0.045, 0.025, 0.005], [0.005, 0.005, 0.005]).expect("path"), None);
+        // Open a gap in the ring's right side (cell x 6, y 3): the path leaves through it.
+        case["obstacles"][3] = json!({"name": "ring_right", "min": [6, 2, 0], "max": [7, 3, 1]});
+        let path = fluid_path(&case, [0.045, 0.025, 0.005], [0.095, 0.035, 0.005]).expect("path").expect("a leak");
+        assert!(path.iter().any(|p| (p[0] - 0.065).abs() < 1e-12 && (p[1] - 0.035).abs() < 1e-12), "{path:?}");
+        // Shortest: from cell (4, 2) to (9, 3) is 5 + 1 steps, 7 centres.
+        assert_eq!(path.len(), 7, "{path:?}");
+        assert_eq!(path.first(), Some(&[0.045, 0.025, 0.005]));
+        // A point in a solid cell is refused rather than moved through the wall.
+        assert!(fluid_path(&case, [0.035, 0.025, 0.005], [0.095, 0.035, 0.005]).is_err());
+    }
 
     /// A 10 × 6 × 1 channel, 10 mm cells: inlet on the left, outlet on the right, and a ring of
     /// four blocks around cells x 4..6, y 2..4 that seals a 2 × 2 pocket.

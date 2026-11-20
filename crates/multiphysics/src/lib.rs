@@ -20,6 +20,7 @@ pub mod devices;
 pub mod flowpost;
 pub mod fluid_volume;
 pub mod mesh_diagnostics;
+pub mod model;
 mod obstacles;
 pub mod results;
 pub mod setup;
@@ -31,7 +32,7 @@ pub mod zoom;
 pub use templates::templates;
 
 /// Pinned producer whose case and run schemas this initial adapter understands.
-pub const SOLVER_VERSION: &str = "0.12.0";
+pub const SOLVER_VERSION: &str = "0.14.0";
 pub const SOLVER_REVISION: &str = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a";
 /// Variants one sweep may create.
 pub const MAX_SWEEP_VARIANTS: usize = 16;
@@ -45,8 +46,8 @@ const MAX_PROJECT_BYTES: usize = 64 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 const MAX_NODES: usize = 200_000;
 pub(crate) const MAX_CELLS: u64 = 32_768;
-const MAX_STEPS: u64 = 20_000;
-const MAX_WORK: u64 = 50_000_000;
+pub(crate) const MAX_STEPS: u64 = 20_000;
+pub(crate) const MAX_WORK: u64 = 50_000_000;
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -92,6 +93,9 @@ pub struct Study {
     /// Geometry-based selections and assignments; not yet consumed by a numerical adapter.
     #[serde(default, skip_serializing_if = "setup::Setup::is_empty")]
     pub setup: setup::Setup,
+    /// A study of the loaded model: its case is built from the design's bodies and faces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<model::ModelLink>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -175,6 +179,7 @@ impl Project {
             case,
             runs: vec![],
             setup: setup::Setup::default(),
+            model: None,
         };
         validate_study(&study)?;
         let mut candidate = self.clone();
@@ -192,10 +197,12 @@ impl Project {
         let name = if name.trim().is_empty() { format!("{} (copy)", base.name) } else { name.trim().to_string() };
         let mut candidate = self.clone();
         let mut study = candidate.create_case_with_budget(&base.profile, &name, &base.question, base.case.clone(), MAX_PROJECT_BYTES)?;
-        if !base.setup.is_empty() {
+        if !base.setup.is_empty() || base.model.is_some() {
             study.setup = base.setup.clone();
+            study.model = base.model.clone();
             if let Some(slot) = candidate.studies.iter_mut().find(|candidate| candidate.id == study.id) {
                 slot.setup = base.setup;
+                slot.model = base.model;
             }
             validate_study(&study)?;
             candidate.validate_with_budget(MAX_PROJECT_BYTES)?;
@@ -239,6 +246,30 @@ impl Project {
     }
 
     /// Apply one authored revision atomically. Existing immutable runs become historical.
+    /// Make a study a study of the loaded model, or change its link, together with the case
+    /// built from the model for it, in one revision. `None` turns it back into a plain case.
+    pub fn set_model(&mut self, id: &str, expected_revision: u64, link: Option<model::ModelLink>, case: Value) -> Result<Study> {
+        self.validate_with_budget(MAX_PROJECT_BYTES)?;
+        let current = self.study(id).ok_or_else(|| Error::NotFound(id.into()))?;
+        if current.revision != expected_revision {
+            return Err(Error::Stale);
+        }
+        if current.model == link && current.case == case {
+            return Ok(current.clone());
+        }
+        let mut proposed = current.clone();
+        proposed.model = link;
+        proposed.case = case;
+        proposed.revision = proposed.revision.checked_add(1).ok_or_else(|| Error::Limit("study revisions exhausted".into()))?;
+        validate_study(&proposed)?;
+        let mut candidate = self.clone();
+        let target = candidate.studies.iter_mut().find(|study| study.id == id).ok_or_else(|| Error::NotFound(id.into()))?;
+        *target = proposed.clone();
+        candidate.validate_with_budget(MAX_PROJECT_BYTES)?;
+        *self = candidate;
+        Ok(proposed)
+    }
+
     pub fn update(&mut self, id: &str, expected_revision: u64, name: &str, question: &str, case: Value) -> Result<Study> {
         self.update_with_budget(id, expected_revision, name, question, case, MAX_PROJECT_BYTES)
     }
@@ -585,6 +616,9 @@ fn validate_authoring(study: &Study) -> Result<()> {
         return Err(Error::Invalid("study revision must be positive".into()));
     }
     study.setup.validate()?;
+    if let Some(link) = &study.model {
+        link.validate()?;
+    }
     validate_case(&study.case)
 }
 
@@ -597,8 +631,24 @@ pub fn validate_producer(manifest: &Value, input_case: &Value) -> Result<()> {
         }
     }
     let version = manifest.get("rust_port_version").and_then(Value::as_str);
-    if !matches!(version, Some("0.2.0" | "0.3.0" | "0.4.0" | "0.5.0" | "0.6.0" | "0.7.0" | "0.8.0" | "0.9.0" | "0.10.0" | "0.11.0" | SOLVER_VERSION))
-    {
+    if !matches!(
+        version,
+        Some(
+            "0.2.0"
+                | "0.3.0"
+                | "0.4.0"
+                | "0.5.0"
+                | "0.6.0"
+                | "0.7.0"
+                | "0.8.0"
+                | "0.9.0"
+                | "0.10.0"
+                | "0.11.0"
+                | "0.12.0"
+                | "0.13.0"
+                | SOLVER_VERSION
+        )
+    ) {
         return Err(Error::Invalid("unsupported run rust_port_version".into()));
     }
     let capabilities = match manifest.get("capabilities") {
@@ -802,10 +852,25 @@ fn authored_subset(authored: &Value, produced: &Value) -> bool {
             {
                 return false;
             }
-            a.as_f64().zip(b.as_f64()).is_some_and(|(a, b)| a == b)
+            a.as_f64().zip(b.as_f64()).is_some_and(|(a, b)| a == b || (!is_integer(a) && within_parse_rounding(a, b)))
         }
         _ => authored == produced,
     }
+}
+
+fn is_integer(value: f64) -> bool {
+    value.fract() == 0.0
+}
+
+/// The companion parses JSON without serde_json's `float_roundtrip`, which may land one or
+/// two units in the last place from the authored decimal (`0.10200000000000001` comes back
+/// as `0.102`). That is the same input, not a changed one; anything wider still differs.
+fn within_parse_rounding(a: f64, b: f64) -> bool {
+    const MAX_ULPS: u64 = 2;
+    if !(a.is_finite() && b.is_finite()) || a.is_sign_negative() != b.is_sign_negative() {
+        return false;
+    }
+    a.to_bits().abs_diff(b.to_bits()) <= MAX_ULPS
 }
 
 fn normalized_authored_matches(authored: &Value, produced: &Value) -> bool {

@@ -212,6 +212,13 @@ pub struct CollocatedFlowCase {
     /// Solids from closed triangle surfaces in metres (`surface_bodies_v1`).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bodies: Vec<super::bodies::SurfaceBody>,
+    /// Boundary patches on parts of surface bodies (`body_face_conditions_v1`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub face_conditions: Vec<super::bodies::BodyFaceCondition>,
+    /// Keep the fluid part of cells the surface bodies cut (`cut_cells_v1`) instead of a
+    /// staircase of whole cells.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub cut_cells: bool,
     pub config: CollocatedIncompressibleConfig,
     pub output: PolyOutput,
     pub method: FlowMethod,
@@ -337,6 +344,8 @@ impl Default for CollocatedFlowCase {
             mesh: Default::default(),
             obstacles: vec![],
             bodies: vec![],
+            face_conditions: vec![],
+            cut_cells: false,
             config: Default::default(),
             output: Default::default(),
             method: FlowMethod::Piso,
@@ -529,7 +538,7 @@ impl CollocatedFlowCase {
     /// Build both solver and visualization topology from one retained cell set.
     /// Empty obstacles retain the original box/sheared-box behavior.
     pub fn build_mesh(&self) -> Result<(PolyMesh, VtuMesh)> {
-        super::obstacles::build(&self.mesh, &self.obstacles, &self.bodies)
+        super::obstacles::build(&self.mesh, &self.obstacles, &self.bodies, &self.face_conditions, self.cut_cells)
     }
 
     /// Names of all solids: grid boxes first, then surface bodies.
@@ -542,6 +551,26 @@ impl CollocatedFlowCase {
     }
 
     pub(super) fn run(&self, out: &Path, m: &mut RunManifest) -> Result<()> {
+        // The coupled heat solve treats every patch after the exterior ones as a solid's
+        // interface; a condition patch on a body would sit between them unexplained.
+        require(
+            self.face_conditions.is_empty() || self.thermal.is_none(),
+            "conditions on body faces are not supported with conjugate heat transfer yet",
+        )?;
+        // Cut cells change which cells and faces exist; the features that map grid cells or
+        // exterior faces by index are not combined with them yet.
+        if self.cut_cells {
+            for (unsupported, what) in [
+                (self.thermal.is_some(), "conjugate heat transfer"),
+                (!self.transferred.is_empty(), "transferred boundary conditions"),
+                (!self.rotating_regions.is_empty(), "rotating regions"),
+                (!self.internal_fans.is_empty(), "internal fans"),
+                (!self.porous_blocks.is_empty(), "porous blocks"),
+                (self.fan.is_some(), "an external fan"),
+            ] {
+                require(!unsupported, format!("cut cells are not supported with {what} yet"))?;
+            }
+        }
         let (mesh, export) = self.build_mesh()?;
         positive(self.steady_velocity_tolerance, "steady velocity tolerance")?;
         positive(

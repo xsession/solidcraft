@@ -4,3 +4,6 @@
 *.toml text eol=lf
 *.sh text eol=lf
 *.bat text eol=crlf
+# Vendored crates are byte-exact copies checked against .cargo-checksum.json; some upstream
+# files use CRLF, so line-ending conversion would break `cargo build --locked` offline.
+vendor/** -text

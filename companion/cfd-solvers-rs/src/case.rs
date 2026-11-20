@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 mod bodies;
 pub mod conjugate;
+mod cut_cells;
 pub mod domains;
 mod fan;
 pub mod goals;
@@ -26,7 +27,7 @@ mod poly;
 mod porous;
 pub mod rotating;
 pub mod verification;
-pub use bodies::SurfaceBody;
+pub use bodies::{BodyFaceCondition, SurfaceBody};
 pub use domains::{electrical::*, mechanics::*, physics::*};
 pub use fan::{FanCurvePoint, FanInlet, FanPressureConvention, FanSample};
 pub use poly::*;
@@ -478,6 +479,8 @@ impl Case {
                 "piso_neighbour_update_v1".into(),
                 "internal_fans_v1".into(),
                 "balanced_body_force_v1".into(),
+                "body_face_conditions_v1".into(),
+                "cut_cells_v1".into(),
             ],
             complete_clone: false,
             execution_completed: false,

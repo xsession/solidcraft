@@ -164,6 +164,9 @@ pub struct StudyView {
     pub revision: u64,
     pub case: Value,
     pub runs: Vec<RunSummary>,
+    /// For a study of the loaded model: what it takes from the design.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<solidcraft_multiphysics::model::ModelLink>,
 }
 
 /// A project listing contains identity and run metadata, without numerical case payloads.
@@ -228,6 +231,7 @@ impl TryFrom<&Study> for StudyView {
             revision: study.revision,
             case: study.case.clone(),
             runs: run_summaries(study, &hash),
+            model: study.model.clone(),
         })
     }
 }
@@ -310,4 +314,170 @@ pub struct FeaturePrepare {
     pub name: String,
     #[serde(default)]
     pub replace_fan_patch_conditions: bool,
+}
+
+// ---------------------------------------------------------------- studies of the loaded model
+
+/// `multiphysics.model.create`: a study of the loaded model.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelCreate {
+    pub name: String,
+    /// The 3-D flow template whose fluid and solver settings the study starts from
+    /// (default `flow-channel`).
+    #[serde(default)]
+    pub template: Option<String>,
+    #[serde(default)]
+    pub analysis: solidcraft_multiphysics::model::Analysis,
+    /// Bodies of the design; empty or absent means every body.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    #[serde(default)]
+    pub margin_mm: f64,
+    #[serde(default)]
+    pub cell_mm: Option<f64>,
+}
+
+/// `multiphysics.model.set`: replace a model study's settings and build its case again.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelSet {
+    pub id: String,
+    pub expected_revision: u64,
+    #[serde(default)]
+    pub analysis: Option<solidcraft_multiphysics::model::Analysis>,
+    #[serde(default)]
+    pub bodies: Option<Vec<String>>,
+    #[serde(default)]
+    pub margin_mm: Option<f64>,
+    /// A cell size in mm; `0` goes back to the automatic size.
+    #[serde(default)]
+    pub cell_mm: Option<f64>,
+    /// Keep the fluid part of the cells the bodies cut (companion 0.14.0).
+    #[serde(default)]
+    pub cut_cells: Option<bool>,
+}
+
+/// A face of the model, by its name or by a point on it (mm).
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelFacePick {
+    pub body: String,
+    #[serde(default)]
+    pub face: Option<String>,
+    #[serde(default)]
+    pub point: Option<[f64; 3]>,
+}
+
+/// `multiphysics.model.condition`: put a condition on a face of the model, or remove one.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelCondition {
+    pub id: String,
+    pub expected_revision: u64,
+    pub name: String,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    #[serde(default)]
+    pub role: Option<solidcraft_multiphysics::model::OpeningRole>,
+    /// Remove the condition called `name` instead.
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// What building a model study's case gave.
+#[derive(Serialize, JsonSchema)]
+pub struct ModelReply {
+    pub study: StudyView,
+    pub link: solidcraft_multiphysics::model::ModelLink,
+    /// The CAD point at the domain origin (mm).
+    pub origin_mm: [f64; 3],
+    /// Which domain face each condition lies on: `[condition, face]`.
+    pub placed: Vec<(String, String)>,
+    pub solid_fraction: f64,
+    pub fluid_regions: usize,
+    pub notes: Vec<String>,
+    pub issues: Vec<String>,
+}
+
+/// `multiphysics.model.status`: whether the case still matches the model.
+#[derive(Serialize, JsonSchema)]
+pub struct ModelStatus {
+    pub id: String,
+    /// The case was built from the model as it is now.
+    pub current: bool,
+    /// Why the case cannot be built now (a body or face is gone), if so.
+    pub problem: Option<String>,
+    pub link: solidcraft_multiphysics::model::ModelLink,
+    /// The computational domain the case is built in, in CAD coordinates (mm): the bodies'
+    /// exact box, plus the margin for an external study.
+    pub domain_mm: Option<[[f64; 3]; 2]>,
+    /// Where each condition's face is, for drawing it: in the order of `link.openings`.
+    pub faces: Vec<ModelFaceMark>,
+}
+
+/// A point on a condition's face and the face's outward normal there (exact geometry).
+#[derive(Serialize, JsonSchema)]
+pub struct ModelFaceMark {
+    pub name: String,
+    pub point_mm: Option<[f64; 3]>,
+    pub normal: Option<[f64; 3]>,
+}
+
+/// `multiphysics.model.leak`: a path through the fluid between two points of the model (mm).
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelLeak {
+    pub id: String,
+    /// A face, by a point on it (mm), on the side the path starts.
+    pub from: ModelFacePick,
+    pub to: ModelFacePick,
+}
+
+/// The fluid path between the two points, if fluid connects them.
+#[derive(Serialize, JsonSchema)]
+pub struct ModelLeakReply {
+    pub connected: bool,
+    /// Fluid cell centres along the shortest path, in CAD coordinates (mm).
+    pub path_mm: Vec<[f64; 3]>,
+}
+
+/// `multiphysics.model.refine`: smaller cells around a body or a face of the model, or remove.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelRefine {
+    pub id: String,
+    pub expected_revision: u64,
+    pub name: String,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    /// Split cells by 2 to 4 (default 2).
+    #[serde(default)]
+    pub factor: Option<usize>,
+    /// Cells of space around the target that are split too (default 1).
+    #[serde(default)]
+    pub margin_cells: Option<f64>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.goal`: a monitored quantity on the model, or remove one.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelGoalInput {
+    pub id: String,
+    pub expected_revision: u64,
+    pub name: String,
+    #[serde(default)]
+    pub kind: Option<solidcraft_multiphysics::model::ModelGoalKind>,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    #[serde(default)]
+    pub point_mm: Option<[f64; 3]>,
+    #[serde(default)]
+    pub expression: Option<String>,
+    #[serde(default)]
+    pub remove: bool,
 }

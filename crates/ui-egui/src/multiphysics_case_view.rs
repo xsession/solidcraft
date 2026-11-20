@@ -336,10 +336,7 @@ pub(crate) fn show(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut CaseView, c
         let direction = [d.x, d.y, d.z];
         cs::pick(&scene, origin, direction)
             .into_iter()
-            .filter(|hit| match (&hit.target, mode) {
-                (Target::Part { .. }, Mode::Parts) | (Target::Patch { .. }, Mode::Faces) => true,
-                _ => false,
-            })
+            .filter(|hit| matches!((&hit.target, mode), (Target::Part { .. }, Mode::Parts) | (Target::Patch { .. }, Mode::Faces)))
             .collect::<Vec<_>>()
     };
     let as_pick = |target: &Target| match target {

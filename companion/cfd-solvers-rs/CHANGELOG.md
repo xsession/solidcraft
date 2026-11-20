@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- 0.14.0: `cut_cells_v1`, opt-in `cut_cells` for surface bodies: cells keep their fluid part, grid
+  faces their open part, and a closing wall face, measured on a finer lattice; small cells merge
+  (`case::cut_cells`, `tests/cut_cells.rs`).
+- 0.13.0: `body_face_conditions_v1`, boundary patches on parts of surface bodies
+  (`face_conditions`), assigned face by face from the nearest body triangle. A face of a body
+  inside the domain can then carry an inlet or outlet (`tests/body_face_conditions.rs`).
 - 0.12.0: `internal_fans_v1`, internal fans as actuator blocks that follow a pressure-flow
   curve, with the flow measured from face fluxes (`case::internal_fan`). They are exact
   against a fixed back-pressure (`tests/internal_fans.rs`).

@@ -20,39 +20,56 @@ pub struct Requirement {
 
 pub const GRID_OBSTACLES: Requirement = Requirement {
     capability: "grid_obstacles_v1",
-    versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"],
+    versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
 };
-pub const FAN_CURVE: Requirement =
-    Requirement { capability: "fan_curve_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
-pub const POROUS_BLOCKS: Requirement =
-    Requirement { capability: "porous_blocks_v1", versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
-pub const CONJUGATE_HEAT: Requirement =
-    Requirement { capability: "conjugate_heat_v1", versions: &["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
-pub const SURFACE_BODIES: Requirement =
-    Requirement { capability: "surface_bodies_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
-pub const GOALS: Requirement = Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
-pub const NATURAL_CONVECTION: Requirement =
-    Requirement { capability: "natural_convection_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const FAN_CURVE: Requirement = Requirement {
+    capability: "fan_curve_v1",
+    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+};
+pub const POROUS_BLOCKS: Requirement = Requirement {
+    capability: "porous_blocks_v1",
+    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+};
+pub const CONJUGATE_HEAT: Requirement = Requirement {
+    capability: "conjugate_heat_v1",
+    versions: &["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+};
+pub const SURFACE_BODIES: Requirement = Requirement {
+    capability: "surface_bodies_v1",
+    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+};
+pub const GOALS: Requirement =
+    Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+pub const NATURAL_CONVECTION: Requirement = Requirement {
+    capability: "natural_convection_v1",
+    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+};
 /// Electrical, mechanics, particle, kinetic and coupled domain cases added in 0.7.0.
 pub const DOMAIN_CASES: Requirement =
-    Requirement { capability: "domain_cases_v1", versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+    Requirement { capability: "domain_cases_v1", versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// Contact resistance, two-resistor junctions, heat pipes and thermoelectric coolers (0.8.0).
 pub const THERMAL_DEVICES: Requirement =
-    Requirement { capability: "thermal_devices_v1", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+    Requirement { capability: "thermal_devices_v1", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// Global, point and equation goals (0.8.0).
 /// Explicit rectilinear mesh coordinates (local mesh refinement, 0.9.0).
-pub const LOCAL_MESH: Requirement = Requirement { capability: "local_mesh_v1", versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const LOCAL_MESH: Requirement =
+    Requirement { capability: "local_mesh_v1", versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// Per-face transferred boundary profiles (zoom-in from a parent run, 0.10.0).
-pub const TRANSFERRED: Requirement = Requirement { capability: "transferred_bc_v1", versions: &["0.10.0", "0.11.0", "0.12.0"] };
+pub const TRANSFERRED: Requirement = Requirement { capability: "transferred_bc_v1", versions: &["0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// Rotating regions, the multiple reference frame model (0.11.0).
-pub const ROTATING: Requirement = Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0"] };
+pub const ROTATING: Requirement = Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// PISO correctors that rebuild H(u)/a_P (stable at larger time steps, 0.11.0).
-pub const PISO_UPDATE: Requirement = Requirement { capability: "piso_neighbour_update_v1", versions: &["0.11.0", "0.12.0"] };
+pub const PISO_UPDATE: Requirement = Requirement { capability: "piso_neighbour_update_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 /// Internal fans: actuator blocks following a pressure-flow curve (0.12.0).
-pub const INTERNAL_FANS: Requirement = Requirement { capability: "internal_fans_v1", versions: &["0.12.0"] };
+pub const INTERNAL_FANS: Requirement = Requirement { capability: "internal_fans_v1", versions: &["0.12.0", "0.13.0", "0.14.0"] };
 /// Balanced-force pressure and body-force coupling (0.12.0).
-pub const BALANCED_FORCES: Requirement = Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0"] };
-pub const GOALS_V2: Requirement = Requirement { capability: "goals_v2", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0"] };
+pub const BALANCED_FORCES: Requirement = Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0", "0.13.0", "0.14.0"] };
+/// Boundary patches on parts of surface bodies: conditions on model faces (0.13.0).
+pub const BODY_FACE_CONDITIONS: Requirement = Requirement { capability: "body_face_conditions_v1", versions: &["0.13.0", "0.14.0"] };
+/// Cut cells for surface bodies (0.14.0).
+pub const CUT_CELLS: Requirement = Requirement { capability: "cut_cells_v1", versions: &["0.14.0"] };
+pub const GOALS_V2: Requirement =
+    Requirement { capability: "goals_v2", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
 
 /// Goal kinds added with `goals_v2`.
 pub const GOAL_KINDS_V2: &[&str] = &[
@@ -163,6 +180,12 @@ pub fn requirements(case: &Value) -> Vec<Requirement> {
     }
     if case.pointer("/config/balanced_body_force").and_then(Value::as_bool) == Some(true) {
         out.push(BALANCED_FORCES);
+    }
+    if nonempty_array(case, "face_conditions") {
+        out.push(BODY_FACE_CONDITIONS);
+    }
+    if case.get("cut_cells").and_then(Value::as_bool) == Some(true) {
+        out.push(CUT_CELLS);
     }
     out
 }
@@ -898,6 +921,14 @@ fn validate_goals(case: &Value) -> Result<()> {
         .filter_map(|o| o.get("name").and_then(Value::as_str).map(String::from))
         .collect();
     solids.extend(body_names(case));
+    // Patches on body faces (`body_face_conditions_v1`) are boundary patches like the exterior ones.
+    let face_patches: Vec<String> = case
+        .get("face_conditions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|c| c.get("name").and_then(Value::as_str).map(String::from))
+        .collect();
     let lengths: [Option<f64>; 3] = ["x", "y", "z"]
         .map(|axis| case.get("mesh").and_then(|mesh| mesh.get("lengths")).and_then(|lengths| lengths.get(axis)).and_then(Value::as_f64));
     let mut names = BTreeSet::new();
@@ -910,7 +941,7 @@ fn validate_goals(case: &Value) -> Result<()> {
             GoalKindInput::SolidMaxTemperature | GoalKindInput::SolidMeanTemperature => thermal && solids.contains(&goal.target),
             GoalKindInput::PatchHeatOut => thermal && EXTERIOR.contains(&goal.target.as_str()),
             GoalKindInput::PatchVolumeFlow | GoalKindInput::PatchMeanPressure => {
-                EXTERIOR.contains(&goal.target.as_str()) || solids.contains(&goal.target)
+                EXTERIOR.contains(&goal.target.as_str()) || solids.contains(&goal.target) || face_patches.contains(&goal.target)
             }
             GoalKindInput::GlobalMaxFluidTemperature | GoalKindInput::GlobalMeanFluidTemperature | GoalKindInput::GlobalMaxSolidTemperature => {
                 thermal
@@ -941,10 +972,10 @@ fn equation_refers_to_goals(expression: Option<&str>, goals: &[GoalInput]) -> bo
 }
 
 pub(crate) fn validate(case: &Value) -> Result<()> {
-    if let Some(update) = case.pointer("/config/piso_neighbour_update") {
-        if !update.is_boolean() {
-            return Err(Error::Invalid("config.piso_neighbour_update must be true or false".into()));
-        }
+    if let Some(update) = case.pointer("/config/piso_neighbour_update")
+        && !update.is_boolean()
+    {
+        return Err(Error::Invalid("config.piso_neighbour_update must be true or false".into()));
     }
     if let Some(rows) = case.get("rotating_regions").filter(|rows| !rows.is_null()) {
         validate_rotating(case, rows)?;

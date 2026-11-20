@@ -8,6 +8,9 @@ use serde_json::Value;
 use solidcraft_multiphysics::{Study, catalog as solver_catalog, preflight, templates};
 use std::sync::Arc;
 
+#[path = "multiphysics_model.rs"]
+mod model;
+
 pub static COMMANDS: &[CommandSpec] = &[
  CommandSpec::new("multiphysics.case.feature.prepare", "Prepare Multiphysics Feature", crate::checked!("multiphysics.case.feature.prepare", prepare_feature))
  .doc_only().noundo().icon("settings").contract(&TypedContract::<FeaturePrepare>::new()).output(output_schema_for::<solidcraft_multiphysics::authoring::PreparedFeature>)
@@ -72,6 +75,30 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.query", "Query Multiphysics Result", crate::checked!("multiphysics.result.query", query_result))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<solidcraft_multiphysics::results::QueryRequest>::new()).output(output_schema_for::<solidcraft_multiphysics::results::QueryResponse>)
         .params("id, run_id, query: {kind: probe|min_max|line|integrate|compare|goals|components, ...}. Probes interpolate inside cells and report the nearest cell outside; line samples outside the mesh have no value; integrals are measure weighted; compare needs identical meshes. Every answer carries the run's case hash and a stale flag."),
+    CommandSpec::new("multiphysics.model.create", "New Study of the Model", crate::checked!("multiphysics.model.create", model::create))
+        .doc_only().icon("new").contract(&TypedContract::<ModelCreate>::new()).output(output_schema_for::<ModelReply>)
+        .params("name; template? (a 3-D flow template whose fluid and solver settings it starts from, default flow-channel); analysis?: internal (fluid inside the bodies; the domain is their box and its faces are walls) | external (around them, with margin_mm); bodies? (names; default every body); margin_mm?; cell_mm? (default from the bodies). Builds the case from the design's bodies in one undo step; nothing runs."),
+    CommandSpec::new("multiphysics.model.set", "Change Study of the Model", crate::checked!("multiphysics.model.set", model::set))
+        .doc_only().icon("settings").contract(&TypedContract::<ModelSet>::new()).output(output_schema_for::<ModelReply>)
+        .params("id, expected_revision; any of analysis, bodies, margin_mm, cell_mm (0: automatic), cut_cells (keep the fluid part of the cells the bodies cut; companion 0.14.0). Builds the case again from the design in one undo step."),
+    CommandSpec::new("multiphysics.model.condition", "Condition on a Model Face", crate::checked!("multiphysics.model.condition", model::condition))
+        .doc_only().icon("settings").contract(&TypedContract::<ModelCondition>::new()).output(output_schema_for::<ModelReply>)
+        .params("id, expected_revision, name; face: {body, face (its name) | point [x,y,z] mm on it}; role: {kind: inlet, speed_m_per_s} | {kind: outlet, pressure_m2_per_s2} | {kind: wall} | {kind: symmetry}; or remove: true. The face must be planar and lie on the computational domain's boundary (a vent's outer face in an internal study). Builds the case again in one undo step."),
+    CommandSpec::new("multiphysics.model.build", "Rebuild Study from the Model", crate::checked!("multiphysics.model.build", model::build))
+        .doc_only().icon("refresh").contract(&TypedContract::<StudyId>::new()).output(output_schema_for::<ModelReply>)
+        .params("id. Builds the case again from the design as it is now (after a model edit), in one undo step."),
+    CommandSpec::new("multiphysics.model.status", "Study of the Model Status", crate::checked!("multiphysics.model.status", model::status))
+        .doc_only().noundo().icon("inspect").contract(&TypedContract::<StudyId>::new()).output(output_schema_for::<ModelStatus>)
+        .params("id. Whether the study's case was built from the design as it is now, or why it cannot be built."),
+    CommandSpec::new("multiphysics.model.refine", "Refine Mesh Around the Model", crate::checked!("multiphysics.model.refine", model::refine))
+        .doc_only().icon("mesh_body").contract(&TypedContract::<ModelRefine>::new()).output(output_schema_for::<ModelReply>)
+        .params("id, expected_revision, name; body (a body's name) or face: {body, face | point}; factor? 2..4 (default 2); margin_cells? 0..64 (default 1); or remove: true. Splits the cells around the target (local mesh, companion 0.9.0 or later), then fits the time step to the smallest cells. Builds the case again in one undo step."),
+    CommandSpec::new("multiphysics.model.goal", "Goal on the Model", crate::checked!("multiphysics.model.goal", model::goal))
+        .doc_only().icon("checkpoint").contract(&TypedContract::<ModelGoalInput>::new()).output(output_schema_for::<ModelReply>)
+        .params("id, expected_revision, name (letters, digits, underscores); kind: face_volume_flow | face_mean_pressure (with face: {body, face | point}) | point_pressure (with point_mm) | equation (with expression naming other goals); or remove: true. A face goal reads the face's condition patch, the domain side it lies on, or a wall patch made on its body. Builds the case again in one undo step."),
+    CommandSpec::new("multiphysics.model.leak", "Find a Leak in the Model", crate::checked!("multiphysics.model.leak", model::leak))
+        .doc_only().noundo().icon("inspect").contract(&TypedContract::<ModelLeak>::new()).output(output_schema_for::<ModelLeakReply>)
+        .params("id, from, to: two faces of the model, each {body, point: [x,y,z] mm on it}, such as a face inside an enclosure and one outside it. Each end steps half a cell off its face to the fluid side. Returns the shortest path through the fluid cells of the study's built case, or connected: false when no fluid joins them. Use External with a margin so the outside has fluid."),
     CommandSpec::new("multiphysics.study.compare", "Compare Multiphysics Studies", crate::checked!("multiphysics.study.compare", compare_studies))
         .doc_only().noundo().icon("list").contract(&TypedContract::<CompareStudies>::new()).output(output_schema_for::<solidcraft_multiphysics::results::MetricTable>)
         .params("ids: studies to tabulate (empty for all). Returns every manifest metric of each study's latest retained run, aligned by name, for sweep and what-if comparison."),
@@ -189,6 +216,15 @@ fn check(session: &mut Session, params: &Value) -> Result<Value> {
 }
 fn start(session: &mut Session, params: &Value) -> Result<Value> {
     let input: StudyId = parse(params)?;
+    if selected(session, &input.id)?.model.is_some() {
+        match model::current(session, &input.id)?.1 {
+            Ok(true) => {}
+            Ok(false) => {
+                return Err(bad("id", "the model changed since this study's case was built; rebuild it (multiphysics.model.build) before running"));
+            }
+            Err(problem) => return Err(bad("id", format!("the study cannot be built from the model: {problem}"))),
+        }
+    }
     reply(session.start_multiphysics_run(&input.id)?)
 }
 fn status(session: &mut Session, params: &Value) -> Result<Value> {

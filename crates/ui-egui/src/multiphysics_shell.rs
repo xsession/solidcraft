@@ -567,6 +567,7 @@ fn groups(app: &SolveApp, state: &State, study: Option<&Study>, tab: usize) -> V
             vec![
                 cmd("wizard", "multiphysics.cmd_wizard", "new", true),
                 cmd("create", "multiphysics.cmd_new_project", "plus", true),
+                cmd("model_study", "multiphysics.cmd_model_study", "box", true),
                 cmd("clone", "multiphysics.menu_clone", "copy", has_study),
                 cmd("general", "multiphysics.cmd_general_settings", "settings", has_study),
                 cmd("component_control", "multiphysics.tree_component_control", "component", has_study),
@@ -787,7 +788,7 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
             .iter()
             .enumerate()
             .map(|(gi, (key, _, commands))| ribbon::Group {
-                key: *key,
+                key,
                 name: group_labels.get(gi).copied().unwrap_or_default(),
                 label: group_labels.get(gi).copied().unwrap_or_default(),
                 tip: group_labels.get(gi).copied().unwrap_or_default(),
@@ -841,10 +842,10 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
     let drawn = ribbon::show(ui, &row, panel_rect, &mut |_, _| false);
     let mut chosen = Vec::new();
     for button in &drawn.buttons {
-        if let Some(command) = groups.get(button.group).and_then(|(_, _, commands)| commands.get(button.index)) {
-            if command.id == "monitor" {
-                crate::scenario::publish_target("multiphysics.stage_run", button.whole);
-            }
+        if let Some(command) = groups.get(button.group).and_then(|(_, _, commands)| commands.get(button.index))
+            && command.id == "monitor"
+        {
+            crate::scenario::publish_target("multiphysics.stage_run", button.whole);
         }
     }
     for action in drawn.actions {
@@ -856,8 +857,6 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
         run(app, state, studies, &id);
     }
 }
-
-/// The result tools that are listed but not built yet.
 
 /// What a ribbon command does.
 fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
@@ -877,6 +876,15 @@ fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
             state.wizard = Some(Wizard::default());
         }
         "create" => create_from_template(app, state, None),
+        "model_study" => {
+            let name = solidcraft_ui_text::format("multiphysics.model_study_name", &[("design", &app.session.doc.name)]);
+            if let Some(reply) = command(app, state, "multiphysics.model.create", json!({"name":name})) {
+                state.selected = reply["study"]["id"].as_str().map(str::to_string);
+                state.selected_run = None;
+                state.model_ui.last_build = state.selected.clone().map(|id| (id, reply));
+                select(state, Node::Project);
+            }
+        }
         "clone" => {
             if let Some(study) = study
                 && let Some(reply) = command(app, state, "multiphysics.study.clone", json!({"id":study.id}))
@@ -929,6 +937,12 @@ fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
 /// Run the committed case when it can run; the solver monitor opens either way, so the reason it
 /// did not start is in front of the person.
 pub(super) fn start_run(app: &mut SolveApp, state: &mut State, study: &Study) {
+    // A study of the loaded model runs on the model as it is now.
+    if !super::model_ui::ensure_current(app, state, study) {
+        state.show_monitor = true;
+        return;
+    }
+    let study = &app.session.doc.multiphysics.study(&study.id).cloned().unwrap_or_else(|| study.clone());
     let report = state.study_preflight(&app.session.doc.multiphysics.clone(), study);
     let ready =
         Readiness::for_study(study, state.drafts.get(&study.id), app.session.multiphysics_host_available(), report.errors.is_empty()).can_run();
@@ -1015,14 +1029,15 @@ pub(super) fn resource_bar(state: &mut State, ui: &mut egui::Ui) {
 }
 
 /// What a tree row asks for.
-enum TreeAction {
+pub(super) enum TreeAction {
     Select(String, Node),
     /// Open the Goals panel with the given goal kind picked for Add.
     InsertGoal(String, &'static str),
     /// Toggle the basic mesh (grid lines) in the graphics window.
     ShowBasicMesh(String),
     Entry(String, Node, String),
-    Artifact(String, Node, usize),
+    /// Study, folder, run and the artifact's index in that run.
+    Artifact(String, Node, String, usize),
     Fold(&'static str),
     Run(String),
     Clone(String),
@@ -1381,11 +1396,11 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                         let response = row(ui, 3, None, folder.icon(), name, picked, true, false);
                         crate::scenario::publish_target(&format!("multiphysics:tree_result:{name}"), response.rect);
                         if response.clicked() {
-                            actions.push(TreeAction::Artifact(study.id.clone(), folder, index));
+                            actions.push(TreeAction::Artifact(study.id.clone(), folder, run.id.clone(), index));
                         }
                         crate::ui_kit::Menu::context(&response, |ui| {
                             if menu_item(ui, "multiphysics.tree_show") {
-                                actions.push(TreeAction::Artifact(study.id.clone(), folder, index));
+                                actions.push(TreeAction::Artifact(study.id.clone(), folder, run.id.clone(), index));
                             }
                             if menu_item(ui, "multiphysics.cmd_export_results") {
                                 actions.push(TreeAction::Select(study.id.clone(), Node::Report));
@@ -1456,7 +1471,7 @@ fn entry_menu(response: &egui::Response, study: &Study, studies: &[Study], folde
     });
 }
 
-fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: &[Study], action: TreeAction, ctx: &egui::Context) {
+pub(super) fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: &[Study], action: TreeAction, ctx: &egui::Context) {
     let activate = |state: &mut State, id: String| {
         if state.selected.as_ref() != Some(&id) {
             state.selected_run = None;
@@ -1488,10 +1503,14 @@ fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: &[Study], a
             select(state, node);
             state.entry = Some(pointer);
         }
-        TreeAction::Artifact(id, node, index) => {
+        TreeAction::Artifact(id, node, run, index) => {
             activate(state, id);
             state.ribbon_tab = 1;
             select(state, node);
+            // The row named this run's file: show that run as already shown, or the Results
+            // view would reset the file to its first when it first draws the run.
+            state.selected_run = Some(run.clone());
+            state.shown_run = Some(run);
             state.selected_artifact = index;
         }
         TreeAction::Fold(key) => match key {
@@ -1786,6 +1805,24 @@ fn feature(
     node: Node,
     ui: &mut egui::Ui,
 ) {
+    // A study of the loaded model is set up on the model itself: where the fluid is, the
+    // grid and the conditions on its faces.
+    // Its mesh and goals have their own nodes, as in the analysis tree of a flow tool.
+    if study.model.is_some() && node == Node::Mesh {
+        super::model_ui::mesh_panel(app, state, study, ui);
+        return;
+    }
+    if study.model.is_some() && node == Node::Goals {
+        super::model_ui::goals_panel(app, state, study, ui);
+        return;
+    }
+    if study.model.is_some() && matches!(node, Node::Project | Node::General | Node::Domain | Node::Boundary) {
+        super::model_ui::panel(app, state, study, ui);
+        if node != Node::Project {
+            return;
+        }
+        ui.separator();
+    }
     match node {
         Node::Project => {
             inspector(app, state, Some(study), report, ui);
@@ -1857,6 +1894,7 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
             // A 3-D airflow case is drawn as itself, with its domain, parts and face roles,
             // and picked in place; anything else (and "Show CAD model") is the CAD window.
             if let Some(study) = study
+                && study.model.is_none()
                 && node.stage() != Stage::Results
                 && let Some(text) = state.drafts.get(&study.id).map(|draft| draft.case_text.clone())
                 && crate::multiphysics_case_view::drawable(&mut state.case_view, &text)
@@ -1886,6 +1924,12 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
                 offer_case = true;
             }
             crate::viewport::show(app, ui);
+            // A study of the loaded model draws its domain and conditions over the model.
+            if let Some(study) = study
+                && study.model.is_some()
+            {
+                super::model_ui::overlay(app, state, study, ui, rect);
+            }
             // Drawn after the CAD window so it stays on top of it.
             if offer_case {
                 let corner = Rect::from_min_size(rect.min + vec2(t.space_8, t.space_8), vec2(260.0, t.control_height + t.space_4));

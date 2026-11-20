@@ -794,6 +794,26 @@ impl Body {
         dists.into_iter().enumerate().filter_map(|(f, row)| Some((row.first().copied().flatten()?, f))).min_by(|a, b| a.0.total_cmp(&b.0))
     }
 
+    /// For each point, the face of `self` nearest it by exact distance, in one pass over the
+    /// faces (`None` where no face is within reach); `None` for a mesh or empty body.
+    pub fn nearest_faces(&self, points: &[Vec3]) -> Option<Vec<Option<usize>>> {
+        let (ops, order) = self.ops_body()?;
+        let reach = self.size().max(1.0) * 100.0;
+        let at: Vec<[f64; 3]> = points.iter().map(|p| [p.x, p.y, p.z]).collect();
+        let dists = ops.face_distances_within(order, &at, reach).ok()?;
+        let mut best: Vec<Option<(f64, usize)>> = vec![None; points.len()];
+        for (f, row) in dists.into_iter().enumerate() {
+            for (slot, d) in best.iter_mut().zip(row) {
+                if let Some(d) = d
+                    && slot.is_none_or(|(e, _)| d < e)
+                {
+                    *slot = Some((d, f));
+                }
+            }
+        }
+        Some(best.into_iter().map(|b| b.map(|(_, f)| f)).collect())
+    }
+
     /// Certify the two caps of a body built by [`crate::cylinder`]. Its wall stays uncertified.
     pub fn with_cylinder_certificate(mut self, producer: u64) -> Result<Self> {
         if producer == 0 {

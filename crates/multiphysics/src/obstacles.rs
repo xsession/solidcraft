@@ -75,5 +75,11 @@ pub(crate) fn validate(case: &Value) -> Result<()> {
         }
         obstacles.push(obstacle);
     }
+    // Obstacles never overlap, so their cells add up; at the grid's count no fluid is left
+    // and the companion refuses the case. Catch that in the structural check instead.
+    let blocked = obstacles.iter().map(|o| (0..3).map(|a| o.max[a] - o.min[a]).product::<u64>()).sum::<u64>();
+    if blocked >= cells {
+        return Err(Error::Invalid("obstacles remove every fluid cell; leave fluid around them (a margin, or smaller cells)".into()));
+    }
     Ok(())
 }

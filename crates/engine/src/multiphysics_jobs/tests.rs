@@ -370,3 +370,168 @@ fn cad_bodies_become_case_parts_without_touching_the_document() {
     assert_eq!(reply["edit"]["case"]["obstacles"][0]["max"], json!(dimensions.iter().map(|n| n - 2).collect::<Vec<_>>()));
     assert!(s.execute("multiphysics.case.component.import", &json!({"case":case,"bodies":["missing"]})).is_err());
 }
+
+/// A square duct along x: 100 mm long, 40 × 40 mm outside, 4 mm walls, open at both ends.
+fn duct_session() -> Session {
+    let mut s = Session::default();
+    s.execute("solid.box", &json!({"length":100,"width":40,"height":40,"center":[50,20,20],"body_name":"Duct"})).unwrap();
+    s.execute("solid.box", &json!({"length":120,"width":32,"height":32,"center":[50,20,20],"operation":"cut"})).unwrap();
+    s
+}
+
+#[test]
+fn a_study_of_the_model_builds_from_the_design_and_follows_its_edits() {
+    let mut s = duct_session();
+    let reply = s.execute("multiphysics.model.create", &json!({"name":"Duct flow","cell_mm":4.0})).unwrap();
+    let id = reply["study"]["id"].as_str().unwrap().to_string();
+    // The domain is the duct's exact box in 4 mm cells, and its 4 mm walls are one cell each,
+    // so the grid holds the duct's 100 × (40² − 32²) = 57 600 mm³ exactly.
+    assert_eq!(reply["study"]["case"]["mesh"]["dimensions"], json!([25, 10, 10]), "{reply}");
+    assert!((reply["solid_fraction"].as_f64().unwrap() - 1.0).abs() < 1e-6, "{reply}");
+    assert_eq!(reply["study"]["model"]["analysis"], "internal");
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    // Conditions go on the duct's end faces, picked by a point on each.
+    let inlet = json!({"id":id,"expected_revision":revision(&s),"name":"Inlet","face":{"body":"Duct","point":[0.0,20.0,2.0]},"role":{"kind":"inlet","speed_m_per_s":0.5}});
+    s.execute("multiphysics.model.condition", &inlet).unwrap();
+    let outlet = json!({"id":id,"expected_revision":revision(&s),"name":"Outlet","face":{"body":"Duct","point":[100.0,20.0,2.0]},"role":{"kind":"outlet","pressure_m2_per_s2":0.0}});
+    let reply = s.execute("multiphysics.model.condition", &outlet).unwrap();
+    assert_eq!(reply["placed"], json!([["Inlet", "left"], ["Outlet", "right"]]), "{reply}");
+    assert_eq!(reply["notes"], json!([]), "{reply}");
+    // A face inside the domain (the channel's wall at y = 4 mm) becomes a patch on the duct
+    // itself: exactly its triangles, every one on that plane.
+    let inside = json!({"id":id,"expected_revision":revision(&s),"name":"Side","face":{"body":"Duct","point":[50.0,4.0,20.0]},"role":{"kind":"outlet","pressure_m2_per_s2":0.0}});
+    let side = s.execute("multiphysics.model.condition", &inside).unwrap();
+    assert_eq!(side["placed"][2], json!(["Side", "Side"]), "{side}");
+    let condition = &side["study"]["case"]["face_conditions"][0];
+    assert_eq!(condition["body"], "Duct");
+    let body = side["study"]["case"]["bodies"].as_array().unwrap().iter().find(|b| b["name"] == "Duct").unwrap().clone();
+    let triangles = condition["triangles"].as_array().unwrap();
+    assert!(!triangles.is_empty());
+    for t in triangles {
+        for v in body["triangles"][t.as_u64().unwrap() as usize].as_array().unwrap() {
+            // Case coordinates are metres from the domain origin at the duct's corner.
+            let y = body["vertices"][v.as_u64().unwrap() as usize][1].as_f64().unwrap();
+            assert!((y - 0.004).abs() < 1e-9, "triangle {t} leaves the face: y = {y}");
+        }
+    }
+    // Remove it again: the two end conditions stay.
+    let remove = json!({"id":id,"expected_revision":revision(&s),"name":"Side","remove":true});
+    assert_eq!(s.execute("multiphysics.model.condition", &remove).unwrap()["placed"], reply["placed"]);
+    // The case matches the model; editing the design makes it out of date and Run refuses.
+    assert_eq!(s.execute("multiphysics.model.status", &json!({"id":id})).unwrap()["current"], true);
+    s.execute("solid.box", &json!({"length":10,"width":10,"height":10,"center":[50,60,20],"operation":"new","body_name":"Block"})).unwrap();
+    let status = s.execute("multiphysics.model.status", &json!({"id":id})).unwrap();
+    assert_eq!(status["current"], false, "{status}");
+    let why = s.execute("multiphysics.run.start", &json!({"id":id})).unwrap_err().to_string();
+    assert!(why.contains("model changed"), "{why}");
+    // Building again takes the new body in (the box now reaches y = 65 mm) and is undoable.
+    let rebuilt = s.execute("multiphysics.model.build", &json!({"id":id})).unwrap();
+    assert_eq!(s.execute("multiphysics.model.status", &json!({"id":id})).unwrap()["current"], true);
+    assert_ne!(rebuilt["study"]["case"]["mesh"], reply["study"]["case"]["mesh"]);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc.multiphysics.study(&id).unwrap().case, reply["study"]["case"]);
+    // The link and its conditions survive saving and reopening.
+    let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+    assert_eq!(reopened.multiphysics, s.doc.multiphysics);
+}
+
+#[test]
+fn a_study_of_the_model_needs_solid_bodies_and_named_faces() {
+    let mut s = Session::default();
+    let why = s.execute("multiphysics.model.create", &json!({"name":"Empty"})).unwrap_err().to_string();
+    assert!(why.contains("no bodies"), "{why}");
+    assert!(s.doc.multiphysics.studies.is_empty());
+    let mut s = duct_session();
+    let why = s.execute("multiphysics.model.create", &json!({"name":"Missing","bodies":["Nope"]})).unwrap_err().to_string();
+    assert!(why.contains("no body called Nope"), "{why}");
+    assert!(s.doc.multiphysics.studies.is_empty());
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Duct","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = s.doc.multiphysics.study(&id).unwrap().revision;
+    let far = json!({"id":id,"expected_revision":revision,"name":"In","face":{"body":"Duct","point":[0.0,20.0,500.0]},"role":{"kind":"wall"}});
+    let why = s.execute("multiphysics.model.condition", &far).unwrap_err().to_string();
+    assert!(why.contains("pick a point on the face"), "{why}");
+    let plain = s.execute("multiphysics.study.create", &json!({"template":"flow-channel","name":"Plain"})).unwrap()["study"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let why = s.execute("multiphysics.model.build", &json!({"id":plain})).unwrap_err().to_string();
+    assert!(why.contains("not a study of the loaded model"), "{why}");
+}
+
+#[test]
+fn a_leak_path_finds_the_open_ends_of_a_duct_and_none_once_they_are_capped() {
+    let mut s = duct_session();
+    let reply = s.execute("multiphysics.model.create", &json!({"name":"Leak","analysis":"external","margin_mm":12.0,"cell_mm":4.0})).unwrap();
+    let id = reply["study"]["id"].as_str().unwrap().to_string();
+    // From the channel's wall (y = 4 mm, inside) to the duct's outer wall (y = 0, outside):
+    // the fluid joins them round the open ends, so the path leaves through x < 0 or x > 100.
+    let leak = json!({"id":id,"from":{"body":"Duct","point":[50.0,4.0,20.0]},"to":{"body":"Duct","point":[50.0,0.0,20.0]}});
+    let found = s.execute("multiphysics.model.leak", &leak).unwrap();
+    assert_eq!(found["connected"], true, "{found}");
+    let path = found["path_mm"].as_array().unwrap();
+    assert!(
+        path.iter().any(|p| {
+            let x = p[0].as_f64().unwrap();
+            !(0.0..=100.0).contains(&x)
+        }),
+        "{found}"
+    );
+    // The start is half a cell off the inner wall, on the channel side, not through the wall.
+    assert!(path[0][1].as_f64().unwrap() > 4.0, "{found}");
+    // Cap both ends with 4 mm plates: the inside is sealed.
+    for x in [-2.0, 102.0] {
+        s.execute("solid.box", &json!({"length":4,"width":40,"height":40,"center":[x,20,20],"operation":"new"})).unwrap();
+    }
+    let reply = s.execute("multiphysics.model.build", &json!({"id":id})).unwrap();
+    assert_eq!(reply["issues"], json!([]), "{reply}");
+    let sealed = s.execute("multiphysics.model.leak", &leak).unwrap();
+    assert_eq!(sealed["connected"], false, "{sealed}");
+}
+
+#[test]
+fn a_study_of_the_model_refines_around_faces_and_monitors_goals_on_them() {
+    let mut s = duct_session();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Goals","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let face = |point: [f64; 3]| json!({"body":"Duct","point":point});
+    for (name, point, role) in [
+        ("Inlet", [0.0, 20.0, 2.0], json!({"kind":"inlet","speed_m_per_s":0.05})),
+        ("Outlet", [100.0, 20.0, 2.0], json!({"kind":"outlet","pressure_m2_per_s2":0.0})),
+    ] {
+        s.execute("multiphysics.model.condition", &json!({"id":id,"expected_revision":revision(&s),"name":name,"face":face(point),"role":role}))
+            .unwrap();
+    }
+    // Smaller cells along the channel's wall at y = 4 mm: its two y cells split (10 → 12), the
+    // wall's whole length (25 → 50) and its 8 z cells from 4 to 36 mm (10 → 18).
+    let refined = s
+        .execute(
+            "multiphysics.model.refine",
+            &json!({"id":id,"expected_revision":revision(&s),"name":"Wall","face":face([50.0, 4.0, 20.0]),"factor":2,"margin_cells":0.0}),
+        )
+        .unwrap();
+    assert_eq!(refined["study"]["case"]["mesh"]["dimensions"], json!([50, 12, 18]), "{refined}");
+    // Goals on the inlet's face, on the wall (no condition there) and at a point, and their sum.
+    for goal in [
+        json!({"name":"inflow","kind":"face_volume_flow","face":face([0.0, 20.0, 2.0])}),
+        json!({"name":"wall_p","kind":"face_mean_pressure","face":face([50.0, 4.0, 20.0])}),
+        json!({"name":"mid_p","kind":"point_pressure","point_mm":[50.0, 20.0, 20.0]}),
+        json!({"name":"both","kind":"equation","expression":"wall_p + mid_p"}),
+    ] {
+        let mut params = goal;
+        params["id"] = json!(id);
+        params["expected_revision"] = json!(revision(&s));
+        s.execute("multiphysics.model.goal", &params).unwrap();
+    }
+    let case = s.doc.multiphysics.study(&id).unwrap().case.clone();
+    let target = |name: &str| case["goals"].as_array().unwrap().iter().find(|g| g["name"] == name).map(|g| g["target"].clone());
+    assert_eq!(target("inflow"), Some(json!("left")));
+    assert_eq!(target("wall_p"), Some(json!("goal_wall_p")));
+    assert_eq!(case["face_conditions"][0]["name"], "goal_wall_p");
+    // The point is in case metres from the domain origin at the duct's corner.
+    let mid = case["goals"].as_array().unwrap().iter().find(|g| g["name"] == "mid_p").unwrap()["point"].clone();
+    assert_eq!(mid, json!([0.05, 0.02, 0.02]));
+    // Removing the refinement goes back to the uniform 4 mm grid.
+    let back = s.execute("multiphysics.model.refine", &json!({"id":id,"expected_revision":revision(&s),"name":"Wall","remove":true})).unwrap();
+    assert_eq!(back["study"]["case"]["mesh"]["dimensions"], json!([25, 10, 10]));
+    assert_eq!(back["study"]["case"]["mesh"].get("coordinates"), None);
+}

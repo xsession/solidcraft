@@ -1,4 +1,30 @@
-# cfd-solvers-rs 0.12.0
+# cfd-solvers-rs 0.14.0
+
+## Cut cells (0.14.0)
+
+`collocated_flow3d` cases with surface bodies may set `"cut_cells": true` (`cut_cells_v1`). A cell
+the surface crosses keeps its fluid instead of becoming solid or fluid whole: each connected piece
+of fluid in it (a wall thinner than the cell splits it in two) is a solver cell with its own volume
+and centroid, grid faces keep the open area between the pieces they join, and each piece gets a
+wall face where the surface cuts it. A thin wall therefore still separates the fluid on its sides. They are
+measured on a lattice up to 8 times finer per axis, classified with the same exact winding rule as
+the staircase, so volumes and open areas are within half a sub-cell (they converge like 1/8 of a
+cell, not exactly). Each cut cell's wall face is minus the sum of its open faces' area vectors, so
+every cell is closed. Cells under 30 % fluid merge into the neighbour they share the most open area
+with. `mesh_report.json` gives the represented and exact fluid volume. Body face conditions work on
+the cut walls. Not yet combined with conjugate heat, transferred conditions, rotating regions,
+internal fans, porous blocks or an external fan (refused). The VTU shows each cell as its grid box.
+
+## Conditions on body faces (0.13.0)
+
+`collocated_flow3d` cases may list `face_conditions` (`body_face_conditions_v1`):
+`{"name": "vent", "body": "housing", "triangles": [12, 13]}`. Of the surface body's solid-to-fluid
+grid faces, those whose nearest body triangle is one of `triangles` (exact point-triangle
+distance) form the boundary patch `name`; velocity and pressure conditions name it like any other
+patch, so a face of a model can be an inlet or an outlet inside the domain. The rest of the body
+stays a no-slip wall. Names are ASCII identifiers distinct from the exterior patches and solids;
+a triangle belongs to at most one condition; a condition must reach at least one grid face. Not
+yet combined with conjugate heat transfer (refused).
 
 ## Internal fans (0.12.0)
 

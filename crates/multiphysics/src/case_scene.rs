@@ -174,7 +174,7 @@ fn flow_case(case: &Value) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn grid(case: &Value) -> Result<([usize; 3], [f64; 3])> {
+pub fn grid(case: &Value) -> Result<([usize; 3], [f64; 3])> {
     flow_case(case)?;
     let dimensions: [usize; 3] = serde_json::from_value(case.pointer("/mesh/dimensions").cloned().unwrap_or(Value::Null))
         .map_err(|_| bad("the 3-D case view needs three mesh dimensions"))?;
@@ -828,6 +828,12 @@ pub struct ImportOptions {
     /// records and goals) first.
     #[serde(default)]
     pub replace_parts: bool,
+    /// With `fit_domain`, the exact domain box (CAD mm) instead of the bodies' tessellated box
+    /// plus the margin. The domain then keeps that size exactly, with whole cells along each
+    /// axis (their sizes may differ slightly between axes), so walls on the box stay on the
+    /// domain boundary.
+    #[serde(default)]
+    pub domain_mm: Option<[[f64; 3]; 2]>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -877,6 +883,88 @@ fn volume(vertices: &[[f64; 3]], triangles: &[[usize; 3]]) -> f64 {
         / 6.0
 }
 
+/// Smallest positive bounding-box extent of any body (mm), or infinity without one.
+fn thinnest_extent(objects: &[MeshObject]) -> f64 {
+    objects
+        .iter()
+        .flat_map(|object| {
+            let (low, high) = bounds_of(&object.vertices);
+            [0, 1, 2].map(|a| high[a] - low[a])
+        })
+        .filter(|extent| extent.is_finite() && *extent > 0.0)
+        .fold(f64::INFINITY, f64::min)
+}
+
+/// Largest speed the case prescribes (initial field and fixed-value inlets), in m/s.
+fn prescribed_speed(case: &Value) -> f64 {
+    let magnitude = |v: &Value| {
+        let parts = ["x", "y", "z"].map(|axis| v.get(axis).and_then(Value::as_f64).unwrap_or(0.0));
+        let speed = parts.iter().map(|p| p * p).sum::<f64>().sqrt();
+        if speed.is_finite() { speed } else { 0.0 }
+    };
+    let inlets = case.get("velocity_boundaries").and_then(Value::as_array).into_iter().flatten().map(|row| magnitude(&row["value"]));
+    inlets.chain(case.get("initial_velocity").map(magnitude)).fold(0.0, f64::max)
+}
+
+/// After a refit, the case's time step was chosen for its old, usually much coarser cells; on
+/// the new ones it can be far past what the PISO steps converge with (the momentum solve then
+/// fails). Divide it by a whole factor until it is within the 3-D explicit limits, with a 0.8
+/// safety factor: diffusion ν·dt·Σ 1/h² ≤ ½ and Courant u·dt·Σ 1/h ≤ 1 over the three axes'
+/// smallest cells. Take that many more steps so the simulated time stays, as far as the step
+/// limits allow.
+pub(crate) fn fit_time_step(case: &mut Value, notes: &mut Vec<String>) {
+    const SAFETY: f64 = 0.8;
+    if case.get("solver").and_then(Value::as_str) != Some("collocated_flow3d") {
+        return;
+    }
+    let Some(dt) = case.pointer("/config/dt").and_then(Value::as_f64).filter(|dt| dt.is_finite() && *dt > 0.0) else { return };
+    let Ok(grid_nodes) = nodes(case) else { return };
+    let widths = grid_nodes.clone().map(|axis| axis.windows(2).map(|w| w[1] - w[0]).fold(f64::INFINITY, f64::min));
+    if widths.iter().any(|h| !(h.is_finite() && *h > 0.0)) {
+        return;
+    }
+    let h = widths.iter().copied().fold(f64::INFINITY, f64::min);
+    let nu = case.pointer("/config/kinematic_viscosity").and_then(Value::as_f64).filter(|nu| nu.is_finite() && *nu > 0.0);
+    let speed = prescribed_speed(case);
+    let mut limit = f64::INFINITY;
+    if let Some(nu) = nu {
+        limit = limit.min(SAFETY * 0.5 / (nu * widths.iter().map(|h| 1.0 / (h * h)).sum::<f64>()));
+    }
+    if speed > 0.0 {
+        limit = limit.min(SAFETY / (speed * widths.iter().map(|h| 1.0 / h).sum::<f64>()));
+    }
+    if !(limit.is_finite() && dt > limit) {
+        return;
+    }
+    // A ratio that is a whole number up to rounding needs exactly that many steps.
+    let factor = (dt / limit - 1e-9).ceil().max(1.0).min(crate::MAX_STEPS as f64) as u64;
+    if factor <= 1 {
+        return;
+    }
+    let new_dt = dt / factor as f64;
+    case["config"]["dt"] = json!(new_dt);
+    let mut note = format!("the time step was cut from {dt:e} s to {new_dt:e} s for {:.3} mm cells", h * 1000.0);
+    if let Some(steps) = case.pointer("/output/steps").and_then(Value::as_u64) {
+        let cells = grid_nodes.iter().map(|axis| axis.len().saturating_sub(1) as u64).product::<u64>().max(1);
+        let most = crate::MAX_STEPS.min(crate::MAX_WORK / cells).max(1);
+        let new_steps = steps.saturating_mul(factor).min(most);
+        case["output"]["steps"] = json!(new_steps);
+        if let Some(interval) = case.pointer("/output/output_interval").and_then(Value::as_u64) {
+            case["output"]["output_interval"] = json!(interval.saturating_mul(factor).clamp(1, new_steps));
+        }
+        if new_steps == steps.saturating_mul(factor) {
+            note.push_str(&format!(", with {new_steps} steps for the same simulated time"));
+        } else {
+            note.push_str(&format!(
+                "; the step limit allows {new_steps} steps, so it simulates {:e} s instead of {:e} s",
+                new_steps as f64 * new_dt,
+                steps as f64 * dt
+            ));
+        }
+    }
+    notes.push(note);
+}
+
 /// Bring CAD bodies (an OBJ export in millimetres) into the case as grid blocks or surface
 /// bodies, placing them by `origin_mm` or fitting the domain around them. A body with the same
 /// case name as an existing part replaces that part's geometry and keeps its material.
@@ -892,16 +980,32 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
         if !(options.margin_mm.is_finite() && options.margin_mm >= 0.0) {
             return Err(bad("the margin must be zero or positive"));
         }
-        let origin = low.map(|v| v - options.margin_mm);
-        let size = [0, 1, 2].map(|a| (high[a] - low[a] + 2.0 * options.margin_mm) / 1000.0);
+        let (origin, size) = match options.domain_mm {
+            Some([min, max]) if (0..3).all(|a| min[a].is_finite() && max[a].is_finite()) => (min, [0, 1, 2].map(|a| (max[a] - min[a]) / 1000.0)),
+            Some(_) => return Err(bad("the domain box must be finite")),
+            None => (low.map(|v| v - options.margin_mm), [0, 1, 2].map(|a| (high[a] - low[a] + 2.0 * options.margin_mm) / 1000.0)),
+        };
         if size.iter().any(|v| !(v.is_finite() && *v > 0.0)) {
             return Err(bad("the bodies and margin give the domain no size; add a margin for flat bodies"));
         }
         let budget = dimensions.iter().product::<usize>().clamp(1, crate::MAX_CELLS as usize) as f64;
+        let thinnest = thinnest_extent(&objects) / 1000.0;
         let mut h = match options.cell_mm {
             Some(cell) if cell.is_finite() && cell > 0.0 => cell / 1000.0,
             Some(_) => return Err(bad("the cell size must be positive")),
-            None => (size[0] * size[1] * size[2] / budget).cbrt(),
+            // The case's cell count alone can leave a body thinner than one cell, or the
+            // margin without a fluid cell. Resolve the thinnest body with two cells and the
+            // margin with one; the cell limit below coarsens again when that is too many.
+            None => {
+                let mut h = (size[0] * size[1] * size[2] / budget).cbrt();
+                if thinnest.is_finite() && thinnest > 0.0 {
+                    h = h.min(thinnest / 2.0);
+                }
+                if options.margin_mm > 0.0 {
+                    h = h.min(options.margin_mm / 1000.0);
+                }
+                h
+            }
         };
         let count = |h: f64| size.map(|l| ((l / h) - 1e-9).ceil().max(1.0) as usize);
         let mut fitted = count(h);
@@ -911,9 +1015,21 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
             fitted = count(h);
             guard += 1;
         }
-        // The domain is whole cells: grow it to dimensions × h, centred on the bodies.
-        let fitted_lengths = fitted.map(|n| n as f64 * h);
-        let origin = [0, 1, 2].map(|a| origin[a] - (fitted_lengths[a] - size[a]) * 500.0);
+        if thinnest.is_finite() && thinnest < 2.0 * h {
+            notes.push(format!(
+                "the thinnest body ({:.3} mm) spans fewer than two {:.3} mm cells; set a smaller cell size to resolve it",
+                thinnest * 1000.0,
+                h * 1000.0
+            ));
+        }
+        // The domain is whole cells: grow it to dimensions × h, centred on the bodies, or keep
+        // an exact box and divide it into whole cells.
+        let (fitted_lengths, origin) = if options.domain_mm.is_some() {
+            (size, origin)
+        } else {
+            let grown = fitted.map(|n| n as f64 * h);
+            (grown, [0, 1, 2].map(|a| origin[a] - (grown[a] - size[a]) * 500.0))
+        };
         let kept = ["obstacles", "porous_blocks"].iter().map(|k| case.get(*k).and_then(Value::as_array).map_or(0, Vec::len)).sum::<usize>();
         if kept > 0 && !options.replace_parts {
             notes.push(format!("{kept} existing grid parts keep their cell indices (clipped to the refitted grid); check where they are"));
@@ -983,13 +1099,19 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
                 rows.retain(|row| row["name"].as_str() != Some(name.as_str()));
             }
         }
-        let clipped = (0..3).any(|a| min[a] < -1e-9 || max[a] > lengths[a] + 1e-9);
+        // Tessellation and exact bounds agree to rounding; a body on the domain box is inside it.
+        let slack = |a: usize| 1e-9_f64.max(1e-9 * lengths[a]);
+        let clipped = (0..3).any(|a| min[a] < -slack(a) || max[a] > lengths[a] + slack(a));
         if surface {
             if clipped {
                 return Err(bad(format!("{name} crosses the domain boundary; a surface body must lie inside it")));
             }
             if enclosed <= 0.0 {
                 return Err(bad(format!("{name} is not a closed outward surface; check the CAD body is a solid")));
+            }
+            // The companion refuses a body that holds no cell centre; say so before a run.
+            if (0..3).any(|a| !grid_nodes[a].windows(2).any(|w| (min[a]..=max[a]).contains(&((w[0] + w[1]) / 2.0)))) {
+                notes.push(format!("{name} covers no cell centre, so the solver will refuse it; set a smaller cell size"));
             }
             let row = json!({"name": name, "vertices": vertices, "triangles": object.triangles});
             let object_map = proposed.as_object_mut().ok_or_else(|| bad("case must be an object"))?;
@@ -1057,6 +1179,9 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
         if !dropped.is_empty() {
             notes.push(format!("goals on removed parts were dropped: {}", dropped.join(", ")));
         }
+    }
+    if options.fit_domain {
+        fit_time_step(&mut proposed, &mut notes);
     }
     let pointer = parts.first().map(|(name, kind)| {
         let key = if *kind == PartKind::Body { "bodies" } else { "obstacles" };
@@ -1430,10 +1555,10 @@ pub fn remove_rotating_region(case: &Value, name: &str) -> Result<Edit> {
     if rows.len() == before {
         return Err(bad(format!("there is no rotating region {name}")));
     }
-    if rows.is_empty() {
-        if let Some(object) = proposed.as_object_mut() {
-            object.remove("rotating_regions");
-        }
+    if rows.is_empty()
+        && let Some(object) = proposed.as_object_mut()
+    {
+        object.remove("rotating_regions");
     }
     finish(proposed, None)
 }
@@ -1512,6 +1637,46 @@ mod tests {
         assert!(import_components(&channel, &cad_obj(), &ImportOptions::default()).is_err());
         let far = ImportOptions { origin_mm: Some([10_000.0, 0.0, 0.0]), ..Default::default() };
         assert!(import_components(&imported.edit.case, &cad_obj(), &far).is_err());
+    }
+
+    /// An 80 × 50 × 8 mm plate, as the OBJ export writes it.
+    fn plate_obj() -> String {
+        let mut text = String::from("o Plate\n");
+        for (x, y, z) in [(0, 0, 0), (80, 0, 0), (80, 50, 0), (0, 50, 0), (0, 0, 8), (80, 0, 8), (80, 50, 8), (0, 50, 8)] {
+            text += &format!("v {x} {y} {z}\n");
+        }
+        for f in ["1 4 3 2", "5 6 7 8", "1 2 6 5", "2 3 7 6", "3 4 8 7", "4 1 5 8"] {
+            text += &format!("f {f}\n");
+        }
+        text
+    }
+
+    #[test]
+    fn a_default_fit_resolves_thin_bodies_and_fits_the_time_step_to_the_cells() {
+        let channel: Value = serde_json::from_str(include_str!("../data/templates/flow-channel.json")).unwrap_or(Value::Null);
+        let options =
+            ImportOptions { fit_domain: true, margin_mm: 10.0, replace_parts: true, representation: Representation::Obstacle, ..Default::default() };
+        let imported = import_components(&channel, &plate_obj(), &options).expect("import");
+        assert!(imported.edit.issues.is_empty(), "{:?}", imported.edit.issues);
+        // The channel's 96 cells alone would give 12.7 mm cells for a 100 × 70 × 28 mm domain,
+        // thicker than the plate; the 8 mm plate gets two 4 mm cells (three once snapped outward)
+        // and the margin keeps fluid around it.
+        let case = &imported.edit.case;
+        assert_eq!(case["mesh"]["dimensions"], json!([25, 18, 7]));
+        assert_eq!(case["obstacles"][0], json!({"name":"Plate","min":[2,2,2],"max":[23,16,5]}));
+        // The 3-D diffusion limit with its 0.8 safety: dt ≤ 0.4 / (ν · 3/h²) = 0.4 × 0.004² /
+        // (3 × 0.02) = 1.0667e-4 s, so 0.002 s is cut by ⌈18.75⌉ = 19 and the steps go 12 → 228.
+        assert!((case["config"]["dt"].as_f64().unwrap_or(0.0) - 0.002 / 19.0).abs() < 1e-15);
+        assert_eq!((case["output"]["steps"].as_u64(), case["output"]["output_interval"].as_u64()), (Some(228), Some(76)));
+        assert!(imported.notes.iter().any(|n| n.contains("time step was cut")), "{:?}", imported.notes);
+        // With no margin the block is the whole grid: the structural check says so.
+        let tight = ImportOptions { margin_mm: 0.0, ..options };
+        let filled = import_components(&channel, &plate_obj(), &tight).expect("import");
+        assert!(filled.edit.issues.iter().any(|i| i.contains("every fluid cell")), "{:?}", filled.edit.issues);
+        // A surface body thinner than its cells is reported before a run.
+        let coarse = ImportOptions { cell_mm: Some(20.0), representation: Representation::Surface, ..options };
+        let thin = import_components(&channel, &plate_obj(), &coarse).expect("import");
+        assert!(thin.notes.iter().any(|n| n.contains("covers no cell centre")), "{:?}", thin.notes);
     }
 
     #[test]

@@ -305,6 +305,25 @@ fn normalized_numeric_encodings_match_without_rounding_large_exact_integers() {
 }
 
 #[test]
+fn companion_parse_rounding_of_one_ulp_is_the_same_authored_input() {
+    // A CAD-fitted domain is 34 cells × 3 mm: 0.10200000000000001 m, read back by the
+    // companion's non-round-trip parser as 0.102 (one ulp lower).
+    let authored = 34.0 * 0.003;
+    let produced = 0.102;
+    assert_eq!(f64::to_bits(authored) - f64::to_bits(produced), 1);
+    let mut a = study();
+    a.case["source"] = json!(authored);
+    let mut run = evidence(&a);
+    run.manifest["case"]["source"] = json!(produced);
+    refresh_manifest(&mut run);
+    validate_evidence(&a, &run).expect("parse rounding is not an authored change");
+    // Anything wider, a sign flip or a changed integer still differs.
+    assert!(!authored_subset(&json!(0.102), &json!(f64::from_bits(0.102f64.to_bits() + 3))));
+    assert!(!authored_subset(&json!(1e-300), &json!(-1e-300)));
+    assert!(!authored_subset(&json!(12), &json!(12.000000000000002)));
+}
+
+#[test]
 fn only_declared_d2q9_single_precision_scalars_are_rounded_for_matching() {
     let authored = json!({"solver":"lbm_d2q9","config":{"nx":32,"ny":32,"tau":0.7},"initial":{"type":"taylor_green","amplitude":0.03},"steps":100});
     let produced = json!({"solver":"lbm_d2q9","config":{"nx":32,"ny":32,"tau":0.7f32 as f64},"initial":{"type":"taylor_green","amplitude":0.03f32 as f64},"steps":100,"walls_y":false});

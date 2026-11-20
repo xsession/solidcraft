@@ -153,7 +153,7 @@ impl Session {
         }
         let host = self.multiphysics_jobs.host.clone().ok_or_else(|| {
             EngineError::Other(
-                "Configure SOLIDCRAFT_CFD_SOLVE with a compatible cfd-solvers-rs companion; obstacle airflow requires 0.3.0 or later, fan curves and porous zones 0.4.0 or later, conjugate heat 0.5.0 or later, surface bodies, goals and natural convection 0.6.0 or later, and the circuit, device, battery, antenna, mechanics, particle, kinetic and coupled domain cases 0.7.0 or later, and thermal devices (contact resistance, two-resistor, heat pipes, thermoelectric coolers) with global, point and equation goals 0.8.0 or later, local mesh refinement 0.9.0 or later, transferred boundary conditions (zooming) 0.10.0 or later, rotating regions 0.11.0 or later, and internal fans 0.12.0"
+                "Configure SOLIDCRAFT_CFD_SOLVE with a compatible cfd-solvers-rs companion; obstacle airflow requires 0.3.0 or later, fan curves and porous zones 0.4.0 or later, conjugate heat 0.5.0 or later, surface bodies, goals and natural convection 0.6.0 or later, and the circuit, device, battery, antenna, mechanics, particle, kinetic and coupled domain cases 0.7.0 or later, and thermal devices (contact resistance, two-resistor, heat pipes, thermoelectric coolers) with global, point and equation goals 0.8.0 or later, local mesh refinement 0.9.0 or later, transferred boundary conditions (zooming) 0.10.0 or later, rotating regions 0.11.0 or later, internal fans 0.12.0 or later, conditions on model faces inside the domain 0.13.0 or later, and cut cells 0.14.0"
                     .into(),
             )
         })?;

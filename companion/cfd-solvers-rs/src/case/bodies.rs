@@ -179,3 +179,123 @@ impl SurfaceBody {
         Ok(inside)
     }
 }
+
+/// A boundary condition on part of a surface body (`body_face_conditions_v1`): of the body's
+/// solid-to-fluid grid faces, those whose nearest body triangle is one of `triangles` form the
+/// boundary patch `name`, which velocity and pressure conditions then name like any other patch.
+/// The other faces of the body stay on its own no-slip wall patch. On the staircase surface a
+/// face is assigned by the exact distance to the triangles, so a model face keeps its grid faces
+/// however the grid cuts it.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BodyFaceCondition {
+    pub name: String,
+    pub body: String,
+    pub triangles: Vec<usize>,
+}
+
+/// The point of triangle `abc` nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5).
+fn closest_on_triangle(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
+    let sub = |u: [f64; 3], v: [f64; 3]| [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
+    let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    let at = |o: [f64; 3], d: [f64; 3], t: f64| [o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t];
+    let (ab, ac, ap) = (sub(b, a), sub(c, a), sub(p, a));
+    let (d1, d2) = (dot(ab, ap), dot(ac, ap));
+    if d1 <= 0.0 && d2 <= 0.0 {
+        return a;
+    }
+    let bp = sub(p, b);
+    let (d3, d4) = (dot(ab, bp), dot(ac, bp));
+    if d3 >= 0.0 && d4 <= d3 {
+        return b;
+    }
+    let vc = d1 * d4 - d3 * d2;
+    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+        return at(a, ab, d1 / (d1 - d3));
+    }
+    let cp = sub(p, c);
+    let (d5, d6) = (dot(ab, cp), dot(ac, cp));
+    if d6 >= 0.0 && d5 <= d6 {
+        return c;
+    }
+    let vb = d5 * d2 - d1 * d6;
+    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+        return at(a, ac, d2 / (d2 - d6));
+    }
+    let va = d3 * d6 - d5 * d4;
+    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
+        return at(b, sub(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    let denom = 1.0 / (va + vb + vc);
+    let (v, w) = (vb * denom, vc * denom);
+    [a[0] + ab[0] * v + ac[0] * w, a[1] + ab[1] * v + ac[1] * w, a[2] + ab[2] * v + ac[2] * w]
+}
+
+impl SurfaceBody {
+    /// For each point, the index of the body triangle nearest it (exact point-triangle
+    /// distance; the lower index on a tie). Triangles are binned on a uniform grid over the
+    /// body's box and searched in growing shells around each point, so the search stops as
+    /// soon as no unvisited bin can hold a nearer triangle.
+    pub fn nearest_triangles(&self, points: &[[f64; 3]]) -> Result<Vec<usize>> {
+        self.validate()?;
+        let mut low = [f64::INFINITY; 3];
+        let mut high = [f64::NEG_INFINITY; 3];
+        for v in &self.vertices {
+            for a in 0..3 {
+                low[a] = low[a].min(v[a]);
+                high[a] = high[a].max(v[a]);
+            }
+        }
+        let bins = ((self.triangles.len() as f64).cbrt().ceil() as usize).clamp(1, 64);
+        let size: [f64; 3] = std::array::from_fn(|a| ((high[a] - low[a]) / bins as f64).max(1e-12));
+        let bin_of = |x: f64, a: usize| (((x - low[a]) / size[a]).floor().max(0.0) as usize).min(bins - 1);
+        let mut binned: Vec<Vec<usize>> = vec![Vec::new(); bins * bins * bins];
+        for (ti, t) in self.triangles.iter().enumerate() {
+            let corners = t.map(|i| self.vertices[i]);
+            let lo: [usize; 3] = std::array::from_fn(|a| bin_of(corners.iter().map(|c| c[a]).fold(f64::INFINITY, f64::min), a));
+            let hi: [usize; 3] = std::array::from_fn(|a| bin_of(corners.iter().map(|c| c[a]).fold(f64::NEG_INFINITY, f64::max), a));
+            for k in lo[2]..=hi[2] {
+                for j in lo[1]..=hi[1] {
+                    for i in lo[0]..=hi[0] {
+                        binned[(k * bins + j) * bins + i].push(ti);
+                    }
+                }
+            }
+        }
+        let smallest = size.iter().copied().fold(f64::INFINITY, f64::min);
+        let mut nearest = Vec::with_capacity(points.len());
+        for p in points {
+            require(p.iter().all(|v| v.is_finite()), "nearest-triangle points must be finite")?;
+            let home: [usize; 3] = std::array::from_fn(|a| bin_of(p[a], a));
+            let mut best = (f64::INFINITY, usize::MAX);
+            for r in 0..bins {
+                for k in home[2].saturating_sub(r)..=(home[2] + r).min(bins - 1) {
+                    for j in home[1].saturating_sub(r)..=(home[1] + r).min(bins - 1) {
+                        for i in home[0].saturating_sub(r)..=(home[0] + r).min(bins - 1) {
+                            let shell = [i.abs_diff(home[0]), j.abs_diff(home[1]), k.abs_diff(home[2])].into_iter().max() == Some(r);
+                            if !shell {
+                                continue;
+                            }
+                            for &ti in &binned[(k * bins + j) * bins + i] {
+                                let [a, b, c] = self.triangles[ti].map(|v| self.vertices[v]);
+                                let q = closest_on_triangle(*p, a, b, c);
+                                let d = ((q[0] - p[0]).powi(2) + (q[1] - p[1]).powi(2) + (q[2] - p[2]).powi(2)).sqrt();
+                                if d < best.0 || (d == best.0 && ti < best.1) {
+                                    best = (d, ti);
+                                }
+                            }
+                        }
+                    }
+                }
+                // Every bin beyond shell r is at least r bin widths from the point (a point
+                // outside the box is clamped to its nearest bin, which only adds distance).
+                if best.1 != usize::MAX && best.0 <= r as f64 * smallest {
+                    break;
+                }
+            }
+            require(best.1 != usize::MAX, "surface body has no triangles")?;
+            nearest.push(best.1);
+        }
+        Ok(nearest)
+    }
+}

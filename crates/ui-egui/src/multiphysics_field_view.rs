@@ -30,6 +30,7 @@ struct SliceCache {
 
 /// Presentation state only. The parent recreates it for each inspected dataset.
 /// Cloning retains the view but never duplicates an in-progress pointer gesture.
+#[derive(Default)]
 pub(crate) struct State3d {
     pub(crate) camera: Camera,
     pub(crate) glyphs: bool,
@@ -58,21 +59,6 @@ pub(crate) struct Overlay {
 const MAX_OVERLAY_TRIANGLES: usize = 60_000;
 /// Overlay line segments drawn per frame at most.
 const MAX_OVERLAY_SEGMENTS: usize = 80_000;
-
-impl Default for State3d {
-    fn default() -> Self {
-        Self {
-            camera: Camera::default(),
-            glyphs: false,
-            color_map: Default::default(),
-            color_range: None,
-            initialized: false,
-            viewport: Box::default(),
-            cache: None,
-            overlay: None,
-        }
-    }
-}
 
 impl Clone for State3d {
     fn clone(&self) -> Self {
@@ -495,7 +481,7 @@ fn draw_overlay(
     let segments: usize = overlay.lines.iter().map(|line| line.len().saturating_sub(1)).sum();
     let stride = segments.div_ceil(MAX_OVERLAY_SEGMENTS).max(1);
     for line in &overlay.lines {
-        let points: Vec<(Option<Pos2>, f64)> = line.iter().step_by(stride).map(|&(p, v)| (transform.point(p).and_then(|p| project(p)), v)).collect();
+        let points: Vec<(Option<Pos2>, f64)> = line.iter().step_by(stride).map(|&(p, v)| (transform.point(p).and_then(project), v)).collect();
         for pair in points.windows(2) {
             if let [(Some(a), va), (Some(b), vb)] = pair {
                 painter.line_segment([*a, *b], Stroke::new(2.0, color((va + vb) * 0.5)));

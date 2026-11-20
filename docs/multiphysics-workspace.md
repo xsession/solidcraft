@@ -82,7 +82,7 @@ The current CAD model is not automatically converted into these cases.
 
 ## Native numerical companion
 
-Use `cfd-solve` built from **cfd-solvers-rs 0.10.0**, based on upstream revision
+Use `cfd-solve` built from **cfd-solvers-rs 0.14.0**, based on upstream revision
 `7cceaaaddafaf2515e01a86406e13d6037fdbf9a`.
 The companion is a separate process, not a linked dependency or binary shipped by this change.
 Versions 0.2.0 and 0.3.0 remain supported for cases that do not need newer capabilities.
@@ -93,8 +93,9 @@ convection require 0.6.0 or later. The domain cases below require 0.7.0 or later
 `thermal_devices_v1`, global, point and equation goals need 0.8.0 or later with `goals_v2`, a local mesh needs
 0.9.0 or later with `local_mesh_v1`, transferred boundary conditions need 0.10.0 or later with
 `transferred_bc_v1`, rotating regions need 0.11.0 or later with `rotating_regions_v1` and
-`piso_neighbour_update_v1`, and internal fans need 0.12.0 with `internal_fans_v1` and
-`balanced_body_force_v1`.
+`piso_neighbour_update_v1`, internal fans need 0.12.0 or later with `internal_fans_v1` and
+`balanced_body_force_v1`, conditions on faces of bodies inside the domain need 0.13.0 or later
+with `body_face_conditions_v1`, and cut cells need 0.14.0 with `cut_cells_v1`.
 Other producer versions are refused.
 
 The complete source archive includes the separate companion project. Run
@@ -507,6 +508,36 @@ part is refused. The fan's own face cannot be given another role; edit the fan i
 `<face>_lid_1..4` everywhere except the opening. The face's condition then acts only through the
 opening, the grid version of a lid with an inlet face in it.
 
+### Studies of the loaded model
+
+*Study of the model* (Project) makes a study whose geometry is the open design itself, not a
+copy: the case is built from the design's bodies whenever its settings or conditions change, and
+again before a run when the design has changed since (`multiphysics.model.*` commands).
+- *Internal*: the fluid is inside the bodies. The domain is the bodies' exact box; domain faces
+  that touch fluid are walls unless a condition opens them, and faces the bodies cover entirely
+  take no condition. *External*: the fluid is around them, in their box plus a margin.
+- The cell size is automatic (at most half the thinnest body) or typed. The build reports how
+  much of the bodies' volume the grid holds; walls thinner than a cell are lost.
+- Conditions are picked on faces in the 3-D view. A flat face on the domain's boundary opens that
+  side of the domain (a duct's end, a vent in an outer wall). Any other face becomes a condition
+  on its own body (companion 0.13.0, `body_face_conditions_v1`): the body's grid faces nearest the
+  face's triangles. Not yet with heat transfer.
+- *Mesh* (the Mesh node): smaller cells around a selected body or face, split 2 to 4 times, plus
+  one cell around it; the time step is fitted again to the smallest cells (local mesh, 0.9.0).
+- *Goals* (the Goals node): volume flow through or mean pressure on a selected face, pressure at
+  a point, or an equation of other goals. A face goal uses the face's condition patch, the
+  domain side it lies on, or a wall patch made on its body for the goal. Goal plots show them.
+- *Find a leak*: with a face inside an enclosure and one outside it selected (External, with a
+  margin), the shortest path through the fluid is drawn; none means the inside is sealed.
+- Every body is its triangle surface, voxelised at the cell centres (a staircase), unless *Cut
+  cells* is on (companion 0.14.0, `cut_cells_v1`): then each connected piece of fluid in a cell
+  the surface crosses is a cell of its own (so a wall thinner than a cell still separates the
+  fluid on its sides), with the open part of its faces and a wall face, measured on a lattice up to 8 times
+  finer per axis (volumes and open areas within half a sub-cell), with cells under 30 % fluid
+  merged into a neighbour. Thin walls and slanted or curved faces keep their volume and open
+  area. Not yet with heat transfer, porous media, fans, rotating regions or transferred
+  conditions. The cut-cell report compares the fluid volume with the exact one.
+
 ### Bringing CAD bodies into the case
 
 *Add from components* (Insert, or the From Components tree node) turns bodies of the open model
@@ -516,8 +547,14 @@ through the OBJ export (millimetres, welded closed).
   cells, and any other body a surface body with its exact triangles. You can also force *Grid
   blocks* or *Surface bodies*.
 - The first import fits the domain around the bodies plus a margin. The cell size is either
-  typed, or chosen to keep about the case's current cell count within the solver's limit. The
-  import records which CAD point is the domain origin.
+  typed, or chosen from the case's current cell count but no larger than half the thinnest
+  body and no larger than the margin, within the solver's cell limit. A note says when a body
+  is still thinner than two cells, or when a surface body holds no cell centre (the solver
+  refuses it). The import records which CAD point is the domain origin.
+- After fitting, a flow case's time step is divided by a whole factor until the diffusion and
+  Courant numbers on the new cells are at most one, with that many more steps for the same
+  simulated time where the step limits allow; a note gives both values.
+- Grid blocks that fill every cell leave no fluid: the structural check refuses that case.
 - Later imports can keep the domain and place bodies by that origin. A body whose case name
   already exists replaces that part's geometry and keeps its material.
 - *Replace the case's other parts* starts from an empty domain.

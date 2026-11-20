@@ -1147,7 +1147,10 @@ const MAX_REAL: f64 = 1e9;
 fn check_design_numbers(v: &Value) -> Result<()> {
     let Some(root) = v.as_object() else { return check_numbers(v, "design", 0) };
     for (key, value) in root {
-        if key == "metadata" {
+        // Multiphysics cases hold SI quantities (E = 2e11 Pa, doping 1e21 m⁻³, GHz
+        // frequencies), never model coordinates. `Project::validate` bounds that section
+        // on every load, so the coordinate limit would only refuse valid studies.
+        if key == "metadata" || key == "multiphysics" {
             continue;
         }
         if key != "user_materials" {
@@ -1250,6 +1253,22 @@ mod tests {
         assert!(validate_versioned_geometry(&damaged).is_err());
         let plane = serde_json::json!({"type":"construction", "feature":7,"placement":scaled});
         assert!(validate_sketch_plane_placement(Some(&plane)).is_err());
+    }
+
+    #[test]
+    fn multiphysics_si_constants_beyond_the_coordinate_bound_reopen() {
+        let mut document = Document::new("studies");
+        let project = std::sync::Arc::make_mut(&mut document.multiphysics);
+        // Young's modulus 2e11 Pa, 5 GHz sweep stop, 1e21 m⁻³ doping.
+        for template in ["bar-modes", "edge-cavity", "tcad-pn-diode"] {
+            project.create(template, template).unwrap();
+        }
+        let reopened = Document::from_json(&document.to_json()).unwrap();
+        assert_eq!(reopened.multiphysics, document.multiphysics);
+        // The exemption is that section alone: the same number elsewhere is still refused.
+        let mut file: Value = serde_json::from_str(&document.to_json()).unwrap();
+        file["params"] = serde_json::json!([{"value": 2e11}]);
+        assert!(check_design_numbers(&file).unwrap_err().to_string().contains("out of range"));
     }
 
     fn older_design_with_anchored_component_sketch() -> (Value, u64) {

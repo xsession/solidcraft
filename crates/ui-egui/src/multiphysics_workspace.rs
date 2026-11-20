@@ -12,6 +12,8 @@ use solidcraft_theme::Tokens;
 use crate::SolveApp;
 use crate::ui_kit::{BackingTooltipExt as _, Container, Edge, LayoutMode, Surface};
 
+#[path = "multiphysics_model_ui.rs"]
+mod model_ui;
 #[path = "multiphysics_shell.rs"]
 mod shell;
 
@@ -103,6 +105,12 @@ pub struct ViewState {
     goal_index: Option<usize>,
     #[cfg(not(target_arch = "wasm32"))]
     show_3d: bool,
+    /// For a study of the loaded model: the cut plot drawn over the model in the 3-D view.
+    #[cfg(not(target_arch = "wasm32"))]
+    on_model: bool,
+    /// Where the study's domain origin is in the design (mm), read once per document.
+    #[cfg(not(target_arch = "wasm32"))]
+    model_origin: Option<(usize, String, Option<[f64; 3]>)>,
     #[cfg(not(target_arch = "wasm32"))]
     field_3d: crate::multiphysics_field_view::State3d,
     error: Option<String>,
@@ -135,6 +143,10 @@ impl Default for ViewState {
             goal_index: None,
             #[cfg(not(target_arch = "wasm32"))]
             show_3d: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            on_model: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            model_origin: None,
             #[cfg(not(target_arch = "wasm32"))]
             field_3d: Default::default(),
             error: None,
@@ -195,6 +207,8 @@ pub struct State {
     /// Per project, the CAD point (mm) at the domain origin, from the last fitted import.
     /// Kept for the session only: the solver case has no place for it.
     cad_origin: BTreeMap<String, [f64; 3]>,
+    /// A study of the loaded model: its status, last build and the condition being added.
+    model_ui: model_ui::ModelUi,
 }
 
 #[derive(Default)]
@@ -607,7 +621,7 @@ fn zoom_tools(app: &mut SolveApp, state: &mut State, study: &Study, parts: &[Str
     let faces: Vec<String> = zoom.transferred.iter().map(|(face, kind)| format!("{face} ({kind})")).collect();
     let mut notice = solidcraft_ui_text::format("multiphysics.zoom_created", &[("faces", &faces.join(", "))]);
     for note in &zoom.notes {
-        notice.push_str("\n");
+        notice.push('\n');
         notice.push_str(note);
     }
     state.notice = Some(notice);
@@ -2034,10 +2048,9 @@ fn inspector(
     if button(ui, "multiphysics.run", "multiphysics:run", ready)
         .backing_on_hover_text(tr(if available { "multiphysics.run_hint" } else { "multiphysics.preparation_only" }))
         .clicked()
+        && command(app, state, "multiphysics.run.start", json!({"id":study.id})).is_some()
     {
-        if command(app, state, "multiphysics.run.start", json!({"id":study.id})).is_some() {
-            state.stage = Stage::Run;
-        }
+        state.stage = Stage::Run;
     }
     ui.separator();
     ui.label(RichText::new(tr("multiphysics.artifact_hint")).small().color(Tokens::get().text_dim));
@@ -2717,13 +2730,25 @@ fn results_artifacts(
 fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid: &solidcraft_engine::multiphysics::vtk::BoxGrid) {
     ui.heading(tr("multiphysics.slice_title"));
     let previous_axis = view.slice_axis;
+    let model_study = view.selected.as_ref().and_then(|id| app.session.doc.multiphysics.study(id)).is_some_and(|s| s.model.is_some());
+    if !model_study {
+        view.on_model = false;
+    }
     ui.horizontal_wrapped(|ui| {
         for (enabled, label) in [(false, "multiphysics.field_2d"), (true, "multiphysics.field_3d")] {
-            let response = crate::ui_kit::choice_chip(ui, label, tr(label), view.show_3d == enabled);
+            let response = crate::ui_kit::choice_chip(ui, label, tr(label), view.show_3d == enabled && !view.on_model);
             if response.clicked() {
                 view.show_3d = enabled;
+                view.on_model = false;
             }
             crate::scenario::publish_target(if enabled { "multiphysics:view_3d" } else { "multiphysics:view_2d" }, response.rect);
+        }
+        if model_study {
+            let response = crate::ui_kit::choice_chip(ui, "multiphysics.field_on_model", tr("multiphysics.field_on_model"), view.on_model);
+            if response.clicked() {
+                view.on_model = true;
+            }
+            crate::scenario::publish_target("multiphysics:view_on_model", response.rect);
         }
         ui.label(tr("multiphysics.slice_plane"));
         for (axis, label) in [(2, "XY"), (1, "XZ"), (0, "YZ")] {
@@ -2795,6 +2820,13 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
     let t = Tokens::get();
     let visible_width = (ui.clip_rect().right() - ui.next_widget_position().x).max(1.0);
     let plot_height = (ui.clip_rect().bottom() - ui.next_widget_position().y - 92.0).clamp(100.0, 600.0);
+    if view.on_model {
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width().min(visible_width).max(1.0), plot_height), Sense::hover());
+        crate::scenario::publish_rect("multiphysics:field_on_model", rect);
+        let visible = slice_on_model(app, ui, view, grid, rect, (horizontal, vertical), coordinate, (low, high));
+        field_legend(ui, map, low, high, unit, visible);
+        return;
+    }
     if view.show_3d {
         view.field_3d.color_map = map;
         view.field_3d.color_range = Some((low, high));
@@ -2832,6 +2864,63 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         visible += 1;
     }
     field_legend(ui, map, low, high, unit, visible);
+}
+
+/// The cut plot over the model: the design's own 3-D view in `rect` (its camera and selection),
+/// with the slice's cells drawn on their plane in the design's coordinates, in the colour map.
+#[cfg(not(target_arch = "wasm32"))]
+#[allow(clippy::too_many_arguments)]
+fn slice_on_model(
+    app: &mut SolveApp,
+    ui: &mut egui::Ui,
+    view: &mut ViewState,
+    grid: &solidcraft_engine::multiphysics::vtk::BoxGrid,
+    rect: egui::Rect,
+    (horizontal, vertical): (usize, usize),
+    coordinate: f64,
+    (low, high): (f64, f64),
+) -> usize {
+    let Some(id) = view.selected.clone() else { return 0 };
+    // The case's origin is the domain's low corner in the design (mm).
+    let key = std::sync::Arc::as_ptr(&app.session.doc) as usize;
+    if view.model_origin.as_ref().is_none_or(|(k, study, _)| *k != key || *study != id) {
+        let origin = app
+            .run("multiphysics.model.status", json!({"id":id}))
+            .ok()
+            .and_then(|reply| serde_json::from_value::<[[f64; 3]; 2]>(reply["domain_mm"].clone()).ok())
+            .map(|[low, _]| low);
+        view.model_origin = Some((key, id.clone(), origin));
+    }
+    let Some((_, _, Some(origin))) = view.model_origin.clone() else { return 0 };
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect));
+    crate::viewport::show(app, &mut child);
+    let proj = crate::viewport::projection(app, rect);
+    let painter = ui.painter_at(rect);
+    let to_screen = |p: [f64; 3]| proj.to_screen(solidcore_record::Vec3::new(p[0] * 1000.0 + origin[0], p[1] * 1000.0 + origin[1], p[2] * 1000.0 + origin[2]));
+    let mut visible = 0;
+    for (cell_index, cell) in grid.cells.iter().enumerate() {
+        if !grid.intersects(cell_index, view.slice_axis, coordinate) {
+            continue;
+        }
+        let Some(value) = grid.value(view.slice_field, cell_index) else { continue };
+        let (Some(x), Some(y)) = (cell.get(horizontal), cell.get(vertical)) else { continue };
+        let corner = |a: f64, b: f64| {
+            let mut p = [0.0; 3];
+            p[view.slice_axis] = coordinate;
+            p[horizontal] = a;
+            p[vertical] = b;
+            to_screen(p)
+        };
+        let points: Option<Vec<egui::Pos2>> = [corner(x[0], y[0]), corner(x[1], y[0]), corner(x[1], y[1]), corner(x[0], y[1])].into_iter().collect();
+        let Some(points) = points else { continue };
+        let color = map_color(view.color_map, post::ColorRange { min: low, max: high, locked: true }.normalize(value)).gamma_multiply(0.9);
+        for shape in crate::viewport::projected_polygon(&points, color, egui::Stroke::NONE) {
+            painter.add(shape);
+        }
+        visible += 1;
+    }
+    crate::scenario::publish_count("multiphysics:slice_on_model_cells", visible as f64);
+    visible
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -4125,8 +4214,8 @@ mod tests {
             artifact: "field.vtu".into(),
         };
         let mut state = State::default();
-        state.selected = Some(id.clone());
-        state.stage = Stage::Results;
+        state.view.selected = Some(id.clone());
+        state.view.stage = Stage::Results;
         let (send, done) = mpsc::channel();
         state.inspection = Some(InspectionJob { key: key(), cancelled: Arc::new(AtomicBool::new(false)), done });
         send.send(Ok(json!({"content":{"format":"vtu"}}).into())).unwrap();
@@ -4350,6 +4439,162 @@ mod tests {
         assert_eq!(table.rows[3][1], Some(305.0));
         let huge = format!("x,y\n{}", "0,1\n".repeat(MAX_TABLE_ROWS + 1));
         assert_eq!(NumericTable::parse(&huge).rows.len(), MAX_TABLE_ROWS);
+    }
+
+    #[test]
+    fn a_study_of_the_model_is_set_up_on_the_model_in_the_3d_view() {
+        let mut h = Harness::new();
+        // A square duct along x: 100 mm long, 40 × 40 mm outside, 4 mm walls, open at both ends.
+        h.app.run("solid.box", json!({"length":100,"width":40,"height":40,"center":[50,20,20],"body_name":"Duct"})).unwrap();
+        h.app.run("solid.box", json!({"length":120,"width":32,"height":32,"center":[50,20,20],"operation":"cut"})).unwrap();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:model_study"}})).unwrap();
+        h.frames(3);
+        let study = h.app.session.doc.multiphysics.studies.last().cloned().expect("a study of the model");
+        assert!(study.model.is_some());
+        // The graphics window is the design's 3-D view, not the case drawing.
+        assert!(crate::scenario::rect_of("multiphysics:case_show_cad").is_none());
+        assert!(crate::scenario::rect_of("multiphysics:model_rebuild").is_some());
+        // Select the duct's end face at x = 0 in the view and make it an inlet.
+        h.app.session.selection =
+            vec![solidcraft_engine::Sel::Face { body: "Duct".into(), index: 0, point: solidcore_record::Vec3::new(0.0, 20.0, 2.0) }];
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:model_add_condition"}})).unwrap();
+        h.frames(3);
+        let study = h.app.session.doc.multiphysics.study(&study.id).cloned().unwrap();
+        let link = study.model.clone().unwrap();
+        assert_eq!(link.openings.len(), 1, "{:?}", h.app.multiphysics_workspace.error);
+        assert_eq!(link.openings[0].name, "inlet 1");
+        let left = study.case["velocity_boundaries"].as_array().into_iter().flatten().find(|r| r["patch"] == "left").cloned().unwrap();
+        assert_eq!(left["value"]["x"], json!(1.0));
+        // With the same face selected: smaller cells around it (the Mesh node), and a goal on its
+        // flow (the Goals node).
+        h.step(&json!({"click":{"handle":"multiphysics:mesh"}})).unwrap();
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:model_refine"}})).unwrap();
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:goals"}})).unwrap();
+        h.frames(3);
+        h.step(&json!({"click":{"handle":"multiphysics:model_add_goal"}})).unwrap();
+        h.frames(3);
+        let link = h.app.session.doc.multiphysics.study(&study.id).unwrap().model.clone().unwrap();
+        assert_eq!(link.refinements.len(), 1, "{:?}", h.app.multiphysics_workspace.error);
+        assert_eq!(link.goals.len(), 1, "{:?}", h.app.multiphysics_workspace.error);
+        assert_eq!(link.goals[0].name, "goal_1");
+        let study = h.app.session.doc.multiphysics.study(&study.id).cloned().unwrap();
+        assert_eq!(study.case["goals"][0]["target"], json!("left"));
+        // Editing the model makes the case out of date, and Rebuild brings it back.
+        h.app.run("solid.box", json!({"length":10,"width":10,"height":10,"center":[50,60,20],"operation":"new"})).unwrap();
+        h.frames(2);
+        assert_eq!(h.app.run("multiphysics.model.status", json!({"id":study.id})).unwrap()["current"], false);
+        h.step(&json!({"click":{"handle":"multiphysics:general"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:model_rebuild"}})).unwrap();
+        h.frames(2);
+        assert_eq!(h.app.run("multiphysics.model.status", json!({"id":study.id})).unwrap()["current"], true);
+    }
+
+    /// A cut plot of a study of the model drawn over the model in the 3-D view.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_cut_plot_of_a_study_of_the_model_is_drawn_over_the_model() {
+        use solidcraft_engine::multiphysics as mp;
+        let mut h = Harness::new();
+        h.app.run("solid.box", json!({"length":100,"width":40,"height":40,"center":[50,20,20],"body_name":"Duct"})).unwrap();
+        h.app.run("solid.box", json!({"length":120,"width":32,"height":32,"center":[50,20,20],"operation":"cut"})).unwrap();
+        let reply = h.app.run("multiphysics.model.create", json!({"name":"Duct","cell_mm":4.0})).unwrap();
+        let study = h.app.session.doc.multiphysics.study(reply["study"]["id"].as_str().unwrap()).unwrap().clone();
+        // Two cells across the duct's box (case metres), each with one speed.
+        let vtu = r#"<?xml version="1.0"?><VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian"><UnstructuredGrid><Piece NumberOfPoints="12" NumberOfCells="2"><CellData><DataArray type="Float64" Name="speed_m_per_s" NumberOfComponents="1" format="ascii">0.1 0.2</DataArray></CellData><Points><DataArray type="Float64" NumberOfComponents="3" format="ascii">0 0 0 0.05 0 0 0.1 0 0 0 0.04 0 0.05 0.04 0 0.1 0.04 0 0 0 0.04 0.05 0 0.04 0.1 0 0.04 0 0.04 0.04 0.05 0.04 0.04 0.1 0.04 0.04</DataArray></Points><Cells><DataArray type="Int64" Name="connectivity" format="ascii">0 1 4 3 6 7 10 9 1 2 5 4 7 8 11 10</DataArray><DataArray type="Int64" Name="offsets" format="ascii">8 16</DataArray><DataArray type="UInt8" Name="types" format="ascii">12 12</DataArray></Cells></Piece></UnstructuredGrid></VTKFile>"#;
+        let capabilities: Vec<&str> = mp::airflow::requirements(&study.case).iter().map(|r| r.capability).collect();
+        let manifest = json!({
+            "schema":"cfd-solvers-rs/run/1", "rust_port_version":mp::SOLVER_VERSION, "upstream_revision":mp::SOLVER_REVISION,
+            "backend":"native_rust_serial_cpu", "solver":"collocated_flow3d", "complete_clone":false, "execution_completed":true,
+            "linear_solver_converged":null, "steady_state_converged":null, "capabilities":capabilities, "case":study.case,
+            "metrics":{"wall_time_s":0.01}, "files":["flow.vtu","manifest.json"]
+        });
+        let evidence = mp::RunEvidence {
+            id: "duct-run".into(),
+            study_revision: study.revision,
+            case_hash: mp::case_hash(&study.case).unwrap(),
+            input_case: study.case.clone(),
+            artifacts: vec![mp::Artifact { name: "flow.vtu".into(), text: vtu.into() }, mp::Artifact { name: "manifest.json".into(), text: manifest.to_string() }],
+            manifest,
+        };
+        let project = &mut Arc::make_mut(&mut h.app.session.doc).multiphysics;
+        Arc::make_mut(project).attach_evidence(&study.id, evidence).unwrap();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(2);
+        let mut state = std::mem::take(&mut h.app.multiphysics_workspace);
+        state.selected = Some(study.id.clone());
+        state.selected_run = Some("duct-run".into());
+        state.shown_run = Some("duct-run".into());
+        state.selected_artifact = 0;
+        shell::select(&mut state, shell::Node::CutPlots);
+        start_inspection(&h.app, &mut state, &study.id, "duct-run", "flow.vtu");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        while state.inspection.is_some() {
+            poll_inspection(&h.app, &mut state);
+            assert!(std::time::Instant::now() < deadline, "inspection worker did not finish");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        state.view.on_model = true;
+        h.app.multiphysics_workspace = state;
+        h.frames(3);
+        // The plot area is the 3-D view, and both cells of the slice are drawn on the model.
+        assert!(crate::scenario::rect_of("multiphysics:field_on_model").is_some(), "{:?}", h.app.multiphysics_workspace.error);
+        assert_eq!(crate::scenario::count_of("multiphysics:slice_on_model_cells"), Some(2.0));
+        assert!(crate::scenario::rect_of("multiphysics:view_on_model").is_some());
+    }
+
+    #[test]
+    fn a_result_row_opens_its_own_file_when_the_run_is_first_shown() {
+        use solidcraft_engine::multiphysics as mp;
+        let mut h = Harness::new();
+        let reply = h.app.run("multiphysics.study.create", json!({"template":"poisson1d","name":"Rows"})).unwrap();
+        let study = h.app.session.doc.multiphysics.study(reply["study"]["id"].as_str().unwrap()).unwrap().clone();
+        // A PVD series, as flow runs write, puts the Frame stepper on the cut plot too.
+        let files = ["series.csv", "field_000000.vtu", "field_000010.vtu", "field.pvd", "manifest.json"];
+        let pvd = r#"<?xml version="1.0"?><VTKFile type="Collection" version="0.1"><Collection><DataSet timestep="0" part="0" file="field_000000.vtu"/><DataSet timestep="1" part="0" file="field_000010.vtu"/></Collection></VTKFile>"#;
+        let manifest = json!({
+            "schema":"cfd-solvers-rs/run/1", "rust_port_version":mp::SOLVER_VERSION, "upstream_revision":mp::SOLVER_REVISION,
+            "backend":"native_rust_serial_cpu", "solver":"poisson1d", "complete_clone":false, "execution_completed":true,
+            "linear_solver_converged":null, "steady_state_converged":null, "case":study.case, "metrics":{"wall_time_s":0.01}, "files":files
+        });
+        let artifacts = files
+            .iter()
+            .map(|name| mp::Artifact {
+                name: (*name).into(),
+                text: match *name {
+                    "manifest.json" => manifest.to_string(),
+                    "field.pvd" => pvd.into(),
+                    _ => "x,phi\n0,0\n1,0\n".into(),
+                },
+            })
+            .collect();
+        let evidence = mp::RunEvidence {
+            id: "rows-run".into(),
+            study_revision: study.revision,
+            case_hash: mp::case_hash(&study.case).unwrap(),
+            input_case: study.case.clone(),
+            manifest,
+            artifacts,
+        };
+        let project = &mut Arc::make_mut(&mut h.app.session.doc).multiphysics;
+        Arc::make_mut(project).attach_evidence(&study.id, evidence).unwrap();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        // Clicking the second VTU row of a run the view has not drawn yet must show that file,
+        // not the run's first CSV or VTU (the view resets its file when it first shows a run).
+        let row = "multiphysics:tree_result:field_000010.vtu";
+        if crate::scenario::rect_of(row).is_none() {
+            h.step(&json!({"click":{"handle":format!("multiphysics:study:{}", study.id)}})).unwrap();
+            h.frames(3);
+        }
+        h.step(&json!({"click":{"handle":row}})).unwrap();
+        h.frames(3);
+        assert_eq!(h.app.multiphysics_workspace.selected_artifact, 2);
     }
 
     #[test]
