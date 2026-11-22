@@ -10,6 +10,8 @@ use std::sync::Arc;
 
 #[path = "multiphysics_model.rs"]
 mod model;
+#[path = "multiphysics_parts.rs"]
+mod parts;
 
 pub static COMMANDS: &[CommandSpec] = &[
  CommandSpec::new("multiphysics.case.feature.prepare", "Prepare Multiphysics Feature", crate::checked!("multiphysics.case.feature.prepare", prepare_feature))
@@ -75,12 +77,21 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.query", "Query Multiphysics Result", crate::checked!("multiphysics.result.query", query_result))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<solidcraft_multiphysics::results::QueryRequest>::new()).output(output_schema_for::<solidcraft_multiphysics::results::QueryResponse>)
         .params("id, run_id, query: {kind: probe|min_max|line|integrate|compare|goals|components, ...}. Probes interpolate inside cells and report the nearest cell outside; line samples outside the mesh have no value; integrals are measure weighted; compare needs identical meshes. Every answer carries the run's case hash and a stale flag."),
+    CommandSpec::new("multiphysics.parts.list", "List Parts and Selections", crate::checked!("multiphysics.parts.list", parts::list))
+        .doc_only().noundo().icon("list").contract(&TypedContract::<Empty>::new()).output(output_schema_for::<PartsReply>)
+        .params("No parameters. Every body of the design with its tags and attributes, every part selection with the bodies it holds now, and recorded parts the design no longer has."),
+    CommandSpec::new("multiphysics.parts.tag", "Tag Parts", crate::checked!("multiphysics.parts.tag", parts::tag))
+        .doc_only().icon("settings").contract(&TypedContract::<PartsTag>::new()).output(output_schema_for::<PartsReply>)
+        .params("bodies (names) or selection (a part selection's bodies as they are now); add_tags?, remove_tags? (single words); attributes? {name: number | text | null (remove)}. volume_mm3 and size_mm are measured and cannot be set. One undo step."),
+    CommandSpec::new("multiphysics.parts.selection", "Part Selection", crate::checked!("multiphysics.parts.selection", parts::selection))
+        .doc_only().icon("settings").contract(&TypedContract::<PartsSelection>::new()).output(output_schema_for::<PartsReply>)
+        .params("name; members: {kind: saved, bodies: [names]} | {kind: query, rules: [{rule: tag|not_tag, tag} | {rule: name, pattern (* and ?)} | {rule: attribute, key (own or volume_mm3, size_mm), compare: exists|eq|ne|lt|le|gt|ge, value?} | {rule: in_selection, name (an earlier selection)}]} (a part meets every rule); or remove: true. A query is worked out again each time it is used; model studies use one with multiphysics.model.set selection. One undo step."),
     CommandSpec::new("multiphysics.model.create", "New Study of the Model", crate::checked!("multiphysics.model.create", model::create))
         .doc_only().icon("new").contract(&TypedContract::<ModelCreate>::new()).output(output_schema_for::<ModelReply>)
-        .params("name; template? (a 3-D flow template whose fluid and solver settings it starts from, default flow-channel); analysis?: internal (fluid inside the bodies; the domain is their box and its faces are walls) | external (around them, with margin_mm); bodies? (names; default every body); margin_mm?; cell_mm? (default from the bodies). Builds the case from the design's bodies in one undo step; nothing runs."),
+        .params("name; template? (a 3-D flow template whose fluid and solver settings it starts from, default flow-channel); analysis?: internal (fluid inside the bodies; the domain is their box and its faces are walls) | external (around them, with margin_mm); bodies? (names; default every body) or selection? (a part selection, worked out again at every build); margin_mm?; cell_mm? (default from the bodies). Builds the case from the design's bodies in one undo step; nothing runs."),
     CommandSpec::new("multiphysics.model.set", "Change Study of the Model", crate::checked!("multiphysics.model.set", model::set))
         .doc_only().icon("settings").contract(&TypedContract::<ModelSet>::new()).output(output_schema_for::<ModelReply>)
-        .params("id, expected_revision; any of analysis, bodies, margin_mm, cell_mm (0: automatic), cut_cells (keep the fluid part of the cells the bodies cut; companion 0.14.0), mesh_level (1 coarsest to 7 finest, 3 the automatic size; 0 back to automatic; clears a typed cell_mm). Builds the case again from the design in one undo step."),
+        .params("id, expected_revision; any of analysis, bodies, selection (a part selection; \"\" back to bodies), margin_mm, cell_mm (0: automatic), cut_cells (keep the fluid part of the cells the bodies cut; companion 0.14.0), mesh_level (1 coarsest to 7 finest, 3 the automatic size; 0 back to automatic; clears a typed cell_mm). Builds the case again from the design in one undo step."),
     CommandSpec::new("multiphysics.model.condition", "Condition on a Model Face", crate::checked!("multiphysics.model.condition", model::condition))
         .doc_only().icon("settings").contract(&TypedContract::<ModelCondition>::new()).output(output_schema_for::<ModelReply>)
         .params("id, expected_revision, name; face: {body, face (its name) | point [x,y,z] mm on it}; role: {kind: inlet, speed_m_per_s} | {kind: outlet, pressure_m2_per_s2} | {kind: wall} | {kind: symmetry}; or remove: true. The face must be planar and lie on the computational domain's boundary (a vent's outer face in an internal study). Builds the case again in one undo step."),
@@ -101,7 +112,7 @@ pub static COMMANDS: &[CommandSpec] = &[
         .params("id, expected_revision; any of enabled (heat transfer on or off), inflow_temperature_k, fluid: {specific_heat_j_per_kg_k, conductivity_w_per_m_k} (air by default). With heat on, the bodies conduct heat (conjugate heat transfer) and temperature is solved after the flow; cut cells and inlets or outlets on faces inside the domain are not available with it yet. Builds the case again in one undo step."),
     CommandSpec::new("multiphysics.model.material", "Material of Model Bodies", crate::checked!("multiphysics.model.material", model::material))
         .doc_only().icon("material").contract(&TypedContract::<ModelMaterial>::new()).output(output_schema_for::<ModelReply>)
-        .params("id, expected_revision, bodies (names); conductivity_w_per_m_k (W/(m·K)), power_w? (heat released evenly in each body), density_kg_per_m3?, specific_heat_j_per_kg_k?, max_temperature_k? (a limit reported as a margin); or remove: true. Needs heat on. Bodies without a material conduct like the starter material (1 W/(m·K)). Builds the case again in one undo step."),
+        .params("id, expected_revision, bodies (names) or selection (its bodies as they are now); conductivity_w_per_m_k (W/(m·K)), power_w? (heat released evenly in each body), density_kg_per_m3?, specific_heat_j_per_kg_k?, max_temperature_k? (a limit reported as a margin); or remove: true. Needs heat on. Bodies without a material conduct like the starter material (1 W/(m·K)). Builds the case again in one undo step."),
     CommandSpec::new("multiphysics.model.heat_source", "Heat Source on a Model Face", crate::checked!("multiphysics.model.heat_source", model::heat_source))
         .doc_only().icon("settings").contract(&TypedContract::<ModelHeatSource>::new()).output(output_schema_for::<ModelReply>)
         .params("id, expected_revision, name; face: {body, face | point}; power_w; or remove: true. Needs heat on. The power goes into the body behind the face (companion 0.15.0). Builds the case again in one undo step."),

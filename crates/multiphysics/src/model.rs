@@ -388,6 +388,10 @@ pub struct ModelLink {
     /// Bodies of the design in the study; empty means every body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bodies: Vec<String>,
+    /// A part selection of the project (`parts`) whose bodies the study uses, worked out again
+    /// at every build; with it, `bodies` is empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<String>,
     /// Space around the bodies on every side, for an external analysis.
     #[serde(default)]
     pub margin_mm: f64,
@@ -448,6 +452,12 @@ impl ModelLink {
         }
         for body in &self.bodies {
             text(body, "a body name")?;
+        }
+        if let Some(selection) = &self.selection {
+            text(selection, "a selection name")?;
+            if !self.bodies.is_empty() {
+                return Err(Error::Invalid("a model study takes its bodies from a list or from a part selection, not both".into()));
+            }
         }
         if !(self.margin_mm.is_finite() && (0.0..=1e6).contains(&self.margin_mm)) {
             return Err(Error::Invalid("the margin must be 0 to 1e6 mm".into()));

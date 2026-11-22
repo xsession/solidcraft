@@ -332,6 +332,10 @@ pub struct ModelCreate {
     /// Bodies of the design; empty or absent means every body.
     #[serde(default)]
     pub bodies: Vec<String>,
+    /// A part selection whose bodies the study uses, worked out again at every build
+    /// (`multiphysics.parts.selection`); not with `bodies`.
+    #[serde(default)]
+    pub selection: Option<String>,
     #[serde(default)]
     pub margin_mm: f64,
     #[serde(default)]
@@ -346,8 +350,12 @@ pub struct ModelSet {
     pub expected_revision: u64,
     #[serde(default)]
     pub analysis: Option<solidcraft_multiphysics::model::Analysis>,
+    /// The study's bodies by name; replaces a part selection.
     #[serde(default)]
     pub bodies: Option<Vec<String>>,
+    /// A part selection whose bodies the study uses from now on; `""` goes back to the list.
+    #[serde(default)]
+    pub selection: Option<String>,
     #[serde(default)]
     pub margin_mm: Option<f64>,
     /// A cell size in mm; `0` goes back to the automatic size.
@@ -574,7 +582,11 @@ pub struct ModelMaterial {
     pub id: String,
     pub expected_revision: u64,
     /// The bodies, by name (1 to 256).
+    #[serde(default)]
     pub bodies: Vec<String>,
+    /// Or a part selection: the material goes on the bodies it holds now.
+    #[serde(default)]
+    pub selection: Option<String>,
     /// W/(m·K); kept when a body already has a material and this is absent.
     #[serde(default)]
     pub conductivity_w_per_m_k: Option<f64>,
@@ -621,4 +633,65 @@ pub struct ModelThermalFace {
     pub condition: Option<solidcraft_multiphysics::model::ThermalFace>,
     #[serde(default)]
     pub remove: bool,
+}
+
+/// `multiphysics.parts.tag`: tags and attributes on some of the design's parts.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsTag {
+    /// The bodies, by name; or `selection`.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    /// A part selection whose bodies, as the design is now, are changed.
+    #[serde(default)]
+    pub selection: Option<String>,
+    #[serde(default)]
+    pub add_tags: Vec<String>,
+    #[serde(default)]
+    pub remove_tags: Vec<String>,
+    /// Attributes to set (a number or a text), or `null` to remove one.
+    #[serde(default)]
+    pub attributes: std::collections::BTreeMap<String, Option<solidcraft_multiphysics::parts::AttrValue>>,
+}
+
+/// `multiphysics.parts.selection`: add, replace or remove a named part selection.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsSelection {
+    pub name: String,
+    /// What it holds: saved bodies or a live query. Absent with `remove`.
+    #[serde(default)]
+    pub members: Option<solidcraft_multiphysics::parts::Members>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// One body of the design with what the registry records about it.
+#[derive(Serialize, JsonSchema)]
+pub struct PartView {
+    pub body: String,
+    pub tags: Vec<String>,
+    pub attributes: std::collections::BTreeMap<String, solidcraft_multiphysics::parts::AttrValue>,
+}
+
+/// A selection and the bodies it holds now.
+#[derive(Serialize, JsonSchema)]
+pub struct PartSelectionView {
+    pub selection: solidcraft_multiphysics::parts::PartSelection,
+    pub bodies: Vec<String>,
+    /// Bodies a saved selection names that the design no longer has.
+    pub missing: Vec<String>,
+    /// Why the selection cannot be worked out now, if so.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<String>,
+}
+
+/// `multiphysics.parts.list` and the reply of the commands that change parts.
+#[derive(Serialize, JsonSchema)]
+pub struct PartsReply {
+    /// Every body of the design, in the design's order.
+    pub parts: Vec<PartView>,
+    pub selections: Vec<PartSelectionView>,
+    /// Parts the registry records that the design no longer has.
+    pub missing: Vec<String>,
 }

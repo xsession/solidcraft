@@ -13,9 +13,20 @@ use std::sync::Arc;
 /// The template a model study starts from when none is named.
 const DEFAULT_TEMPLATE: &str = "flow-channel";
 
-/// The bodies of the design a link uses, by name, each one existing and solid.
-fn bodies<'a>(state: &'a solidcraft_doc::ModelState, link: &ModelLink) -> Result<Vec<&'a solidcraft_doc::ModelBody>> {
-    let chosen: Vec<&solidcraft_doc::ModelBody> = if link.bodies.is_empty() {
+/// The bodies of the design a link uses, by name, each one existing and solid: the bodies of
+/// its part selection as the design is now, or those it lists.
+fn bodies<'a>(
+    state: &'a solidcraft_doc::ModelState,
+    parts: &solidcraft_multiphysics::parts::Registry,
+    link: &ModelLink,
+) -> Result<Vec<&'a solidcraft_doc::ModelBody>> {
+    let chosen: Vec<&solidcraft_doc::ModelBody> = if let Some(selection) = &link.selection {
+        let names = super::parts::resolve(state, parts, selection)?.0;
+        if names.is_empty() {
+            return Err(bad("selection", format!("the part selection {selection} holds no bodies of the design")));
+        }
+        state.bodies.iter().filter(|b| names.contains(&b.name)).collect()
+    } else if link.bodies.is_empty() {
         state.bodies.iter().collect()
     } else {
         link.bodies
@@ -40,7 +51,7 @@ fn face_index(body: &solidcraft_doc::ModelBody, name: &str) -> Option<usize> {
 /// Read what a build needs from the design as it is now.
 fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
     let state = session.world_state()?;
-    let chosen = bodies(&state, link)?;
+    let chosen = bodies(&state, &session.doc.multiphysics.parts, link)?;
     let mut low = [f64::INFINITY; 3];
     let mut high = [f64::NEG_INFINITY; 3];
     let mut volume = 0.0;
@@ -121,7 +132,14 @@ fn linked(session: &Session, id: &str) -> Result<(solidcraft_multiphysics::Study
 
 pub(super) fn create(session: &mut Session, params: &Value) -> Result<Value> {
     let input: ModelCreate = parse(params)?;
-    let link = ModelLink { analysis: input.analysis, bodies: input.bodies, margin_mm: input.margin_mm, cell_mm: input.cell_mm, ..Default::default() };
+    let link = ModelLink {
+        analysis: input.analysis,
+        bodies: input.bodies,
+        selection: input.selection,
+        margin_mm: input.margin_mm,
+        cell_mm: input.cell_mm,
+        ..Default::default()
+    };
     link.validate().map_err(|e| bad("", e.to_string()))?;
     let template = input.template.as_deref().unwrap_or(DEFAULT_TEMPLATE);
     let mut project = session.doc.multiphysics.as_ref().clone();
@@ -152,6 +170,13 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     }
     if let Some(bodies) = input.bodies {
         link.bodies = bodies;
+        link.selection = None;
+    }
+    if let Some(selection) = input.selection {
+        link.selection = (!selection.is_empty()).then_some(selection);
+        if link.selection.is_some() {
+            link.bodies.clear();
+        }
     }
     if let Some(margin) = input.margin_mm {
         link.margin_mm = margin;
@@ -343,7 +368,7 @@ pub(super) fn goal(session: &mut Session, params: &Value) -> Result<Value> {
 /// That `body` is one of the study's bodies in the design now.
 fn known_body(session: &Session, link: &ModelLink, body: &str) -> Result<()> {
     let state = session.world_state()?;
-    if !state.bodies.iter().any(|b| b.name == body) || (!link.bodies.is_empty() && !link.bodies.iter().any(|b| b == body)) {
+    if !bodies(&state, &session.doc.multiphysics.parts, link)?.iter().any(|b| b.name == body) {
         return Err(bad("body", format!("{body} is not one of the study's bodies")));
     }
     Ok(())
@@ -381,6 +406,18 @@ pub(super) fn heat(session: &mut Session, params: &Value) -> Result<Value> {
 pub(super) fn material(session: &mut Session, params: &Value) -> Result<Value> {
     let input: ModelMaterial = parse(params)?;
     let (_, mut link) = linked(session, &input.id)?;
+    let mut input = input;
+    if let Some(selection) = &input.selection {
+        if !input.bodies.is_empty() {
+            return Err(bad("selection", "name bodies or a part selection, not both"));
+        }
+        // The selection's bodies as the design is now; the materials stay on those bodies.
+        let state = session.world_state()?;
+        input.bodies = super::parts::resolve(&state, &session.doc.multiphysics.parts, selection)?.0;
+        if input.bodies.is_empty() {
+            return Err(bad("selection", format!("the part selection {selection} holds no bodies of the design")));
+        }
+    }
     if input.bodies.is_empty() || input.bodies.len() > model::MAX_BODIES {
         return Err(bad("bodies", format!("name 1 to {} bodies", model::MAX_BODIES)));
     }
@@ -500,7 +537,7 @@ pub(super) fn current(session: &Session, id: &str) -> Result<(ModelLink, std::re
 /// The domain box in CAD mm and a mark on each condition's face, as the design is now.
 fn marks(session: &Session, link: &ModelLink) -> Result<(Option<[[f64; 3]; 2]>, Vec<ModelFaceMark>)> {
     let state = session.world_state()?;
-    let chosen = bodies(&state, link)?;
+    let chosen = bodies(&state, &session.doc.multiphysics.parts, link)?;
     let mut low = [f64::INFINITY; 3];
     let mut high = [f64::NEG_INFINITY; 3];
     for body in &chosen {

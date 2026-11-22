@@ -701,3 +701,43 @@ fn a_study_of_the_model_takes_a_fan_and_global_goals() {
     let removed = s.execute("multiphysics.model.fan", &json!({"id":id,"expected_revision":revision(&s),"remove":true})).unwrap();
     assert_eq!(removed["study"]["case"].get("fan"), None);
 }
+
+#[test]
+fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
+    let mut s = Session::default();
+    // Two 10 mm cubes and a 4 mm one, apart.
+    for (name, x, side) in [("U1", 0.0, 10.0), ("U2", 30.0, 10.0), ("C1", 60.0, 4.0)] {
+        s.execute("solid.box", &json!({"length":side,"width":side,"height":side,"center":[x,0,0],"operation":"new","body_name":name})).unwrap();
+    }
+    let undo = s.undo.len();
+    let tagged = s.execute("multiphysics.parts.tag", &json!({"bodies":["U1","U2"],"add_tags":["power"],"attributes":{"power_w":2.5}})).unwrap();
+    assert_eq!(s.undo.len(), undo + 1);
+    let u1 = tagged["parts"].as_array().unwrap().iter().find(|p| p["body"] == "U1").unwrap().clone();
+    assert_eq!((u1["tags"].clone(), u1["attributes"].clone()), (json!(["power"]), json!({"power_w":2.5})), "{tagged}");
+    // A live query on the tag, and one on exact size: the 4 mm cube is under 5 mm.
+    let query = |rules: Value| json!({"name":"q","members":{"kind":"query","rules":rules}});
+    let mut power = query(json!([{"rule":"tag","tag":"power"}]));
+    power["name"] = json!("Power parts");
+    s.execute("multiphysics.parts.selection", &power).unwrap();
+    let mut small = query(json!([{"rule":"attribute","key":"size_mm","compare":"lt","value":5.0}]));
+    small["name"] = json!("Small");
+    let listed = s.execute("multiphysics.parts.selection", &small).unwrap();
+    assert_eq!(listed["selections"][0]["bodies"], json!(["U1", "U2"]), "{listed}");
+    assert_eq!(listed["selections"][1]["bodies"], json!(["C1"]), "{listed}");
+    // A study of the selection builds from its two bodies, and follows a retag on rebuild.
+    let reply = s.execute("multiphysics.model.create", &json!({"name":"Power","analysis":"external","margin_mm":10.0,"cell_mm":5.0,"selection":"Power parts"})).unwrap();
+    let id = reply["study"]["id"].as_str().unwrap().to_string();
+    s.execute("multiphysics.parts.tag", &json!({"bodies":["C1"],"add_tags":["power"]})).unwrap();
+    assert_eq!(s.execute("multiphysics.model.status", &json!({"id":id})).unwrap()["current"], false);
+    let rebuilt = s.execute("multiphysics.model.build", &json!({"id":id})).unwrap();
+    assert_eq!(rebuilt["study"]["model"]["selection"], "Power parts");
+    // C1 at x = 60 mm now widens the domain.
+    assert_ne!(rebuilt["study"]["case"]["mesh"], reply["study"]["case"]["mesh"], "{rebuilt}");
+    // A selection a study uses cannot be removed; size_mm cannot be set; unknown bodies are refused.
+    assert!(s.execute("multiphysics.parts.selection", &json!({"name":"Power parts","remove":true})).is_err());
+    assert!(s.execute("multiphysics.parts.tag", &json!({"bodies":["U1"],"attributes":{"size_mm":1.0}})).is_err());
+    assert!(s.execute("multiphysics.parts.tag", &json!({"bodies":["nope"],"add_tags":["x"]})).is_err());
+    // Everything survives saving and reopening.
+    let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+    assert_eq!(reopened.multiphysics, s.doc.multiphysics);
+}

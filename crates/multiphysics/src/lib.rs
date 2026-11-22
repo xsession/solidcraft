@@ -23,6 +23,7 @@ pub mod fluid_volume;
 pub mod mesh_diagnostics;
 pub mod model;
 mod obstacles;
+pub mod parts;
 pub mod results;
 pub mod setup;
 mod templates;
@@ -71,11 +72,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct Project {
     pub studies: Vec<Study>,
     pub next_id: u64,
+    /// Tags, attributes and named selections of the design's parts (`parts`).
+    #[serde(skip_serializing_if = "parts::Registry::is_empty")]
+    pub parts: parts::Registry,
 }
 
 impl Default for Project {
     fn default() -> Self {
-        Self { studies: vec![], next_id: 1 }
+        Self { studies: vec![], next_id: 1, parts: parts::Registry::default() }
     }
 }
 
@@ -139,7 +143,7 @@ impl Project {
     /// Only a pristine project may be omitted from a saved design. An empty
     /// project can still reserve study identities used before its last removal.
     pub fn is_default(&self) -> bool {
-        self.studies.is_empty() && self.next_id == 1
+        self.studies.is_empty() && self.next_id == 1 && self.parts.is_empty()
     }
     pub fn study(&self, id: &str) -> Option<&Study> {
         self.studies.iter().find(|study| study.id == id)
@@ -399,7 +403,13 @@ impl Project {
                 return Err(Error::Invalid("study identifier is outside the project sequence".into()));
             }
             validate_study(study)?;
+            if let Some(name) = study.model.as_ref().and_then(|m| m.selection.as_deref())
+                && self.parts.selection(name).is_none()
+            {
+                return Err(Error::Invalid(format!("{} uses the part selection {name}, which the project does not have", study.name)));
+            }
         }
+        self.parts.validate()?;
         // Count the complete serialized payload, including both copies of run case
         // data, manifest metadata and JSON escaping. No extra payload buffer is made.
         let mut counter = ByteBudget { used: 0, limit: budget };
