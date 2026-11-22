@@ -40,6 +40,14 @@ pub enum GoalKind {
     PointTemperature,
     /// Static pressure of the fluid cell nearest to `point`, Pa (`goals_v2`).
     PointPressure,
+    /// Largest cell speed of the fluid, m/s (`goals_v3`).
+    GlobalMaxSpeed,
+    /// Volume-mean speed of the fluid, m/s (`goals_v3`).
+    GlobalMeanSpeed,
+    /// Largest, smallest and volume-mean static pressure of the fluid cells, Pa (`goals_v3`).
+    GlobalMaxPressure,
+    GlobalMinPressure,
+    GlobalMeanPressure,
     /// Arithmetic of other goals' current values (`goals_v2`): `+ - * /`, parentheses,
     /// numbers and goal names, e.g. `chip_max - inlet_temperature`.
     Equation,
@@ -68,6 +76,8 @@ impl GoalKind {
         match self {
             Self::PatchVolumeFlow => "m3/s",
             Self::PatchMeanPressure | Self::PointPressure => "Pa",
+            Self::GlobalMaxPressure | Self::GlobalMinPressure | Self::GlobalMeanPressure => "Pa",
+            Self::GlobalMaxSpeed | Self::GlobalMeanSpeed => "m/s",
             Self::PatchHeatOut => "W",
             Self::Equation => "",
             _ => "K",
@@ -321,7 +331,12 @@ impl GoalMonitor {
                 }
                 GoalKind::GlobalMaxFluidTemperature
                 | GoalKind::GlobalMeanFluidTemperature
-                | GoalKind::GlobalMaxSolidTemperature => {}
+                | GoalKind::GlobalMaxSolidTemperature
+                | GoalKind::GlobalMaxSpeed
+                | GoalKind::GlobalMeanSpeed
+                | GoalKind::GlobalMaxPressure
+                | GoalKind::GlobalMinPressure
+                | GoalKind::GlobalMeanPressure => {}
                 GoalKind::PointTemperature | GoalKind::PointPressure => {
                     let lengths = [case.mesh.lengths.x, case.mesh.lengths.y, case.mesh.lengths.z];
                     require(
@@ -385,6 +400,7 @@ impl GoalMonitor {
         mesh: &PolyMesh,
         flux: &[f64],
         pressure: &[f64],
+        velocity: &[crate::core::Vec3],
         pressure_fixed: &dyn Fn(usize) -> Option<f64>,
         energy: Option<&EnergyState>,
     ) -> Result<bool> {
@@ -457,6 +473,24 @@ impl GoalMonitor {
                     }
                     None => f64::NAN,
                 },
+                GoalKind::GlobalMaxSpeed => velocity.iter().map(|v| v.norm()).fold(f64::NAN, f64::max),
+                GoalKind::GlobalMaxPressure => pressure.iter().map(|p| self.density * p).fold(f64::NAN, f64::max),
+                GoalKind::GlobalMinPressure => pressure.iter().map(|p| self.density * p).fold(f64::NAN, f64::min),
+                GoalKind::GlobalMeanSpeed | GoalKind::GlobalMeanPressure => {
+                    let (mut sum, mut volume) = (0.0, 0.0);
+                    for (c, cell) in mesh.cells().iter().enumerate() {
+                        let value = if g.kind == GoalKind::GlobalMeanSpeed {
+                            velocity.get(c).map(|v| v.norm())
+                        } else {
+                            pressure.get(c).map(|p| self.density * p)
+                        };
+                        if let Some(value) = value {
+                            sum += value * cell.volume;
+                            volume += cell.volume;
+                        }
+                    }
+                    if volume > 0.0 { sum / volume } else { f64::NAN }
+                }
                 // Evaluated below, once every other goal has its value for this step.
                 GoalKind::Equation => f64::NAN,
             };

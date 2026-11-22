@@ -22,16 +22,19 @@ fn items(group: &str) -> &'static [(&'static str, &'static str)] {
             ("case_export", "multiphysics.cmd_export_case"),
             ("remove", "multiphysics.cmd_delete_project"),
         ],
+        // The common inputs first; the device features after them, so a long menu does not hide
+        // Goals and Boundary condition below its fold.
         "insert" => &[
-            ("add_from_components", "multiphysics.cmd_add_components"),
-            ("initial", "multiphysics.tree_initial"),
-            ("porous", "multiphysics.tree_porous"),
-            ("solid_materials", "multiphysics.tree_solid_materials"),
             ("boundary", "multiphysics.cmd_boundary"),
+            ("goals", "multiphysics.cmd_goals"),
+            ("solid_materials", "multiphysics.tree_solid_materials"),
             ("fans", "multiphysics.tree_fans"),
             ("sources", "multiphysics.cmd_sources"),
-            ("radiation", "multiphysics.tree_radiation"),
+            ("initial", "multiphysics.tree_initial"),
             ("fluid_subdomains", "multiphysics.tree_fluid_subdomains"),
+            ("porous", "multiphysics.tree_porous"),
+            ("add_from_components", "multiphysics.cmd_add_components"),
+            ("radiation", "multiphysics.tree_radiation"),
             ("contact", "multiphysics.tree_contact"),
             ("tec", "multiphysics.tree_tec"),
             ("leds", "multiphysics.tree_leds"),
@@ -44,8 +47,6 @@ fn items(group: &str) -> &'static [(&'static str, &'static str)] {
             ("pcb", "multiphysics.tree_pcb"),
             ("rotating", "multiphysics.tree_rotating"),
             ("transferred", "multiphysics.tree_transferred"),
-            ("goals", "multiphysics.cmd_goals"),
-            ("local_mesh", "multiphysics.menu_local_mesh"),
         ],
         "mesh" => &[("mesh", "multiphysics.cmd_mesh"), ("local_mesh", "multiphysics.menu_local_mesh"), ("check", "multiphysics.cmd_check")],
         "solve" => &[
@@ -89,11 +90,20 @@ fn reason(app: &SolveApp, state: &State, study: Option<&Study>, id: &str) -> Opt
         return None;
     }
     let Some(study) = study else { return Some("multiphysics.menu_needs_project") };
+    // Load results also keeps a finished run that is waiting.
+    if id == "load_results" && study.runs.is_empty() && super::shell::keepable_job(app, study).is_none() {
+        return Some("multiphysics.menu_needs_results");
+    }
+    // Every result view needs a kept run, so they are enabled together.
     if matches!(
         id,
-        "load_results"
-            | "unload_results"
+        "unload_results"
             | "cut_plot"
+            | "surface_plot"
+            | "isosurface"
+            | "trajectories"
+            | "particles"
+            | "surface_params"
             | "point_params"
             | "volume_params"
             | "xy_plot"

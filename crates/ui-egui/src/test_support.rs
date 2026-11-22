@@ -84,10 +84,7 @@ pub(crate) fn guard_file(name: &str) -> std::path::PathBuf {
 }
 
 pub(crate) fn host_data() {
-    crate::i18n::install();
-    solidcraft_look::install_tables();
-    crate::workspace::install_tabs();
-    crate::navigation_slots::install();
+    crate::fonts::install_host_data();
 }
 
 pub(crate) fn app_with_script(script: Value) -> SolveApp {

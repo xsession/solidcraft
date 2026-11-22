@@ -8,6 +8,11 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Test fixtures for the crates of the app's workspaces (multiphysics-ui): `fonts::test_context`
+# and the kit's raster helpers.
+test-support = ["solidcraft-ui-kit/test-support"]
+
 [dependencies]
 solidcraft-viewport-egui = { workspace = true }
 solidcraft-viewport-gpu = { workspace = true }

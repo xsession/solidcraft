@@ -18,6 +18,15 @@ use sha2::{Digest, Sha256};
 use crate::case_scene::{self, ImportOptions, PATCHES, Representation, RoleInput};
 use crate::{Error, Result};
 
+/// The finest mesh level, and the one that gives the automatic cell size.
+pub const MAX_MESH_LEVEL: u8 = 7;
+pub const AUTOMATIC_MESH_LEVEL: u8 = 3;
+
+/// How much a mesh level scales the automatic cell size.
+pub fn cell_scale(level: u8) -> f64 {
+    2f64.powf((f64::from(AUTOMATIC_MESH_LEVEL) - f64::from(level)) / 2.0)
+}
+
 /// Most bodies a study may name.
 pub const MAX_BODIES: usize = 256;
 /// Most faces with a condition.
@@ -86,6 +95,8 @@ pub struct Opening {
 pub enum RefineTarget {
     Body { body: String },
     Face { face: FaceRef },
+    /// A box of the design (mm), such as one solution-adaptive refinement gives.
+    Region { low_mm: [f64; 3], high_mm: [f64; 3] },
 }
 
 /// Smaller cells around a body or a face of the model: every cell whose span overlaps the
@@ -112,6 +123,39 @@ pub enum ModelGoalKind {
     PointPressure,
     /// Arithmetic of other goals (`+ - * /`, parentheses, numbers and goal names).
     Equation,
+    /// Highest temperature of a body, K (heat transfer).
+    BodyMaxTemperature,
+    /// Volume-mean temperature of a body, K (heat transfer).
+    BodyMeanTemperature,
+    /// Temperature at a point, K (heat transfer).
+    PointTemperature,
+    /// Over the whole fluid: largest and mean speed, m/s, and largest, smallest and mean
+    /// static pressure, Pa (companion 0.16.0, `goals_v3`).
+    GlobalMaxSpeed,
+    GlobalMeanSpeed,
+    GlobalMaxPressure,
+    GlobalMinPressure,
+    GlobalMeanPressure,
+    /// Over the whole fluid or every solid: largest and mean fluid temperature and largest
+    /// solid temperature, K (heat transfer).
+    GlobalMaxFluidTemperature,
+    GlobalMeanFluidTemperature,
+    GlobalMaxSolidTemperature,
+}
+
+impl ModelGoalKind {
+    /// Whether the goal reads temperatures.
+    pub fn thermal(self) -> bool {
+        matches!(
+            self,
+            Self::BodyMaxTemperature
+                | Self::BodyMeanTemperature
+                | Self::PointTemperature
+                | Self::GlobalMaxFluidTemperature
+                | Self::GlobalMeanFluidTemperature
+                | Self::GlobalMaxSolidTemperature
+        )
+    }
 }
 
 /// A monitored quantity of a model study.
@@ -127,6 +171,208 @@ pub struct ModelGoal {
     pub point_mm: Option<[f64; 3]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expression: Option<String>,
+    /// The body of a body goal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+}
+
+/// A fan blowing into the domain through a face of the model on the domain boundary, following
+/// its pressure-flow curve against an outlet (the companion's external fan, `fan_curve_v1`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelFan {
+    pub name: String,
+    pub face: FaceRef,
+    /// `[volume flow m³/s, pressure rise Pa]`, flow strictly increasing, pressure strictly
+    /// decreasing, 2 to 64 points.
+    pub curve: Vec<[f64; 2]>,
+    /// The curve's pressure is total (static plus dynamic at the fan face), not static.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub total_pressure: bool,
+}
+
+impl ModelFan {
+    fn validate(&self) -> Result<()> {
+        text(&self.name, "a fan name")?;
+        text(&self.face.body, "a body name")?;
+        text(&self.face.face, "a face name")?;
+        let ok = (2..=64).contains(&self.curve.len())
+            && self.curve.iter().all(|[q, p]| q.is_finite() && p.is_finite() && *q >= 0.0 && *p >= 0.0)
+            && self.curve.windows(2).all(|w| w[1][0] > w[0][0] && w[1][1] < w[0][1]);
+        if !ok {
+            return Err(bad(format!(
+                "{}: a fan curve has 2 to 64 points of flow (m³/s) and pressure rise (Pa), at least 0, with flow rising and pressure falling",
+                self.name
+            )));
+        }
+        Ok(())
+    }
+}
+
+/// What a thermal condition on a face on the domain boundary does.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ThermalFace {
+    Adiabatic,
+    Temperature { temperature_k: f64 },
+    HeatFlux { w_per_m2: f64 },
+    Convection { h_w_per_m2_k: f64, ambient_k: f64 },
+}
+
+/// The material and the power of a body of the model.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BodyHeat {
+    pub body: String,
+    /// Isotropic thermal conductivity, W/(m·K).
+    pub conductivity_w_per_m_k: f64,
+    /// Heat released evenly in the body, W.
+    #[serde(default)]
+    pub power_w: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub density_kg_per_m3: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub specific_heat_j_per_kg_k: Option<f64>,
+    /// The temperature the body must stay below, K (reported as a margin).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_temperature_k: Option<f64>,
+}
+
+/// Heat released on a face of the model, W (companion 0.15.0, `face_heat_sources_v1`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FaceHeat {
+    pub name: String,
+    pub face: FaceRef,
+    pub power_w: f64,
+}
+
+/// A thermal condition on a face of the model that lies on the domain boundary.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FaceThermal {
+    pub name: String,
+    pub face: FaceRef,
+    pub condition: ThermalFace,
+}
+
+/// The fluid's thermal properties; air at room temperature by default.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FluidHeat {
+    pub specific_heat_j_per_kg_k: f64,
+    pub conductivity_w_per_m_k: f64,
+}
+
+impl Default for FluidHeat {
+    fn default() -> Self {
+        Self { specific_heat_j_per_kg_k: 1006.0, conductivity_w_per_m_k: 0.0257 }
+    }
+}
+
+fn room_temperature() -> f64 {
+    293.15
+}
+
+/// Heat transfer in a study of the model: the bodies conduct heat (conjugate heat transfer),
+/// with their materials and power, heat sources on faces, and thermal conditions on the
+/// faces on the domain boundary. Bodies without a material get the starter one (1 W/(m·K)).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelHeat {
+    #[serde(default)]
+    pub fluid: FluidHeat,
+    /// The temperature of the fluid flowing in, K.
+    #[serde(default = "room_temperature")]
+    pub inflow_temperature_k: f64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub materials: Vec<BodyHeat>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub face_sources: Vec<FaceHeat>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub face_conditions: Vec<FaceThermal>,
+}
+
+impl Default for ModelHeat {
+    fn default() -> Self {
+        Self {
+            fluid: FluidHeat::default(),
+            inflow_temperature_k: room_temperature(),
+            materials: Vec::new(),
+            face_sources: Vec::new(),
+            face_conditions: Vec::new(),
+        }
+    }
+}
+
+/// The starter solid material: what a body without a material conducts, W/(m·K).
+pub const STARTER_CONDUCTIVITY: f64 = 1.0;
+
+fn positive(value: f64) -> bool {
+    value.is_finite() && value > 0.0
+}
+
+impl ModelHeat {
+    fn validate(&self) -> Result<()> {
+        if !(positive(self.fluid.specific_heat_j_per_kg_k) && positive(self.fluid.conductivity_w_per_m_k)) {
+            return Err(bad("the fluid's specific heat and conductivity must be positive"));
+        }
+        if !(positive(self.inflow_temperature_k) && self.inflow_temperature_k < 1e4) {
+            return Err(bad("the inflow temperature is in kelvin, above 0 and below 10 000"));
+        }
+        if self.materials.len() > MAX_BODIES || self.face_sources.len() > MAX_OPENINGS || self.face_conditions.len() > MAX_OPENINGS {
+            return Err(Error::Limit(format!("a model study has at most {MAX_BODIES} materials and {MAX_OPENINGS} heat sources and thermal conditions")));
+        }
+        let mut bodies = std::collections::BTreeSet::new();
+        for m in &self.materials {
+            text(&m.body, "a body name")?;
+            if !bodies.insert(m.body.as_str()) {
+                return Err(bad(format!("{} has two materials", m.body)));
+            }
+            let optional = |v: Option<f64>| v.is_none_or(positive);
+            if !(positive(m.conductivity_w_per_m_k) && m.conductivity_w_per_m_k < 1e5)
+                || !(m.power_w.is_finite() && m.power_w >= 0.0)
+                || !optional(m.density_kg_per_m3)
+                || !optional(m.specific_heat_j_per_kg_k)
+                || !optional(m.max_temperature_k)
+            {
+                return Err(bad(format!(
+                    "{}: conductivity must be positive (below 1e5), power at least 0, density, specific heat and the limit positive",
+                    m.body
+                )));
+            }
+        }
+        let mut names = std::collections::BTreeSet::new();
+        for source in &self.face_sources {
+            text(&source.name, "a heat source name")?;
+            text(&source.face.body, "a body name")?;
+            text(&source.face.face, "a face name")?;
+            if !names.insert(source.name.as_str()) {
+                return Err(bad(format!("two heat sources or thermal conditions are named {}", source.name)));
+            }
+            if !(source.power_w.is_finite() && source.power_w.abs() <= 1e9) {
+                return Err(bad(format!("{}: the power must be finite", source.name)));
+            }
+        }
+        for condition in &self.face_conditions {
+            text(&condition.name, "a thermal condition name")?;
+            text(&condition.face.body, "a body name")?;
+            text(&condition.face.face, "a face name")?;
+            if !names.insert(condition.name.as_str()) {
+                return Err(bad(format!("two heat sources or thermal conditions are named {}", condition.name)));
+            }
+            let ok = match condition.condition {
+                ThermalFace::Adiabatic => true,
+                ThermalFace::Temperature { temperature_k } => positive(temperature_k),
+                ThermalFace::HeatFlux { w_per_m2 } => w_per_m2.is_finite(),
+                ThermalFace::Convection { h_w_per_m2_k, ambient_k } => positive(h_w_per_m2_k) && positive(ambient_k),
+            };
+            if !ok {
+                return Err(bad(format!("{}: temperatures are positive kelvin, the flux finite and the coefficient positive", condition.name)));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Most refinements and goals a model study holds.
@@ -148,6 +394,10 @@ pub struct ModelLink {
     /// Cell size; by default chosen from the bodies (see `case_scene::import_components`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cell_mm: Option<f64>,
+    /// Without `cell_mm`: how fine the automatic grid is, 1 (coarsest) to 7; 3 is the automatic
+    /// size, and each level makes the cells √2 times smaller (`cell_scale`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mesh_level: Option<u8>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub openings: Vec<Opening>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -158,6 +408,12 @@ pub struct ModelLink {
     /// (companion 0.14.0, `cut_cells_v1`).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cut_cells: bool,
+    /// Heat transfer; none for a flow-only study.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heat: Option<ModelHeat>,
+    /// A fan on a face of the model on the domain boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fan: Option<ModelFan>,
     /// The digest of the model input the case was last built from. Another digest now means
     /// the design changed since, and the case must be built again before a run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -172,15 +428,17 @@ fn text(value: &str, what: &str) -> Result<()> {
 }
 
 impl ModelLink {
-    /// Every face the link names, in one order: the conditions', the refinements' and the
-    /// goals'. [`ModelInput::faces`] resolves them in this order.
+    /// Every face the link names, in one order: the conditions', the refinements', the goals',
+    /// the heat sources', the thermal conditions' and the fan's. [`ModelInput::faces`] resolves them in this order.
     pub fn face_refs(&self) -> Vec<&FaceRef> {
         let openings = self.openings.iter().map(|o| &o.face);
         let refined = self.refinements.iter().filter_map(|r| match &r.target {
             RefineTarget::Face { face } => Some(face),
-            RefineTarget::Body { .. } => None,
+            RefineTarget::Body { .. } | RefineTarget::Region { .. } => None,
         });
-        openings.chain(refined).chain(self.goals.iter().filter_map(|g| g.face.as_ref())).collect()
+        let heat = self.heat.iter().flat_map(|h| h.face_sources.iter().map(|f| &f.face).chain(h.face_conditions.iter().map(|f| &f.face)));
+        let fan = self.fan.iter().map(|f| &f.face);
+        openings.chain(refined).chain(self.goals.iter().filter_map(|g| g.face.as_ref())).chain(heat).chain(fan).collect()
     }
 
     /// Bounded structure only; whether the bodies and faces exist is decided when building.
@@ -193,6 +451,9 @@ impl ModelLink {
         }
         if !(self.margin_mm.is_finite() && (0.0..=1e6).contains(&self.margin_mm)) {
             return Err(Error::Invalid("the margin must be 0 to 1e6 mm".into()));
+        }
+        if self.mesh_level.is_some_and(|level| !(1..=MAX_MESH_LEVEL).contains(&level)) {
+            return Err(Error::Invalid(format!("the mesh level is 1 to {MAX_MESH_LEVEL}")));
         }
         if self.cell_mm.is_some_and(|cell| !(cell.is_finite() && cell > 0.0 && cell <= 1e6)) {
             return Err(Error::Invalid("the cell size must be positive and at most 1e6 mm".into()));
@@ -239,6 +500,11 @@ impl ModelLink {
                     text(&face.body, "a body name")?;
                     text(&face.face, "a face name")?;
                 }
+                RefineTarget::Region { low_mm, high_mm } => {
+                    if !(0..3).all(|a| low_mm[a].is_finite() && high_mm[a].is_finite() && low_mm[a] < high_mm[a]) {
+                        return Err(bad(format!("{}: the region needs a finite box with low below high", r.name)));
+                    }
+                }
             }
         }
         if self.goals.len() > MAX_GOALS {
@@ -259,12 +525,36 @@ impl ModelLink {
                 ModelGoalKind::FaceVolumeFlow | ModelGoalKind::FaceMeanPressure => g.face.is_some(),
                 ModelGoalKind::PointPressure => g.point_mm.is_some_and(|p| p.iter().all(|v| v.is_finite())),
                 ModelGoalKind::Equation => g.expression.as_ref().is_some_and(|e| !e.trim().is_empty() && e.len() <= 200),
+                ModelGoalKind::BodyMaxTemperature | ModelGoalKind::BodyMeanTemperature => {
+                    g.body.as_ref().is_some_and(|b| text(b, "a body name").is_ok())
+                }
+                ModelGoalKind::PointTemperature => g.point_mm.is_some_and(|p| p.iter().all(|v| v.is_finite())),
+                ModelGoalKind::GlobalMaxSpeed
+                | ModelGoalKind::GlobalMeanSpeed
+                | ModelGoalKind::GlobalMaxPressure
+                | ModelGoalKind::GlobalMinPressure
+                | ModelGoalKind::GlobalMeanPressure
+                | ModelGoalKind::GlobalMaxFluidTemperature
+                | ModelGoalKind::GlobalMeanFluidTemperature
+                | ModelGoalKind::GlobalMaxSolidTemperature => true,
             };
+            if g.kind.thermal() && self.heat.is_none() {
+                return Err(Error::Invalid(format!("goal {}: temperature goals need heat transfer on", g.name)));
+            }
             if !ok {
                 return Err(Error::Invalid(format!(
-                    "goal {}: a face goal needs a face, a point goal a finite point, an equation its expression",
+                    "goal {}: a face goal needs a face, a body goal a body, a point goal a finite point, an equation its expression",
                     g.name
                 )));
+            }
+        }
+        if let Some(heat) = &self.heat {
+            heat.validate()?;
+        }
+        if let Some(fan) = &self.fan {
+            fan.validate()?;
+            if self.cut_cells {
+                return Err(bad("cut cells do not work with a fan yet; turn cut cells off"));
             }
         }
         if self.built_from.as_ref().is_some_and(|hash| hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit())) {
@@ -477,9 +767,9 @@ fn body_face_condition(
     objects: &[case_scene::MeshObject],
     taken: &mut std::collections::BTreeSet<String>,
 ) -> Result<String> {
-    if case.get("thermal").is_some_and(|t| !t.is_null()) {
+    if case.get("thermal").is_some_and(|t| !t.is_null()) && matches!(opening.role, OpeningRole::Inlet { .. } | OpeningRole::Outlet { .. }) {
         return Err(bad(format!(
-            "{}: conditions on faces inside the domain do not work with heat transfer yet; put it on a face on the domain boundary",
+            "{}: inlets and outlets on faces inside the domain do not work with heat transfer yet; put it on a face on the domain boundary",
             opening.name
         )));
     }
@@ -533,6 +823,162 @@ fn body_face_condition(
     Ok(patch)
 }
 
+/// Put `fan` on the domain face its model face lies on, blowing against a domain face with a
+/// fixed pressure (an outlet).
+fn put_fan(
+    case: &mut Value,
+    fan: &ModelFan,
+    face: &ResolvedFace,
+    domain: [[f64; 3]; 2],
+    cell_mm: [f64; 3],
+    wetted: [bool; 6],
+    given: &[Option<(String, OpeningRole)>; 6],
+) -> Result<()> {
+    let Some(side) = face.plane.and_then(|plane| patch_of(plane, domain, cell_mm)).filter(|p| wetted[*p]) else {
+        return Err(bad(format!("{}: a fan goes on a flat face of the model on the domain boundary, such as a duct's open end", fan.name)));
+    };
+    if let Some((other, _)) = &given[side] {
+        return Err(bad(format!("{} and {other} are on the same domain face ({}); a fan takes the whole face", fan.name, PATCHES[side])));
+    }
+    let patch = PATCHES[side];
+    let reference = case
+        .get("pressure_boundaries")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|row| row["kind"] == "fixed_value")
+        .filter_map(|row| row["patch"].as_str())
+        .find(|p| PATCHES.contains(p) && *p != patch)
+        .map(str::to_string)
+        .ok_or_else(|| bad(format!("{}: the fan needs an outlet on the domain boundary to blow against", fan.name)))?;
+    if let Some(object) = case.as_object_mut() {
+        // The fan owns its face's velocity and pressure.
+        for key in ["velocity_boundaries", "pressure_boundaries"] {
+            if let Some(rows) = object.get_mut(key).and_then(Value::as_array_mut) {
+                rows.retain(|row| row["patch"].as_str() != Some(patch));
+            }
+        }
+        let curve: Vec<Value> = fan.curve.iter().map(|[q, p]| serde_json::json!({"volume_flow_m3_per_s": q, "pressure_rise_pa": p})).collect();
+        let middle = fan.curve.first().zip(fan.curve.last()).map_or(0.0, |(a, b)| 0.5 * (a[0] + b[0]));
+        object.insert(
+            "fan".into(),
+            serde_json::json!({
+                "patch": patch,
+                "reference_patch": reference,
+                "pressure_convention": if fan.total_pressure { "total" } else { "static" },
+                "curve": curve,
+                "initial_volume_flow_m3_per_s": middle,
+            }),
+        );
+    }
+    Ok(())
+}
+
+/// The case's thermal block for `heat`: the fluid, the inflow temperature and a solid for
+/// every body of the case (its material, or the starter one with a note).
+fn thermal_block(case: &Value, heat: &ModelHeat, notes: &mut Vec<String>) -> Result<Value> {
+    let parts: Vec<String> = case
+        .get("bodies")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .chain(case.get("obstacles").and_then(Value::as_array).into_iter().flatten())
+        .filter_map(|b| b["name"].as_str().map(str::to_string))
+        .collect();
+    for m in &heat.materials {
+        if !parts.contains(&case_scene::part_name(&m.body)) {
+            return Err(bad(format!("{} has a material but is not a body of the study", m.body)));
+        }
+    }
+    let mut starter = Vec::new();
+    let solids: Vec<Value> = parts
+        .iter()
+        .map(|part| match heat.materials.iter().find(|m| case_scene::part_name(&m.body) == *part) {
+            Some(m) => {
+                let mut row = serde_json::json!({
+                    "obstacle": part,
+                    "conductivity_w_per_m_k": vec![m.conductivity_w_per_m_k; 3],
+                    "power_w": m.power_w,
+                });
+                for (key, value) in [
+                    ("density_kg_per_m3", m.density_kg_per_m3),
+                    ("specific_heat_j_per_kg_k", m.specific_heat_j_per_kg_k),
+                    ("max_temperature_k", m.max_temperature_k),
+                ] {
+                    if let Some(value) = value {
+                        row[key] = serde_json::json!(value);
+                    }
+                }
+                row
+            }
+            None => {
+                starter.push(part.clone());
+                serde_json::json!({"obstacle": part, "conductivity_w_per_m_k": vec![STARTER_CONDUCTIVITY; 3], "power_w": 0.0})
+            }
+        })
+        .collect();
+    if !starter.is_empty() {
+        notes.push(format!("{} have no material and conduct like the starter material ({STARTER_CONDUCTIVITY} W/(m·K), no power); set their materials", starter.join(", ")));
+    }
+    Ok(serde_json::json!({
+        "fluid": {"specific_heat_j_per_kg_k": heat.fluid.specific_heat_j_per_kg_k, "conductivity_w_per_m_k": heat.fluid.conductivity_w_per_m_k},
+        "inflow_temperature_k": heat.inflow_temperature_k,
+        "solids": solids,
+    }))
+}
+
+/// Heat sources on body faces (`face_heat_sources_v1`) and thermal conditions on the faces on
+/// the domain boundary, into the case's thermal block.
+fn heat_on_faces(
+    case: &mut Value,
+    heat: &ModelHeat,
+    source_faces: &[ResolvedFace],
+    thermal_faces: &[ResolvedFace],
+    domain: [[f64; 3]; 2],
+    cell_mm: [f64; 3],
+    wetted: [bool; 6],
+) -> Result<()> {
+    let mut sources = Vec::new();
+    for (source, face) in heat.face_sources.iter().zip(source_faces) {
+        if face.triangles.is_empty() {
+            return Err(bad(format!("{}: the face has no triangles in the model's tessellation", source.name)));
+        }
+        sources.push(serde_json::json!({"name": source.name, "body": case_scene::part_name(&face.body), "triangles": face.triangles, "power_w": source.power_w}));
+    }
+    let mut boundaries: Vec<Value> = Vec::new();
+    let mut given: [Option<&str>; 6] = Default::default();
+    for (condition, face) in heat.face_conditions.iter().zip(thermal_faces) {
+        let Some(side) = face.plane.and_then(|plane| patch_of(plane, domain, cell_mm)).filter(|p| wetted[*p]) else {
+            return Err(bad(format!(
+                "{}: a thermal condition goes on a flat face on the domain boundary; on a face inside the domain, give a heat source",
+                condition.name
+            )));
+        };
+        if let Some(other) = given[side] {
+            return Err(bad(format!("{} and {other} are on the same domain face ({}); keep one", condition.name, PATCHES[side])));
+        }
+        given[side] = Some(&condition.name);
+        let row = match condition.condition {
+            ThermalFace::Adiabatic => serde_json::json!({"kind": "adiabatic"}),
+            ThermalFace::Temperature { temperature_k } => serde_json::json!({"kind": "temperature", "temperature_k": temperature_k}),
+            ThermalFace::HeatFlux { w_per_m2 } => serde_json::json!({"kind": "heat_flux", "w_per_m2": w_per_m2}),
+            ThermalFace::Convection { h_w_per_m2_k, ambient_k } => {
+                serde_json::json!({"kind": "convection", "h_w_per_m2_k": h_w_per_m2_k, "ambient_k": ambient_k})
+            }
+        };
+        boundaries.push(serde_json::json!({"patch": PATCHES[side], "condition": row}));
+    }
+    if let Some(thermal) = case.get_mut("thermal").and_then(Value::as_object_mut) {
+        if !sources.is_empty() {
+            thermal.insert("face_sources".into(), Value::Array(sources));
+        }
+        if !boundaries.is_empty() {
+            thermal.insert("boundaries".into(), Value::Array(boundaries));
+        }
+    }
+    Ok(())
+}
+
 /// Build the solver case for `link` from `base` (the study's settings: fluid, time step,
 /// thermal records) and the model as `input` describes it now.
 pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built> {
@@ -545,7 +991,13 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     }
     let (opening_faces, rest) = input.faces.split_at(link.openings.len());
     let refine_count = link.refinements.iter().filter(|r| matches!(r.target, RefineTarget::Face { .. })).count();
-    let (refine_faces, goal_faces) = rest.split_at(refine_count);
+    let (refine_faces, rest) = rest.split_at(refine_count);
+    let goal_count = link.goals.iter().filter(|g| g.face.is_some()).count();
+    let (goal_faces, rest) = rest.split_at(goal_count.min(rest.len()));
+    let source_count = link.heat.as_ref().map_or(0, |h| h.face_sources.len());
+    let (source_faces, rest) = rest.split_at(source_count.min(rest.len()));
+    let thermal_count = link.heat.as_ref().map_or(0, |h| h.face_conditions.len());
+    let (thermal_faces, fan_faces) = rest.split_at(thermal_count.min(rest.len()));
     let margin = match link.analysis {
         Analysis::Internal => 0.0,
         Analysis::External => link.margin_mm,
@@ -563,6 +1015,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         cell_mm: link.cell_mm,
         replace_parts: true,
         domain_mm: Some(domain),
+        cell_scale: link.mesh_level.filter(|_| link.cell_mm.is_none()).map(cell_scale),
         ..Default::default()
     };
     // Conditions on body faces belong to the last build: drop them and their patches' rows,
@@ -570,8 +1023,10 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     let mut base = base.clone();
     if let Some(object) = base.as_object_mut() {
         object.remove("face_conditions");
-        // Goals of a study of the model are the link's.
+        // Goals, heat transfer and the fan of a study of the model are the link's.
         object.remove("goals");
+        object.remove("thermal");
+        object.remove("fan");
         for key in ["velocity_boundaries", "pressure_boundaries"] {
             if let Some(rows) = object.get_mut(key).and_then(Value::as_array_mut) {
                 rows.retain(|row| row["patch"].as_str().is_some_and(|patch| PATCHES.contains(&patch)));
@@ -586,6 +1041,20 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     for r in &link.refinements {
         let edit = match &r.target {
             RefineTarget::Body { body } => case_scene::refine_around(&case, &[case_scene::part_name(body)], r.factor, r.margin_cells),
+            RefineTarget::Region { low_mm, high_mm } => {
+                let (dimensions, lengths) = case_scene::grid(&case)?;
+                let pad = [0, 1, 2].map(|a| r.margin_cells * lengths[a] / dimensions[a] as f64);
+                let origin = imported.origin_mm;
+                // A box edge on a grid node (an adaptive box is whole cells) must not reach
+                // into the next cell through rounding: a nanometre inside.
+                const INSIDE_M: f64 = 1e-9;
+                case_scene::refine_region(
+                    &case,
+                    [0, 1, 2].map(|a| (low_mm[a] - origin[a]) / 1000.0 - pad[a] + INSIDE_M),
+                    [0, 1, 2].map(|a| (high_mm[a] - origin[a]) / 1000.0 + pad[a] - INSIDE_M),
+                    r.factor,
+                )
+            }
             RefineTarget::Face { .. } => {
                 let face = refine_face.next().ok_or_else(|| bad("a refinement's face is missing"))?;
                 let (low, high) =
@@ -608,6 +1077,12 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     }
     if !link.refinements.is_empty() {
         case_scene::fit_time_step(&mut case, &mut notes);
+    }
+    if let Some(heat) = &link.heat {
+        let thermal = thermal_block(&case, heat, &mut notes)?;
+        if let Some(object) = case.as_object_mut() {
+            object.insert("thermal".into(), thermal);
+        }
     }
     let grid_nodes = case_scene::nodes(&case)?;
     let cell_mm = [0, 1, 2].map(|a| grid_nodes[a].windows(2).map(|w| w[1] - w[0]).fold(f64::INFINITY, f64::min) * 1000.0);
@@ -680,6 +1155,12 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         case = case_scene::set_patch_role(&case, patch, opening.role.role())?.case;
         placed.push((opening.name.clone(), PATCHES[patch].to_string()));
     }
+    if let Some(heat) = &link.heat {
+        heat_on_faces(&mut case, heat, source_faces, thermal_faces, domain, cell_mm, wetted)?;
+    }
+    if let (Some(fan), Some(face)) = (&link.fan, fan_faces.first()) {
+        put_fan(&mut case, fan, face, domain, cell_mm, wetted, &given)?;
+    }
     // Goals: a face goal reads the patch the face is on, or a wall patch made for it.
     let mut goal_face = goal_faces.iter();
     let mut goals = Vec::new();
@@ -711,6 +1192,22 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
                 serde_json::json!({"name": goal.name, "kind": "point_pressure", "point": at})
             }
             ModelGoalKind::Equation => serde_json::json!({"name": goal.name, "kind": "equation", "expression": goal.expression}),
+            ModelGoalKind::BodyMaxTemperature | ModelGoalKind::BodyMeanTemperature => {
+                let body = goal.body.as_deref().unwrap_or_default();
+                let part = case_scene::part_name(body);
+                if !objects.iter().any(|o| o.name == body) {
+                    return Err(bad(format!("goal {}: {body} is not a body of the study", goal.name)));
+                }
+                let kind = if goal.kind == ModelGoalKind::BodyMaxTemperature { "solid_max_temperature" } else { "solid_mean_temperature" };
+                serde_json::json!({"name": goal.name, "kind": kind, "target": part})
+            }
+            ModelGoalKind::PointTemperature => {
+                let p = goal.point_mm.unwrap_or_default();
+                let at = [0, 1, 2].map(|a| (p[a] - imported.origin_mm[a]) / 1000.0);
+                serde_json::json!({"name": goal.name, "kind": "point_temperature", "point": at})
+            }
+            // The global kinds have the companion's names.
+            global => serde_json::json!({"name": goal.name, "kind": global}),
         };
         goals.push(row);
     }
@@ -836,6 +1333,179 @@ mod tests {
         }
     }
 
+    /// Heat transfer in a study of the model: the duct conducts with its material and power,
+    /// one inner wall releases heat, the inlet end holds a temperature, a wall goal on an inner
+    /// face still works with heat on, and body temperature goals read the duct.
+    #[test]
+    fn heat_goes_on_the_bodies_their_faces_and_the_domain_boundary() {
+        let inlet = OpeningRole::Inlet { speed_m_per_s: 0.5 };
+        let outlet = OpeningRole::Outlet { pressure_m2_per_s2: 0.0 };
+        let mut heated = link(&[("in", inlet), ("out", outlet)]);
+        let face = |name: &str| FaceRef { body: "Duct".into(), face: name.into() };
+        let goal = |name: &str, kind, face: Option<FaceRef>, body: Option<&str>| ModelGoal {
+            name: name.into(),
+            kind,
+            face,
+            point_mm: (kind == ModelGoalKind::PointTemperature).then_some([50.0, 20.0, 20.0]),
+            expression: None,
+            body: body.map(str::to_string),
+        };
+        heated.goals = vec![
+            goal("wall_p", ModelGoalKind::FaceMeanPressure, Some(face("inner y")), None),
+            goal("duct_max", ModelGoalKind::BodyMaxTemperature, None, Some("Duct")),
+            goal("duct_mean", ModelGoalKind::BodyMeanTemperature, None, Some("Duct")),
+            goal("mid_t", ModelGoalKind::PointTemperature, None, None),
+        ];
+        heated.heat = Some(ModelHeat {
+            inflow_temperature_k: 300.0,
+            materials: vec![BodyHeat {
+                body: "Duct".into(),
+                conductivity_w_per_m_k: 200.0,
+                power_w: 1.0,
+                density_kg_per_m3: Some(2700.0),
+                specific_heat_j_per_kg_k: Some(900.0),
+                max_temperature_k: Some(360.0),
+            }],
+            face_sources: vec![FaceHeat { name: "heater".into(), face: face("inner y"), power_w: 5.0 }],
+            face_conditions: vec![FaceThermal { name: "hot inlet".into(), face: face("in face"), condition: ThermalFace::Temperature { temperature_k: 310.0 } }],
+            ..Default::default()
+        });
+        let mut input = duct();
+        let inner = ResolvedFace { name: "inner y".into(), body: "Duct".into(), triangles: vec![12, 13], plane: Some(([0.0, 1.0, 0.0], [50.0, 4.0, 20.0])) };
+        input.faces = vec![
+            ResolvedFace { name: "in".into(), ..end(0.0, -1.0) },
+            ResolvedFace { name: "out".into(), ..end(100.0, 1.0) },
+            inner.clone(),
+            ResolvedFace { name: "heater".into(), ..inner.clone() },
+            ResolvedFace { name: "hot inlet".into(), ..end(0.0, -1.0) },
+        ];
+        let built = build(&channel(), &heated, &input).expect("build");
+        assert!(built.issues.is_empty(), "{:?}", built.issues);
+        if let Ok(path) = std::env::var("SC_DUMP_HEATED") { let _ = std::fs::write(path, built.case.to_string()); }
+        let thermal = &built.case["thermal"];
+        assert_eq!(thermal["inflow_temperature_k"], serde_json::json!(300.0));
+        assert_eq!(thermal["solids"], serde_json::json!([{
+            "obstacle": "Duct", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0,
+            "density_kg_per_m3": 2700.0, "specific_heat_j_per_kg_k": 900.0, "max_temperature_k": 360.0
+        }]));
+        assert_eq!(thermal["face_sources"], serde_json::json!([{"name": "heater", "body": "Duct", "triangles": [12, 13], "power_w": 5.0}]));
+        assert_eq!(thermal["boundaries"], serde_json::json!([{"patch": "left", "condition": {"kind": "temperature", "temperature_k": 310.0}}]));
+        let goals = built.case["goals"].as_array().cloned().unwrap_or_default();
+        let kinds: Vec<&str> = goals.iter().filter_map(|g| g["kind"].as_str()).collect();
+        assert_eq!(kinds, ["patch_mean_pressure", "solid_max_temperature", "solid_mean_temperature", "point_temperature"]);
+        assert_eq!(goals[1]["target"], "Duct");
+        let needs: Vec<&str> = crate::airflow::requirements(&built.case).iter().map(|r| r.capability).collect();
+        assert!(needs.contains(&"face_heat_sources_v1") && needs.contains(&"conjugate_heat_v1"), "{needs:?}");
+        // Heat settings are part of the digest.
+        let mut hotter = heated.clone();
+        if let Some(heat) = hotter.heat.as_mut() {
+            heat.inflow_temperature_k = 320.0;
+        }
+        assert_ne!(built.digest, input.digest(&hotter).expect("digest"));
+        // Without a material the duct conducts like the starter material, and says so.
+        let mut bare = heated.clone();
+        if let Some(heat) = bare.heat.as_mut() {
+            heat.materials.clear();
+        }
+        let starter = build(&channel(), &bare, &input).expect("starter");
+        assert_eq!(starter.case["thermal"]["solids"][0]["conductivity_w_per_m_k"], serde_json::json!([1.0, 1.0, 1.0]));
+        assert!(starter.notes.iter().any(|n| n.contains("starter material")), "{:?}", starter.notes);
+        // A thermal condition on a face inside the domain, or a material on a body the study
+        // does not hold, is refused with the reason.
+        let mut inside = input.clone();
+        inside.faces[4] = ResolvedFace { name: "hot inlet".into(), ..inner.clone() };
+        let why = build(&channel(), &heated, &inside).expect_err("inside").to_string();
+        assert!(why.contains("domain boundary"), "{why}");
+        let mut stranger = heated.clone();
+        if let Some(heat) = stranger.heat.as_mut() {
+            heat.materials[0].body = "Lid".into();
+        }
+        let why = build(&channel(), &stranger, &input).expect_err("stranger").to_string();
+        assert!(why.contains("not a body of the study"), "{why}");
+        // Temperature goals need heat on.
+        let mut cold = heated.clone();
+        cold.heat = None;
+        assert!(cold.validate().expect_err("cold").to_string().contains("heat transfer on"));
+    }
+
+    /// The mesh level scales the automatic cells (each level by √2, 3 is automatic), a typed
+    /// cell size wins over it, and a region of the design refines the cells it overlaps.
+    #[test]
+    fn mesh_levels_scale_the_automatic_cells_and_regions_refine_a_box() {
+        let mut auto = link(&[]);
+        auto.cell_mm = None;
+        let cells = |link: &ModelLink| -> usize {
+            let built = build(&channel(), link, &duct()).expect("build");
+            built.case["mesh"]["dimensions"].as_array().into_iter().flatten().filter_map(Value::as_u64).product::<u64>() as usize
+        };
+        let automatic = cells(&auto);
+        let mut level = auto.clone();
+        level.mesh_level = Some(AUTOMATIC_MESH_LEVEL);
+        assert_eq!(cells(&level), automatic);
+        level.mesh_level = Some(5);
+        let finer = cells(&level);
+        level.mesh_level = Some(1);
+        let coarser = cells(&level);
+        // Two levels halve the cell size: about eight times the cells (whole cells per axis).
+        assert!(finer > 5 * automatic && coarser * 5 < automatic, "{coarser} {automatic} {finer}");
+        level.cell_mm = Some(4.0);
+        assert_eq!(cells(&level), 25 * 10 * 10, "a typed cell size wins");
+        level.mesh_level = Some(9);
+        assert!(level.validate().is_err());
+        assert!((cell_scale(5) - 0.5).abs() < 1e-12 && (cell_scale(1) - 2.0).abs() < 1e-12);
+        // A region from x = 40 to 60 mm splits the five 4 mm cells it overlaps along x, and
+        // every cell along y and z (the box spans the duct's section).
+        let mut region = link(&[]);
+        region.refinements = vec![Refinement {
+            name: "adapt_1".into(),
+            target: RefineTarget::Region { low_mm: [41.0, 1.0, 1.0], high_mm: [59.0, 39.0, 39.0] },
+            factor: 2,
+            margin_cells: 0.0,
+        }];
+        let built = build(&channel(), &region, &duct()).expect("region");
+        assert_eq!(built.case["mesh"]["dimensions"], serde_json::json!([30, 20, 20]));
+        region.refinements[0].target = RefineTarget::Region { low_mm: [60.0, 1.0, 1.0], high_mm: [40.0, 39.0, 39.0] };
+        assert!(region.validate().is_err());
+    }
+
+    /// A fan on the duct's inlet end blows against the outlet, and global goals read the whole
+    /// fluid.
+    #[test]
+    fn a_fan_on_an_end_face_and_global_goals() {
+        let outlet = OpeningRole::Outlet { pressure_m2_per_s2: 0.0 };
+        let mut fanned = link(&[("out", outlet)]);
+        let curve = vec![[0.0, 4.0], [4e-4, 3.0], [1e-3, 0.0]];
+        fanned.fan = Some(ModelFan { name: "blower".into(), face: FaceRef { body: "Duct".into(), face: "left end".into() }, curve, total_pressure: false });
+        let global = |name: &str, kind| ModelGoal { name: name.into(), kind, face: None, point_mm: None, expression: None, body: None };
+        fanned.goals = vec![global("v_max", ModelGoalKind::GlobalMaxSpeed), global("p_mean", ModelGoalKind::GlobalMeanPressure)];
+        let mut input = duct();
+        input.faces = vec![ResolvedFace { name: "out".into(), ..end(100.0, 1.0) }, ResolvedFace { name: "left end".into(), ..end(0.0, -1.0) }];
+        let built = build(&channel(), &fanned, &input).expect("fan");
+        assert!(built.issues.is_empty(), "{:?}", built.issues);
+        let fan = &built.case["fan"];
+        assert_eq!((fan["patch"].clone(), fan["reference_patch"].clone()), (serde_json::json!("left"), serde_json::json!("right")));
+        assert_eq!(fan["curve"][1], serde_json::json!({"volume_flow_m3_per_s": 4e-4, "pressure_rise_pa": 3.0}));
+        let rows = |key: &str| built.case[key].as_array().into_iter().flatten().filter(|r| r["patch"] == "left").count();
+        assert_eq!(rows("velocity_boundaries") + rows("pressure_boundaries"), 0, "the fan owns its face");
+        assert_eq!(built.case["goals"], serde_json::json!([{"name": "v_max", "kind": "global_max_speed"}, {"name": "p_mean", "kind": "global_mean_pressure"}]));
+        let needs: Vec<&str> = crate::airflow::requirements(&built.case).iter().map(|r| r.capability).collect();
+        assert!(needs.contains(&"fan_curve_v1") && needs.contains(&"goals_v3"), "{needs:?}");
+        // Without an outlet the fan has nothing to blow against; a rising curve is refused.
+        let mut alone = fanned.clone();
+        alone.openings.clear();
+        let mut lone = input.clone();
+        lone.faces.remove(0);
+        assert!(build(&channel(), &alone, &lone).expect_err("alone").to_string().contains("outlet"));
+        if let Some(fan) = fanned.fan.as_mut() {
+            fan.curve = vec![[0.0, 1.0], [1e-3, 2.0]];
+        }
+        assert!(fanned.validate().is_err());
+        // Global temperatures need heat on.
+        let mut hot = link(&[]);
+        hot.goals = vec![global("t_max", ModelGoalKind::GlobalMaxFluidTemperature)];
+        assert!(hot.validate().is_err());
+    }
+
     #[test]
     fn an_internal_duct_takes_its_box_and_opens_its_end_faces() {
         let inlet = OpeningRole::Inlet { speed_m_per_s: 0.5 };
@@ -900,10 +1570,10 @@ mod tests {
         assert_eq!(rebuilt.case.get("face_conditions"), None);
         let rows = |key: &str| rebuilt.case[key].as_array().into_iter().flatten().filter(|r| r["patch"] == "Side_vent").count();
         assert_eq!(rows("velocity_boundaries") + rows("pressure_boundaries"), 0);
-        // The same face in a case with heat transfer is refused, not left uncoupled.
-        let mut thermal = channel();
-        thermal["thermal"] = serde_json::json!({"solids": []});
-        let why = build(&thermal, &link(&[("Side vent", outlet)]), &input).expect_err("thermal").to_string();
+        // The same outlet with heat transfer is refused, not left uncoupled.
+        let mut heated = link(&[("Side vent", outlet)]);
+        heated.heat = Some(ModelHeat::default());
+        let why = build(&channel(), &heated, &input).expect_err("thermal").to_string();
         assert!(why.contains("heat transfer"), "{why}");
     }
 
@@ -960,22 +1630,24 @@ mod tests {
         let face = |name: &str| FaceRef { body: "Duct".into(), face: name.into() };
         goals.openings[0].face = face("left end");
         goals.goals = vec![
-            ModelGoal { name: "inflow".into(), kind: ModelGoalKind::FaceVolumeFlow, face: Some(face("left end")), point_mm: None, expression: None },
+            ModelGoal { name: "inflow".into(), kind: ModelGoalKind::FaceVolumeFlow, face: Some(face("left end")), point_mm: None, expression: None, body: None },
             ModelGoal {
                 name: "outflow".into(),
                 kind: ModelGoalKind::FaceVolumeFlow,
                 face: Some(face("right end")),
                 point_mm: None,
                 expression: None,
+                body: None,
             },
-            ModelGoal { name: "wall_p".into(), kind: ModelGoalKind::FaceMeanPressure, face: Some(face("inner y")), point_mm: None, expression: None },
-            ModelGoal { name: "mid_p".into(), kind: ModelGoalKind::PointPressure, face: None, point_mm: Some([50.0, 20.0, 20.0]), expression: None },
+            ModelGoal { name: "wall_p".into(), kind: ModelGoalKind::FaceMeanPressure, face: Some(face("inner y")), point_mm: None, expression: None, body: None },
+            ModelGoal { name: "mid_p".into(), kind: ModelGoalKind::PointPressure, face: None, point_mm: Some([50.0, 20.0, 20.0]), expression: None, body: None },
             ModelGoal {
                 name: "balance".into(),
                 kind: ModelGoalKind::Equation,
                 face: None,
                 point_mm: None,
                 expression: Some("inflow + outflow".into()),
+                body: None,
             },
         ];
         let mut input = duct();
@@ -1026,10 +1698,9 @@ mod tests {
         coarse.cut_cells = false;
         assert_eq!(build(&built.case, &coarse, &duct()).expect("staircase").case.get("cut_cells"), None);
         // Not with heat transfer yet.
-        let mut thermal = channel();
-        thermal["thermal"] = serde_json::json!({"solids": []});
         coarse.cut_cells = true;
-        let why = build(&thermal, &coarse, &duct()).expect_err("thermal").to_string();
+        coarse.heat = Some(ModelHeat::default());
+        let why = build(&channel(), &coarse, &duct()).expect_err("thermal").to_string();
         assert!(why.contains("cut cells do not work with heat transfer"), "{why}");
     }
 

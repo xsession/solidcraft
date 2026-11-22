@@ -253,7 +253,7 @@ pub(crate) fn placement_error(s: &solidcraft_engine::Session) -> Option<String> 
 /// The world the viewport draws: while an opened design is being meshed, the bodies meshed so
 /// far (the picture grows a few times a second), then all of them, in the order they came, until
 /// the design changes; otherwise the session's ([`session_world`]).
-pub(crate) fn shown_world(app: &SolveApp) -> Arc<ModelState> {
+pub fn shown_world(app: &SolveApp) -> Arc<ModelState> {
     let world = session_world(&app.session);
     let Some(m) = app.open_meshing.as_ref() else { return world };
     if !Arc::ptr_eq(&world, &m.world) {

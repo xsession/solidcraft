@@ -64,6 +64,8 @@ pub const TABLE: &[(&str, Class)] = &[
     ("io", Class::Layer(3)),
     ("engine", Class::Layer(4)),
     ("ui-egui", Class::Layer(5)),
+    // the Multiphysics workspace, registered into ui-egui by the apps; its own crate so editing it rebuilds only it
+    ("multiphysics-ui", Class::Layer(5)),
     ("gpu", Class::Layer(5)),
     ("mcp", Class::Layer(5)),
     ("testkit", Class::Testkit),
@@ -108,8 +110,10 @@ pub const TABLE: &[(&str, Class)] = &[
 
 /// Explicit orderings *within* a layer (earlier may be used by later).
 /// The viewport draws display plans the GPU crate evaluates and draws with its pipelines; the MCP
-/// server's tests draw screenshots with them. The kernel reads and writes STEP through `step`.
-pub const INTRA_LAYER_ORDER: &[&[&str]] = &[&["gpu", "ui-egui"], &["gpu", "mcp"], &["smlib", "kernel"], &["step", "kernel"]];
+/// server's tests draw screenshots with them. The Multiphysics workspace is drawn in the interface
+/// it registers into. The kernel reads and writes STEP through `step`.
+pub const INTRA_LAYER_ORDER: &[&[&str]] =
+    &[&["gpu", "ui-egui"], &["gpu", "mcp"], &["ui-egui", "multiphysics-ui"], &["smlib", "kernel"], &["step", "kernel"]];
 
 fn intra_layer_allowed(from: &str, to: &str) -> bool {
     let (from, to) = (short_name(from), short_name(to));

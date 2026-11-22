@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 0.16.0: `goals_v3`, global flow goals: the fluid's largest and mean speed and its largest,
+  smallest and mean static pressure (`tests/goals.rs`).
+- 0.15.0: `face_heat_sources_v1`, power released on part of a surface body
+  (`thermal.face_sources`), and conjugate heat transfer with closed body face conditions
+  (`tests/body_face_conditions.rs`).
 - 0.14.0: `cut_cells_v1`, opt-in `cut_cells` for surface bodies: cells keep their fluid part, grid
   faces their open part, and a closing wall face, measured on a finer lattice; small cells merge
   (`case::cut_cells`, `tests/cut_cells.rs`).

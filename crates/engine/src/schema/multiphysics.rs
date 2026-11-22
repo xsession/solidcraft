@@ -356,6 +356,69 @@ pub struct ModelSet {
     /// Keep the fluid part of the cells the bodies cut (companion 0.14.0).
     #[serde(default)]
     pub cut_cells: Option<bool>,
+    /// How fine the automatic grid is, 1 to 7 (3 is the automatic size); 0 goes back to it.
+    /// Setting a level clears a typed cell size.
+    #[serde(default)]
+    pub mesh_level: Option<u8>,
+}
+
+/// `multiphysics.model.fan`: a fan on a face of the model on the domain boundary, or remove it.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelFanInput {
+    pub id: String,
+    pub expected_revision: u64,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    /// `[volume flow m³/s, pressure rise Pa]` points, flow rising and pressure falling.
+    #[serde(default)]
+    pub curve: Option<Vec<[f64; 2]>>,
+    /// The curve's pressure is total, not static.
+    #[serde(default)]
+    pub total_pressure: bool,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.adapt`: refine where a kept run's field changes most from cell to cell.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelAdapt {
+    pub id: String,
+    pub expected_revision: u64,
+    pub run_id: String,
+    /// The run's field file (default its last flow_*.vtu).
+    #[serde(default)]
+    pub artifact: Option<String>,
+    /// The field (default the velocity).
+    #[serde(default)]
+    pub field: Option<String>,
+    /// The share of cells with the largest jumps to refine, above 0 and at most 0.5 (default 0.1).
+    #[serde(default)]
+    pub fraction: Option<f64>,
+    /// Most regions, 1 to 16 (default 4).
+    #[serde(default)]
+    pub regions: Option<usize>,
+    /// Split cells by 2 to 4 (default 2).
+    #[serde(default)]
+    pub factor: Option<usize>,
+    /// Remove the adaptive refinements instead.
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// What a solution-adaptive refinement found.
+#[derive(Serialize, JsonSchema)]
+pub struct ModelAdapted {
+    pub run_id: String,
+    pub artifact: String,
+    pub field: String,
+    pub cells: usize,
+    pub flagged: usize,
+    /// The refined boxes in CAD coordinates (mm), as `[low, high]`.
+    pub regions_mm: Vec<[[f64; 3]; 2]>,
 }
 
 /// A face of the model, by its name or by a point on it (mm).
@@ -398,6 +461,9 @@ pub struct ModelReply {
     pub fluid_regions: usize,
     pub notes: Vec<String>,
     pub issues: Vec<String>,
+    /// What `multiphysics.model.adapt` found, for its reply.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adapted: Option<ModelAdapted>,
 }
 
 /// `multiphysics.model.status`: whether the case still matches the model.
@@ -478,6 +544,81 @@ pub struct ModelGoalInput {
     pub point_mm: Option<[f64; 3]>,
     #[serde(default)]
     pub expression: Option<String>,
+    /// The body of a body temperature goal.
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.heat`: heat transfer in a study of the model, on or off, and the fluid's
+/// thermal settings.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelHeatSet {
+    pub id: String,
+    pub expected_revision: u64,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    /// The temperature of the fluid flowing in, K.
+    #[serde(default)]
+    pub inflow_temperature_k: Option<f64>,
+    #[serde(default)]
+    pub fluid: Option<solidcraft_multiphysics::model::FluidHeat>,
+}
+
+/// `multiphysics.model.material`: the material and power of bodies of the model, or remove.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelMaterial {
+    pub id: String,
+    pub expected_revision: u64,
+    /// The bodies, by name (1 to 256).
+    pub bodies: Vec<String>,
+    /// W/(m·K); kept when a body already has a material and this is absent.
+    #[serde(default)]
+    pub conductivity_w_per_m_k: Option<f64>,
+    /// Heat released evenly in each body, W.
+    #[serde(default)]
+    pub power_w: Option<f64>,
+    #[serde(default)]
+    pub density_kg_per_m3: Option<f64>,
+    #[serde(default)]
+    pub specific_heat_j_per_kg_k: Option<f64>,
+    #[serde(default)]
+    pub max_temperature_k: Option<f64>,
+    /// Remove the bodies' materials instead (they conduct like the starter material).
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.heat_source`: heat released on a face of the model, or remove one.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelHeatSource {
+    pub id: String,
+    pub expected_revision: u64,
+    pub name: String,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    #[serde(default)]
+    pub power_w: Option<f64>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.thermal_face`: a thermal condition on a face of the model on the domain
+/// boundary, or remove one.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelThermalFace {
+    pub id: String,
+    pub expected_revision: u64,
+    pub name: String,
+    #[serde(default)]
+    pub face: Option<ModelFacePick>,
+    #[serde(default)]
+    pub condition: Option<solidcraft_multiphysics::model::ThermalFace>,
     #[serde(default)]
     pub remove: bool,
 }

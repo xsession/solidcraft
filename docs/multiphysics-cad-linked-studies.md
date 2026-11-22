@@ -8,7 +8,7 @@ Implemented:
   (`crates/engine/src/cmd/multiphysics_model.rs`, `crates/multiphysics/src/model.rs`). The case is
   built from the design's bodies at each change; Run refuses a case older than the model and the
   workspace's Run builds it again first. The workspace keeps the 3-D view of the model, with the
-  domain and the conditions drawn over it (`crates/ui-egui/src/multiphysics_model_ui.rs`).
+  domain and the conditions drawn over it (`crates/multiphysics-ui/src/multiphysics_model_ui.rs`).
 - Phase 2: conditions on any face of a body (companion 0.13.0, `body_face_conditions_v1`) and leak
   tracking (`multiphysics.model.leak`).
 - Phase 3, part: `multiphysics.model.refine` (local mesh around a body or face) and
@@ -22,7 +22,7 @@ A Multiphysics study today works on its own numerical case, not on the design th
 - A new study copies a template case (`crates/multiphysics/data/templates/*.json`). Its geometry is
   the template's grid blocks, so a study of an enclosure shows the template's enclosure while
   the user's part sits unused in the window.
-- The graphics window of the workspace (`crates/ui-egui/src/multiphysics_case_view.rs`) draws the
+- The graphics window of the workspace (`crates/multiphysics-ui/src/multiphysics_case_view.rs`) draws the
   case's own box in the content panel. The main 3-D view, its camera, selection and the CAD model
   play no part; *Show CAD model* only overlays tessellated bodies on that drawing.
 - The CAD model enters only through *Add from components*: a one-time tessellation of chosen
@@ -84,7 +84,7 @@ Read from public material on FloEFD and on SOLIDWORKS Flow Simulation, which sha
 | Conditions on model faces | Only the six domain faces | Records exist (`setup.rs`), no adapter, no UI |
 | Materials and sources on bodies | On case parts after import | Not on model bodies |
 | Mesh from the model | Grid blocks snapped to cells, surface bodies voxelised by cell centre | No partial cells; no refinement on faces |
-| Results on the model | 2-D slice and a separate 3-D field view | Not in the main view over the model |
+| Results on the model | Cut plot and surface plot on the model in the 3-D view, click probe | No vectors or trajectories on the model yet |
 
 ## Proposal
 
@@ -234,19 +234,20 @@ three-way valve). What a user does, in order:
 | 2 Domain | Built from the model and drawn over it | — |
 | 3 Materials | Only in template/thermal cases, not on model bodies | Materials on bodies, identical parts, insulator |
 | 4 Openings | Inlet/outlet on any face; no lid helper | Fan (curve, swirl) on a model face; create lids |
-| 5 Heat | Not in model studies (refused with face conditions and cut cells) | Heat sources and thermal walls on bodies and faces: needs CHT with face conditions and cut cells in the companion |
+| 5 Heat | Body materials and power, heat sources on faces, thermal conditions on boundary faces, temperature goals (staircase) | Heat with cut cells; openings on faces inside the domain with heat; radiation |
 | 6 Goals | Face flow, face pressure, point pressure, equations | Global goals, volume (body) goals, mass flow, goals that stop the run |
-| 7 Mesh | Cell size; local refinement ×2–4 around a body or face | Level slider, basic mesh drawn on the model, control planes, solution-adaptive refinement, 2-D |
+| 7 Mesh | Cell size or level 1–7; grid drawn on the domain; local refinement around a body, face or box; adaptive refinement from a run | Refinement during the run (automatic cycles), control planes, 2-D |
 | 8 Run | Solver monitor (status); goal plots after | Live goal convergence and preview |
-| 9 Results | Cut plots in a panel; "On the model" cut plot being added | Vectors, surface plots on model faces, probe, trajectories in the 3-D view |
+| 9 Results | Cut plot and surface plot on the model, click probe | Vectors on cut plots, trajectories in the 3-D view |
 | 10 Design study | Clone, compare metrics | Study per configuration; side-by-side plots |
 
 ### Order proposed
 
-1. Finish results on the model: cut plots (in progress), then surface plots on model faces and
-   a probe. This is what every video ends with.
-2. Heat transfer in model studies: materials and heat sources on bodies, temperature and heat
-   transfer coefficient on faces, volume goals on bodies. Needs the companion's conjugate heat
-   to accept body face conditions and cut cells.
-3. Mesh: a level slider with the grid drawn on the model; solution-adaptive refinement.
+1. Results on the model: cut plots, surface plots on model faces and a click probe are done;
+   vectors on cut plots and trajectories remain. This is what every video ends with.
+2. Heat transfer in model studies: done on the staircase grid (materials, power, face heat
+   sources, thermal conditions on boundary faces, body and point temperature goals). Left: heat
+   with cut cells, and openings on faces inside the domain with heat.
+3. Mesh: done (level 1–7, the grid drawn on the domain, adaptive refinement from a kept run,
+   one cycle per click). Left: adapting automatically during a run.
 4. Fans on model faces, lids, global goals, configurations.

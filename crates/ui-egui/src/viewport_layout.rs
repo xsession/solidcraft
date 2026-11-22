@@ -6,7 +6,7 @@ use solidcraft_engine::geom::prelude::*;
 use solidcraft_viewport::Camera;
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Layout {
+pub struct Layout {
     pub viewport: Rect,
     pub drawable: Rect,
     /// The view without the panels (Browser, Assistant, workspace panels), but still counting

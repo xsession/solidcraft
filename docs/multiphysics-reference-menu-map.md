@@ -33,9 +33,9 @@ Radiation and electrical case fields are editable when a selected adapter actual
 
 - `crates/multiphysics/src/authoring.rs`: bounded, read-only candidate preparation.
 - `crates/engine/src/cmd/multiphysics.rs`: typed preparation command and atomic optional case override for study creation.
-- `crates/ui-egui/src/multiphysics_menus.rs`: grouped native menus and capability reasons.
-- `crates/ui-egui/src/multiphysics_shell.rs`: existing dispatcher and seven-page wizard.
-- `crates/ui-egui/src/multiphysics_workspace.rs`: feature form, explicit Apply and structured scalar-array widgets.
+- `crates/multiphysics-ui/src/multiphysics_menus.rs`: grouped native menus and capability reasons.
+- `crates/multiphysics-ui/src/multiphysics_shell.rs`: existing dispatcher and seven-page wizard.
+- `crates/multiphysics-ui/src/multiphysics_workspace.rs`: feature form, explicit Apply and structured scalar-array widgets.
 - Existing test files contain `reference_feature_*`, `reference_feature_prepare_*`, `reference_menus_*` and `reference_seven_step_*` acceptance cases.
 
 See the delivered verification report for checks actually completed. A test's existence is not a passing result. Screenshots produced by the UI acceptance helper are headless egui widget captures, not native OS-window recordings.

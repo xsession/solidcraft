@@ -781,6 +781,7 @@ mod conjugate_heat {
             boundaries: vec![],
             buoyancy: None,
             thermoelectric_coolers: vec![],
+            face_sources: vec![],
         });
         case
     }
@@ -988,6 +989,7 @@ fn buoyancy_inputs_are_validated_and_drive_flow_in_a_heated_cavity() {
             reference_temperature_k: 300.0,
         }),
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     let manifest = Case::CollocatedFlow3d(case.clone())
         .run(&scratch.0.join("cavity"))
@@ -1227,6 +1229,7 @@ mod surface_bodies {
             boundaries: vec![],
             buoyancy: None,
             thermoelectric_coolers: vec![],
+            face_sources: vec![],
         });
         let manifest = Case::CollocatedFlow3d(case.clone())
             .run(&scratch.0.join("ball"))
@@ -1309,6 +1312,7 @@ fn goals_converge_stop_the_run_and_match_the_final_reports() {
         }],
         buoyancy: None,
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     let goal = |name: &str, kind, target: &str| Goal {
         name: name.into(),
@@ -1401,4 +1405,35 @@ fn goals_converge_stop_the_run_and_match_the_final_reports() {
         assert!(Case::CollocatedFlow3d(bad).run(&dir).is_err(), "edit {i}");
         assert!(!dir.join("manifest.json").exists());
     }
+}
+
+/// Global flow goals (`goals_v3`): the fluid's largest and mean speed and its largest, smallest
+/// and mean pressure, consistent with each other and with the outflow through the channel.
+#[test]
+fn global_flow_goals_bound_the_field() {
+    use cfd_solvers::case::goals::*;
+    let scratch = Scratch::new();
+    let mut case = fan_channel(&[(0.0, 0.02), (2e-5, 0.0)]);
+    case.output = PolyOutput { steps: 400, output_interval: 400 };
+    let goal = |name: &str, kind| Goal { name: name.into(), kind, target: String::new(), point: None, expression: None };
+    case.goals = vec![
+        goal("max_speed", GoalKind::GlobalMaxSpeed),
+        goal("mean_speed", GoalKind::GlobalMeanSpeed),
+        goal("max_p", GoalKind::GlobalMaxPressure),
+        goal("min_p", GoalKind::GlobalMinPressure),
+        goal("mean_p", GoalKind::GlobalMeanPressure),
+        Goal { name: "outflow".into(), kind: GoalKind::PatchVolumeFlow, target: "right".into(), point: None, expression: None },
+    ];
+    case.goal_control = Some(GoalControl { window_steps: 50, relative_tolerance: 1e-3, stop_when_converged: false, min_steps: 0 });
+    let dir = scratch.0.join("global");
+    let manifest = Case::CollocatedFlow3d(case).run(&dir).unwrap();
+    assert!(manifest.capabilities.iter().any(|c| c == "goals_v3"));
+    let m = &manifest.metrics;
+    assert!(m["goal_max_speed"] >= m["goal_mean_speed"] && m["goal_mean_speed"] > 0.0, "{m:?}");
+    assert!(m["goal_min_p"] <= m["goal_mean_p"] && m["goal_mean_p"] <= m["goal_max_p"], "{m:?}");
+    // The mean speed is at least the bulk speed through the channel's 0.02 × 0.01 m section.
+    assert!(m["goal_mean_speed"] >= 0.99 * m["goal_outflow"] / (0.02 * 0.01), "{m:?}");
+    let goals: serde_json::Value = serde_json::from_slice(&std::fs::read(dir.join("goals.json")).unwrap()).unwrap();
+    let units: Vec<&str> = goals["goals"].as_array().unwrap().iter().map(|g| g["unit"].as_str().unwrap()).collect();
+    assert_eq!(units, ["m/s", "m/s", "Pa", "Pa", "Pa", "m3/s"]);
 }

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+pub mod adapt;
 pub mod airflow;
 pub mod authoring;
 pub mod case_scene;
@@ -32,7 +33,7 @@ pub mod zoom;
 pub use templates::templates;
 
 /// Pinned producer whose case and run schemas this initial adapter understands.
-pub const SOLVER_VERSION: &str = "0.14.0";
+pub const SOLVER_VERSION: &str = "0.16.0";
 pub const SOLVER_REVISION: &str = "7cceaaaddafaf2515e01a86406e13d6037fdbf9a";
 /// Variants one sweep may create.
 pub const MAX_SWEEP_VARIANTS: usize = 16;
@@ -646,6 +647,8 @@ pub fn validate_producer(manifest: &Value, input_case: &Value) -> Result<()> {
                 | "0.11.0"
                 | "0.12.0"
                 | "0.13.0"
+                | "0.14.0"
+                | "0.15.0"
                 | SOLVER_VERSION
         )
     ) {

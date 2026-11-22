@@ -130,7 +130,7 @@ mod look_at_tests;
 #[cfg(test)]
 mod manage_dialogs_tests;
 mod material_card_review;
-mod material_editor;
+pub mod material_editor;
 
 #[cfg(test)]
 mod measurement_ui_tests;
@@ -214,13 +214,9 @@ mod file_load_ui_tests;
 mod fillet_spline_handle_tests;
 pub(crate) mod import_report;
 pub mod mouse_gesture;
-#[cfg(not(target_arch = "wasm32"))]
-mod multiphysics_case_view;
-mod multiphysics_field_view;
-mod multiphysics_material_library;
 pub mod multiphysics_workspace;
 use solidcraft_ui_kit::nav_bar;
-pub(crate) mod navigation;
+pub mod navigation;
 pub use solidcraft_ui_kit::navigation_bar;
 #[cfg(test)]
 mod navigation_bar_tests;
@@ -231,7 +227,7 @@ pub use navigation::WebWheelGestures;
 pub mod network_prompt;
 pub mod op_auto;
 pub mod open_elsewhere;
-pub(crate) mod open_meshing;
+pub mod open_meshing;
 pub mod operations;
 pub mod panel_runtime;
 pub mod params_dialog;
@@ -373,7 +369,7 @@ mod view_memory;
 pub mod view_pick;
 pub mod viewport;
 mod viewport_details;
-mod viewport_layout;
+pub mod viewport_layout;
 mod viewport_status;
 mod viewport_status_fixture;
 pub use solidcraft_ui_kit::window_chrome;
@@ -675,7 +671,8 @@ pub struct SolveApp {
     verifying: Option<verify_job::Verifying>,
     pub viewport: viewport::ViewportState,
     pub render_workspace: render_workspace::State,
-    pub multiphysics_workspace: multiphysics_workspace::State,
+    /// The Multiphysics workspace's state, owned by its crate (`solidcraft-multiphysics-ui`).
+    pub multiphysics_workspace: multiphysics_workspace::Slot,
     pub tool: Option<tools::Tool>,
     pub dialog: Option<dialogs::Dialog>,
     /// The joint dialogs' picked and hovered snaps ([`dialogs_assembly::picked_snap`]).
@@ -918,7 +915,7 @@ pub struct SolveApp {
     fitted: bool,
     /// A framing to settle once the viewport's layout is known: the camera to frame from, the
     /// bounds, whether to glide there, and whether it is the navigators' shared-zoom framing.
-    pending_fit: Option<(Camera, solidcraft_engine::geom::Aabb3, bool, bool)>,
+    pub pending_fit: Option<(Camera, solidcraft_engine::geom::Aabb3, bool, bool)>,
     /// Frames a pending fit has waited for a layout that can frame it (`resolve_fit`).
     fit_waits: u32,
     /// The sheet metal flat pattern's own pan and zoom.
@@ -1870,7 +1867,7 @@ impl SolveApp {
 
     /// What follows a command's run, whether it ran here or on a worker (a save): its echo,
     /// the status line when it failed, what opening and saving update, and the toolbar tab.
-    pub(crate) fn finish_command(&mut self, id: &str, r: &Result<Value, String>) {
+    pub fn finish_command(&mut self, id: &str, r: &Result<Value, String>) {
         let id = solidcraft_engine::find_command(id).map_or(id, |spec| spec.id);
         match r {
             Ok(v) => {
@@ -3069,7 +3066,7 @@ impl SolveApp {
 
     /// Visibility in the editor's scene: hidden face-profile sources are temporarily shown
     /// without changing the session's visibility or either history stack.
-    pub(crate) fn body_visible(&self, name: &str) -> bool {
+    pub fn body_visible(&self, name: &str) -> bool {
         self.session.body_visible(name) || self.dialog.as_ref().is_some_and(|d| d.edit_source_bodies.iter().any(|source| source == name))
     }
 

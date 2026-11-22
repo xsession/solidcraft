@@ -23,7 +23,7 @@ use crate::viewport::{Hit, NavMode, axis_rect, nearest_quarter_turn, pick, pick_
 
 /// What a page's camera may do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct NavCaps {
+pub struct NavCaps {
     /// Orbit (and continuous orbit) is allowed; off for flat 2D pages, where pan and zoom remain.
     pub orbit: bool,
     /// What is under the pointer can be picked or dragged, so presses on it don't navigate the
@@ -688,7 +688,7 @@ pub(crate) fn camera_motion(app: &mut SolveApp, rect: Rect, mut params: serde_js
 }
 
 /// What one frame of camera input saw and did, for the caller's hover, selection and drawing.
-pub(crate) struct CameraInput {
+pub struct CameraInput {
     pub hover: Option<Pos2>,
     pub scroll: f32,
     pub mods: egui::Modifiers,
@@ -714,7 +714,7 @@ pub(crate) struct CameraInput {
 /// in every workspace (#1454). With `caps.pick` off nothing under the pointer is treated as
 /// selectable, so a press that would start a selection navigates as on empty space; with
 /// `caps.orbit` off, bindings that orbit do nothing and pan and zoom work as usual.
-pub(crate) fn handle(app: &mut SolveApp, ui: &mut egui::Ui, rect: Rect, resp: &egui::Response, caps: NavCaps) -> CameraInput {
+pub fn handle(app: &mut SolveApp, ui: &mut egui::Ui, rect: Rect, resp: &egui::Response, caps: NavCaps) -> CameraInput {
     let input = handle_input(app, ui, rect, resp, caps);
     hold_perspective_distance(app);
     input

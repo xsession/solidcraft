@@ -9,8 +9,8 @@ CAD body assignments, a study's numerical case or any solver implementation.
 
 Changed implementation paths:
 
-- `crates/ui-egui/src/multiphysics_material_library.rs`
-- `crates/ui-egui/src/multiphysics_workspace.rs`
+- `crates/multiphysics-ui/src/multiphysics_material_library.rs`
+- `crates/multiphysics-ui/src/multiphysics_workspace.rs`
 - `crates/ui-egui/src/lib.rs`
 - `assets/locales/pending/multiphysics-material-library.json`
 - `assets/locales/pending/multiphysics-material-library-navigation.json`

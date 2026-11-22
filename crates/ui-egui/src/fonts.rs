@@ -876,10 +876,21 @@ pub fn setup_fonts(ctx: &egui::Context) {
     setup_fonts_for(ctx, "en", "");
 }
 
-/// A context with the production bundled faces, for isolated widget tests.
-#[cfg(test)]
-pub(crate) fn test_context() -> egui::Context {
-    crate::test_support::host_data();
+/// What SolidCraft installs into the shared crates before its first frame: its catalogs, its
+/// icons, its tab table and its navigation slots.
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn install_host_data() {
+    crate::i18n::install();
+    solidcraft_look::install_tables();
+    crate::workspace::install_tabs();
+    crate::navigation_slots::install();
+}
+
+/// A context with the production bundled faces, for isolated widget tests (here and in the
+/// crates of the app's workspaces, with the `test-support` feature).
+#[cfg(any(test, feature = "test-support"))]
+pub fn test_context() -> egui::Context {
+    install_host_data();
     let ctx = egui::Context::default();
     setup_bundled_fonts(&ctx);
     ctx

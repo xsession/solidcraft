@@ -114,6 +114,7 @@ fn chip_on_spreader() -> CollocatedFlowCase {
         }],
         buoyancy: None,
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     case
 }
@@ -165,6 +166,7 @@ fn contact_resistance_adds_the_series_temperature_step_between_solids() {
         boundaries: vec![],
         buoyancy: None,
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     let (_, before) = run(&lone, &scratch, "lone");
     a.contact_resistance_m2_k_per_w = Some(1.0);
@@ -209,6 +211,7 @@ fn a_heat_pipe_has_the_conductivity_of_its_effective_resistance() {
         boundaries: vec![],
         buoyancy: None,
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     let (_, slow) = run(&case, &scratch, "bar");
     let r = 0.5;

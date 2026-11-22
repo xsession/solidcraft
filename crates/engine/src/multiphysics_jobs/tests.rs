@@ -535,3 +535,169 @@ fn a_study_of_the_model_refines_around_faces_and_monitors_goals_on_them() {
     assert_eq!(back["study"]["case"]["mesh"]["dimensions"], json!([25, 10, 10]));
     assert_eq!(back["study"]["case"]["mesh"].get("coordinates"), None);
 }
+
+#[test]
+fn a_study_of_the_model_carries_heat_on_its_bodies_and_faces() {
+    let mut s = duct_session();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Heat","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let face = |point: [f64; 3]| json!({"body":"Duct","point":point});
+    for (name, point, role) in [
+        ("Inlet", [0.0, 20.0, 2.0], json!({"kind":"inlet","speed_m_per_s":0.05})),
+        ("Outlet", [100.0, 20.0, 2.0], json!({"kind":"outlet","pressure_m2_per_s2":0.0})),
+    ] {
+        s.execute("multiphysics.model.condition", &json!({"id":id,"expected_revision":revision(&s),"name":name,"face":face(point),"role":role}))
+            .unwrap();
+    }
+    // Materials need heat on.
+    let early = json!({"id":id,"expected_revision":revision(&s),"bodies":["Duct"],"conductivity_w_per_m_k":200.0});
+    assert!(s.execute("multiphysics.model.material", &early).unwrap_err().to_string().contains("heat transfer on"));
+    let on = s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":true,"inflow_temperature_k":300.0})).unwrap();
+    // The duct has no material yet: the starter one, with a note.
+    assert_eq!(on["study"]["case"]["thermal"]["solids"][0]["conductivity_w_per_m_k"], json!([1.0, 1.0, 1.0]), "{on}");
+    assert!(on["notes"].as_array().unwrap().iter().any(|n| n.as_str().unwrap().contains("starter material")), "{on}");
+    let material = json!({"id":id,"expected_revision":revision(&s),"bodies":["Duct"],"conductivity_w_per_m_k":200.0,"power_w":1.0});
+    s.execute("multiphysics.model.material", &material).unwrap();
+    // 5 W on the channel's wall at y = 4 mm, and the inlet's end face held at 310 K.
+    let source = json!({"id":id,"expected_revision":revision(&s),"name":"Heater","face":face([50.0, 4.0, 20.0]),"power_w":5.0});
+    s.execute("multiphysics.model.heat_source", &source).unwrap();
+    let hot = json!({"id":id,"expected_revision":revision(&s),"name":"Hot inlet","face":face([0.0, 20.0, 2.0]),"condition":{"kind":"temperature","temperature_k":310.0}});
+    s.execute("multiphysics.model.thermal_face", &hot).unwrap();
+    let goal = json!({"id":id,"expected_revision":revision(&s),"name":"duct_max","kind":"body_max_temperature","body":"Duct"});
+    let reply = s.execute("multiphysics.model.goal", &goal).unwrap();
+    let case = &reply["study"]["case"];
+    assert_eq!(case["thermal"]["inflow_temperature_k"], json!(300.0));
+    assert_eq!(case["thermal"]["solids"], json!([{"obstacle":"Duct","conductivity_w_per_m_k":[200.0,200.0,200.0],"power_w":1.0}]));
+    assert_eq!(case["thermal"]["boundaries"], json!([{"patch":"left","condition":{"kind":"temperature","temperature_k":310.0}}]));
+    let heater = &case["thermal"]["face_sources"][0];
+    assert_eq!((heater["name"].clone(), heater["body"].clone(), heater["power_w"].clone()), (json!("Heater"), json!("Duct"), json!(5.0)));
+    // The source covers exactly the wall's triangles: every one on the plane y = 4 mm.
+    let body = case["bodies"].as_array().unwrap().iter().find(|b| b["name"] == "Duct").unwrap().clone();
+    for t in heater["triangles"].as_array().unwrap() {
+        for v in body["triangles"][t.as_u64().unwrap() as usize].as_array().unwrap() {
+            let y = body["vertices"][v.as_u64().unwrap() as usize][1].as_f64().unwrap();
+            assert!((y - 0.004).abs() < 1e-9, "triangle {t} leaves the face: y = {y}");
+        }
+    }
+    assert_eq!(case["goals"][0], json!({"name":"duct_max","kind":"solid_max_temperature","target":"Duct"}));
+    if let Ok(path) = std::env::var("SC_DUMP_HEATED_ENGINE") {
+        let _ = std::fs::write(path, case.to_string());
+    }
+    // A thermal condition on a face inside the domain is refused with the reason.
+    let inside = json!({"id":id,"expected_revision":revision(&s),"name":"Wall","face":face([50.0, 4.0, 20.0]),"condition":{"kind":"adiabatic"}});
+    assert!(s.execute("multiphysics.model.thermal_face", &inside).unwrap_err().to_string().contains("domain boundary"));
+    // Heat off: the thermal block and the temperature goal go.
+    let off = s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":false})).unwrap();
+    assert_eq!(off["study"]["case"].get("thermal"), None);
+    assert_eq!(off["study"]["case"].get("goals"), None);
+    assert_eq!(off["link"].get("heat"), None);
+}
+
+/// A grid of `n` cells of `cell` metres with a velocity along x of 0 below cell `step` and 1
+/// m/s from it on, as the companion writes a flow field.
+fn step_vtu(n: [usize; 3], cell: f64, step: usize) -> String {
+    let (mut points, mut connectivity, mut offsets, mut velocity) = (String::new(), String::new(), String::new(), String::new());
+    let mut count = 0;
+    for k in 0..n[2] {
+        for j in 0..n[1] {
+            for i in 0..n[0] {
+                for (dx, dy, dz) in [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)] {
+                    points.push_str(&format!("{} {} {} ", (i + dx) as f64 * cell, (j + dy) as f64 * cell, (k + dz) as f64 * cell));
+                }
+                for v in 0..8 {
+                    connectivity.push_str(&format!("{} ", count * 8 + v));
+                }
+                count += 1;
+                offsets.push_str(&format!("{} ", count * 8));
+                velocity.push_str(if i < step { "0 0 0 " } else { "1 0 0 " });
+            }
+        }
+    }
+    format!(
+        r#"<?xml version="1.0"?><VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian"><UnstructuredGrid><Piece NumberOfPoints="{}" NumberOfCells="{count}"><CellData><DataArray type="Float64" Name="velocity_m_per_s" NumberOfComponents="3" format="ascii">{velocity}</DataArray></CellData><Points><DataArray type="Float64" NumberOfComponents="3" format="ascii">{points}</DataArray></Points><Cells><DataArray type="Int64" Name="connectivity" format="ascii">{connectivity}</DataArray><DataArray type="Int64" Name="offsets" format="ascii">{offsets}</DataArray><DataArray type="UInt8" Name="types" format="ascii">{}</DataArray></Cells></Piece></UnstructuredGrid></VTKFile>"#,
+        count * 8,
+        "12 ".repeat(count)
+    )
+}
+
+#[test]
+fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
+    let mut s = duct_session();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Adapt","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let dimensions = |reply: &Value| reply["study"]["case"]["mesh"]["dimensions"].clone();
+    // A level clears the typed 4 mm cells: level 5 is finer than the automatic level 3.
+    let level3 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":3})).unwrap();
+    assert_eq!(level3["link"].get("cell_mm"), None);
+    let level5 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":5})).unwrap();
+    let count = |d: Value| d.as_array().unwrap().iter().map(|n| n.as_u64().unwrap()).product::<u64>();
+    assert!(count(dimensions(&level5)) > 5 * count(dimensions(&level3)), "{} {}", dimensions(&level3), dimensions(&level5));
+    // Back to 4 mm cells, then keep a run whose velocity steps up at x = 48 mm.
+    let reply = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"cell_mm":4.0})).unwrap();
+    assert_eq!(dimensions(&reply), json!([25, 10, 10]));
+    let study = s.doc.multiphysics.study(&id).unwrap().clone();
+    let capabilities: Vec<&str> = solidcraft_multiphysics::airflow::requirements(&study.case).iter().map(|r| r.capability).collect();
+    let manifest = json!({"schema":"cfd-solvers-rs/run/1","rust_port_version":SOLVER_VERSION,"upstream_revision":SOLVER_REVISION,
+        "backend":"native_rust_serial_cpu","complete_clone":false,"execution_completed":true,"solver":"collocated_flow3d",
+        "linear_solver_converged":null,"steady_state_converged":null,"capabilities":capabilities,"metrics":{"wall_time_s":0.01},
+        "files":["flow_000010.vtu","manifest.json"],"case":study.case});
+    let run = RunEvidence {
+        id: "first".into(),
+        study_revision: study.revision,
+        case_hash: solidcraft_multiphysics::case_hash(&study.case).unwrap(),
+        input_case: study.case.clone(),
+        artifacts: vec![
+            Artifact { name: "flow_000010.vtu".into(), text: step_vtu([25, 10, 10], 0.004, 12) },
+            Artifact { name: "manifest.json".into(), text: manifest.to_string() },
+        ],
+        manifest,
+    };
+    let mut project = s.doc.multiphysics.as_ref().clone();
+    project.attach_evidence(&id, run).unwrap();
+    s.doc_mut().multiphysics = Arc::new(project);
+    let adapted = s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"first"})).unwrap();
+    // The cells on both sides of the step, x from 44 to 52 mm, through the whole section.
+    assert_eq!(adapted["adapted"]["flagged"], json!(200), "{}", adapted["adapted"]);
+    let regions: Vec<[[f64; 3]; 2]> = serde_json::from_value(adapted["adapted"]["regions_mm"].clone()).unwrap();
+    assert_eq!(regions.len(), 1);
+    for (got, want) in regions[0].iter().flatten().zip([44.0, 0.0, 0.0, 52.0, 40.0, 40.0]) {
+        assert!((got - want).abs() < 1e-9, "{regions:?}");
+    }
+    assert_eq!(adapted["link"]["refinements"][0]["name"], "adapt_1");
+    // Those two x cells split in two; y and z split everywhere the box reaches (all of them).
+    assert_eq!(dimensions(&adapted), json!([27, 20, 20]));
+    // Adapting again replaces the earlier boxes; remove takes them away.
+    let again = s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"first","factor":3})).unwrap();
+    assert_eq!(again["link"]["refinements"].as_array().unwrap().len(), 1);
+    let removed = s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"first","remove":true})).unwrap();
+    assert_eq!(dimensions(&removed), json!([25, 10, 10]));
+    assert!(s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"nope"})).is_err());
+}
+
+#[test]
+fn a_study_of_the_model_takes_a_fan_and_global_goals() {
+    let mut s = duct_session();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Fan","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let face = |point: [f64; 3]| json!({"body":"Duct","point":point});
+    let outlet = json!({"id":id,"expected_revision":revision(&s),"name":"Outlet","face":face([100.0, 20.0, 2.0]),"role":{"kind":"outlet","pressure_m2_per_s2":0.0}});
+    s.execute("multiphysics.model.condition", &outlet).unwrap();
+    // The fan on the duct's other end blows against the outlet.
+    let fan = json!({"id":id,"expected_revision":revision(&s),"face":face([0.0, 20.0, 2.0]),"curve":[[0.0, 4.0], [4e-4, 3.0], [1e-3, 0.0]]});
+    let reply = s.execute("multiphysics.model.fan", &fan).unwrap();
+    let case = &reply["study"]["case"];
+    assert_eq!((case["fan"]["patch"].clone(), case["fan"]["reference_patch"].clone()), (json!("left"), json!("right")), "{case}");
+    for (name, kind) in [("v_max", "global_max_speed"), ("p_mean", "global_mean_pressure")] {
+        s.execute("multiphysics.model.goal", &json!({"id":id,"expected_revision":revision(&s),"name":name,"kind":kind})).unwrap();
+    }
+    let case = s.doc.multiphysics.study(&id).unwrap().case.clone();
+    assert_eq!(case["goals"], json!([{"name":"v_max","kind":"global_max_speed"},{"name":"p_mean","kind":"global_mean_pressure"}]));
+    if let Ok(path) = std::env::var("SC_DUMP_FAN") {
+        let _ = std::fs::write(path, case.to_string());
+    }
+    // A fan on a face inside the domain is refused; remove takes it away.
+    let inside = json!({"id":id,"expected_revision":revision(&s),"face":face([50.0, 4.0, 20.0]),"curve":[[0.0, 4.0], [1e-3, 0.0]]});
+    assert!(s.execute("multiphysics.model.fan", &inside).unwrap_err().to_string().contains("domain boundary"));
+    let removed = s.execute("multiphysics.model.fan", &json!({"id":id,"expected_revision":revision(&s),"remove":true})).unwrap();
+    assert_eq!(removed["study"]["case"].get("fan"), None);
+}

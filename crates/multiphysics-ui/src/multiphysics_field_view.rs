@@ -3,6 +3,8 @@
 //! This is a planar scientific layer and a wireframe domain, not a volume renderer,
 //! CAD body display or particle-path integrator. Display normalization leaves the
 //! retained coordinates and original field arrays untouched.
+// The 3-D result views that draw with this are native only; the case view uses the camera.
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 use solidcraft_engine::geom::Vec3Geom as _;
 use std::fmt;
 use std::sync::Arc;

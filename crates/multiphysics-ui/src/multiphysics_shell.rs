@@ -15,7 +15,7 @@ mod menus;
 /// Width of the resource bar's icon strip.
 pub(super) const RESOURCE_BAR: f32 = 34.0;
 /// Width kept for the workspace switcher at the left of the ribbon.
-const SWITCHER: f32 = 88.0;
+const SWITCHER: f32 = 112.0;
 /// The ribbon: its tab row and one row of labelled groups.
 pub(super) const RIBBON: f32 = menus::HEIGHT + ribbon::TAB_ROW_HEIGHT + ribbon::GROUP_HEIGHT + 1.0;
 
@@ -269,8 +269,12 @@ impl Node {
 
     /// Whether the tree lists this folder now: Customize Tree's choice, or the default, and
     /// always when the case has entries for it.
-    fn visible(self, state: &State, case: &Value) -> bool {
-        state.tree_custom.get(self.key()).copied().unwrap_or_else(|| self.default_visible()) || case_has(case, self)
+    /// A study of the loaded model (`model`) turns heat transfer on in Solid Materials, so that
+    /// folder is always listed for it.
+    fn visible(self, state: &State, case: &Value, model: bool) -> bool {
+        state.tree_custom.get(self.key()).copied().unwrap_or_else(|| self.default_visible())
+            || case_has(case, self)
+            || (model && self == Self::SolidMaterials)
     }
 
     /// Whether the node has an implementation; the others are listed for orientation only.
@@ -535,6 +539,88 @@ static WIZARD_STEPS: [&str; 7] = [
     "multiphysics.wizard_step_summary",
 ];
 
+/// The unit system the wizard states: every case is solved in SI. Symbols are not translated.
+static SI_UNITS: [(&str, &str); 8] = [
+    ("multiphysics.wizard_unit_length", "m"),
+    ("multiphysics.wizard_unit_time", "s"),
+    ("multiphysics.wizard_unit_mass", "kg"),
+    ("multiphysics.wizard_unit_temperature", "K"),
+    ("multiphysics.wizard_unit_pressure", "Pa"),
+    ("multiphysics.wizard_unit_velocity", "m/s"),
+    ("multiphysics.wizard_unit_heat", "W"),
+    ("multiphysics.wizard_unit_conductivity", "W/(m·K)"),
+];
+
+/// Every group the summary page lists, in the pages' order.
+const SUMMARY_GROUPS: [Node; 12] = [
+    Node::General,
+    Node::Control,
+    Node::Domain,
+    Node::Mesh,
+    Node::FluidSubdomains,
+    Node::SolidMaterials,
+    Node::Boundary,
+    Node::Radiation,
+    Node::Sources,
+    Node::Fans,
+    Node::Porous,
+    Node::Initial,
+];
+
+/// A list row's click target, published only while the row is in view: a row scrolled out of
+/// its list has no place on screen to click.
+fn visible_target(ui: &egui::Ui, handle: &str, response: &egui::Response) {
+    if ui.clip_rect().contains_rect(response.rect) {
+        crate::scenario::publish_target(handle, response.rect);
+    }
+}
+
+/// One step in the wizard's step list: a numbered disc (a tick once passed) and its name.
+fn wizard_step_row(ui: &mut egui::Ui, index: usize, text: &str, current: usize, enabled: bool) -> egui::Response {
+    let t = Tokens::get();
+    let height = crate::ui_kit::row_height() + t.space_4;
+    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), height), if enabled { Sense::click() } else { Sense::hover() });
+    let painter = ui.painter();
+    let here = index == current;
+    if here {
+        painter.rect_filled(rect, t.control_radius, t.accent_soft);
+    } else if response.hovered() && enabled {
+        painter.rect_filled(rect, t.control_radius, t.control_fill);
+    }
+    let radius = (height * 0.32).min(t.space_10);
+    let center = pos2(rect.left() + t.space_8 + radius, rect.center().y);
+    if index < current {
+        painter.circle_filled(center, radius, t.accent);
+        let r = radius * 0.5;
+        painter.line(
+            vec![center + vec2(-r, 0.0), center + vec2(-r * 0.25, r * 0.7), center + vec2(r, -r * 0.6)],
+            egui::Stroke::new(1.8, t.on_accent),
+        );
+    } else {
+        if here {
+            painter.circle_filled(center, radius, t.accent);
+        } else {
+            painter.circle_stroke(center, radius, egui::Stroke::new(1.0, t.border));
+        }
+        let ink = if here { t.on_accent } else { t.text_dim };
+        painter.text(center, egui::Align2::CENTER_CENTER, (index + 1).to_string(), egui::FontId::proportional(t.font_small), ink);
+    }
+    let font = if here { crate::ui_kit::type_face::semibold(t.font_body) } else { egui::FontId::proportional(t.font_body) };
+    let ink = if here {
+        t.selected_ink
+    } else if index < current {
+        t.text
+    } else {
+        t.text_dim
+    };
+    let x = center.x + radius + t.space_8;
+    let galley = painter.layout(text.to_owned(), font, ink, (rect.right() - x - t.space_4).max(0.0));
+    let y = rect.center().y - galley.size().y / 2.0;
+    painter.with_clip_rect(rect).galley(pos2(x, y), galley, ink);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, text));
+    response
+}
+
 // ── Ribbon ───────────────────────────────────────────────────────────────────────────────────
 
 struct Command {
@@ -553,6 +639,8 @@ fn cmd(id: &'static str, key: &'static str, icon: &'static str, enabled: bool) -
 fn groups(app: &SolveApp, state: &State, study: Option<&Study>, tab: usize) -> Vec<(&'static str, &'static str, Vec<Command>)> {
     let has_study = study.is_some();
     let has_runs = study.is_some_and(|study| !study.runs.is_empty());
+    // A finished run waiting to be kept: Load results keeps and opens it.
+    let waiting = study.is_some_and(|study| keepable_job(app, study).is_some());
     let node = current(state);
     let running = study.is_some_and(|study| {
         app.session.multiphysics_jobs().iter().any(|job| job.study_id == study.id && matches!(job.state.as_str(), "queued" | "running"))
@@ -606,7 +694,7 @@ fn groups(app: &SolveApp, state: &State, study: Option<&Study>, tab: usize) -> V
             "results",
             "multiphysics.group_results",
             vec![
-                cmd("load_results", "multiphysics.cmd_load_results", "open", has_runs),
+                cmd("load_results", "multiphysics.cmd_load_results", "open", has_runs || waiting),
                 cmd("cut_plot", "multiphysics.tree_cut_plots", "section", has_runs),
                 cmd("surface_plot", "multiphysics.tree_surface_plots", "surface", has_runs),
                 cmd("isosurface", "multiphysics.tree_isosurfaces", "iso_analysis", has_runs),
@@ -643,6 +731,23 @@ fn groups(app: &SolveApp, state: &State, study: Option<&Study>, tab: usize) -> V
         }
     }
     out
+}
+
+/// The latest finished run of `study` that has its result and is not kept yet, for the study's
+/// current revision.
+pub(super) fn keepable_job(app: &SolveApp, study: &Study) -> Option<String> {
+    app.session
+        .multiphysics_jobs()
+        .iter()
+        .rev()
+        .find(|job| {
+            job.study_id == study.id
+                && job.evidence.is_some()
+                && !job.stale
+                && job.study_revision == study.revision
+                && !study.runs.iter().any(|run| run.id == job.id)
+        })
+        .map(|job| job.id.clone())
 }
 
 /// The tree node a ribbon command opens.
@@ -697,6 +802,52 @@ fn node_for(id: &str) -> Option<Node> {
         "report" | "result_export" => Node::Report,
         "animation" => Node::Animation,
         "compare" => Node::Compare,
+        _ => return None,
+    })
+}
+
+/// Commands that stay in their group's menu (and the menu bar) instead of the ribbon row: one
+/// row of every command squeezed each button to its narrowest and cut most labels short.
+const MENU_ONLY: [&str; 11] = [
+    "clone",
+    "component_control",
+    "add_from_components",
+    "batch_run",
+    "control",
+    "isosurface",
+    "particles",
+    "point_params",
+    "surface_params",
+    "create_lids",
+    "templates",
+];
+
+/// A button wide enough for its label's longest word, which cannot wrap: the kit's width caps a
+/// word such as "Boundary" and cuts it short.
+fn label_room(painter: &egui::Painter, label: &str) -> f32 {
+    let word = label.split_whitespace().map(|w| ribbon::label_width(painter, w)).fold(0.0_f32, f32::max);
+    ribbon::button_width(painter, label).max(word + ribbon::BUTTON_LABEL_PADDING)
+}
+
+/// A ribbon label short enough for the button (the full name stays its accessible name and the
+/// group menu's row).
+fn ribbon_label(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "model_study" => "multiphysics.ribbon_model_study",
+        "general" => "multiphysics.ribbon_general",
+        "domain" => "multiphysics.ribbon_domain",
+        "boundary" => "multiphysics.ribbon_boundary",
+        "mesh" => "multiphysics.ribbon_global_mesh",
+        "local_mesh" => "multiphysics.ribbon_local_mesh",
+        "monitor" => "multiphysics.ribbon_monitor",
+        "load_results" => "multiphysics.ribbon_load_results",
+        "trajectories" => "multiphysics.ribbon_trajectories",
+        "xy_plot" => "multiphysics.ribbon_xy_plot",
+        "goal_plot" => "multiphysics.ribbon_goal_plot",
+        "result_export" => "multiphysics.ribbon_export",
+        "check" => "multiphysics.ribbon_check",
+        "materials" => "multiphysics.ribbon_materials",
+        "verify" => "multiphysics.ribbon_verify",
         _ => return None,
     })
 }
@@ -780,6 +931,9 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
     let groups = groups(app, state, study, state.ribbon_tab);
     let painter = ui.painter().clone();
     let texts: Vec<Vec<&str>> = groups.iter().map(|(_, _, commands)| commands.iter().map(|command| tr(command.key)).collect()).collect();
+    // The ribbon row's buttons: the group's commands without the menu-only ones.
+    let shown: Vec<Vec<usize>> =
+        groups.iter().map(|(_, _, commands)| (0..commands.len()).filter(|&i| !MENU_ONLY.contains(&commands[i].id)).collect()).collect();
     let group_labels: Vec<&str> = groups.iter().map(|(_, key, _)| tr(key)).collect();
     let ids: Vec<Vec<&str>> = groups.iter().map(|(_, _, commands)| commands.iter().map(|command| command.id).collect()).collect();
     let more_tip = tr("multiphysics.ribbon_more");
@@ -792,16 +946,19 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
                 name: group_labels.get(gi).copied().unwrap_or_default(),
                 label: group_labels.get(gi).copied().unwrap_or_default(),
                 tip: group_labels.get(gi).copied().unwrap_or_default(),
-                buttons: commands
-                    .iter()
-                    .zip(texts.get(gi).into_iter().flatten())
-                    .map(|(command, &label)| ribbon::Button {
+                buttons: shown
+                    .get(gi)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|&i| Some((commands.get(i)?, *texts.get(gi)?.get(i)?)))
+                    .map(|(command, name)| (command, ribbon_label(command.id).map_or(name, tr), name))
+                    .map(|(command, label, name)| ribbon::Button {
                         id: command.id,
                         run: command.id,
                         label,
-                        name: label,
+                        name,
                         icon: command.icon,
-                        size: ribbon::ButtonSize { width: ribbon::button_width(&painter, label), min_width: ribbon::BUTTON_MIN_WIDTH },
+                        size: ribbon::ButtonSize { width: label_room(&painter, label), min_width: ribbon::BUTTON_MIN_WIDTH },
                         enabled: command.enabled,
                         pressed: command.pressed,
                         exit: false,
@@ -842,7 +999,10 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
     let drawn = ribbon::show(ui, &row, panel_rect, &mut |_, _| false);
     let mut chosen = Vec::new();
     for button in &drawn.buttons {
-        if let Some(command) = groups.get(button.group).and_then(|(_, _, commands)| commands.get(button.index))
+        if let Some(command) = shown
+            .get(button.group)
+            .and_then(|row| row.get(button.index))
+            .and_then(|&i| groups.get(button.group).and_then(|(_, _, commands)| commands.get(i)))
             && command.id == "monitor"
         {
             crate::scenario::publish_target("multiphysics.stage_run", button.whole);
@@ -864,6 +1024,16 @@ fn run(app: &mut SolveApp, state: &mut State, studies: &[Study], id: &str) {
         state.case_tool.fluid_requested = true;
     }
     let study = state.selected.as_ref().and_then(|selected| studies.iter().find(|study| &study.id == selected)).cloned();
+    // Load results keeps a finished run first, so its result can be shown at once.
+    if id == "load_results"
+        && let Some(study) = &study
+        && let Some(job) = keepable_job(app, study)
+        && command(app, state, "multiphysics.run.keep", json!({"job_id":job})).is_some()
+    {
+        state.selected_run = Some(job.clone());
+        state.shown_run = Some(job);
+        state.selected_artifact = 0;
+    }
     if let Some(node) = node_for(id) {
         if node.stage() == Stage::Results && id != "load_results" {
             state.ribbon_tab = 1;
@@ -1239,10 +1409,12 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             });
             if open {
                 for folder in Node::INPUT {
-                    if !folder.visible(state, &case) {
+                    if !folder.visible(state, &case, study.model.is_some()) {
                         continue;
                     }
-                    let pointers = entries(&case, folder);
+                    // A study of the loaded model rebuilds its case from the model, so the
+                    // case's own entries are not listed for editing.
+                    let pointers = if study.model.is_some() { Vec::new() } else { entries(&case, folder) };
                     let folded = state.tree_folded.contains(folder.key());
                     let has_rows = !pointers.is_empty() || folder == Node::Mesh;
                     let response = row(
@@ -1345,7 +1517,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
             });
             if open && let Some(run) = loaded {
                 for folder in Node::RESULTS {
-                    if !folder.visible(state, &Value::Null) {
+                    if !folder.visible(state, &Value::Null, false) {
                         continue;
                     }
                     let files: Vec<(usize, &str)> = run
@@ -1649,49 +1821,7 @@ fn disclosure_clicked(ui: &egui::Ui, response: &egui::Response, depth: usize) ->
         && ui.ctx().pointer_interact_pos().is_some_and(|at| at.x < response.rect.left() + disclosure_left(depth) + Tokens::get().space_16)
 }
 
-fn disclosure_left(depth: usize) -> f32 {
-    Tokens::get().space_4 + depth as f32 * Tokens::get().space_16
-}
-
-/// One tree row: indent, an optional disclosure triangle, the icon and the label. `bold` marks
-/// the active project, as flow-analysis trees do.
-#[allow(clippy::too_many_arguments)]
-fn row(ui: &mut egui::Ui, depth: usize, open: Option<bool>, icon: &str, text: &str, selected: bool, enabled: bool, bold: bool) -> egui::Response {
-    let t = Tokens::get();
-    let height = crate::ui_kit::row_height();
-    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), height), if enabled { Sense::click() } else { Sense::hover() });
-    let painter = ui.painter();
-    if selected {
-        painter.rect_filled(rect, t.control_radius, t.accent_soft);
-    } else if response.hovered() && enabled {
-        painter.rect_filled(rect, t.control_radius, t.control_fill);
-    }
-    let mut x = rect.left() + disclosure_left(depth);
-    let glyph = t.space_12;
-    if let Some(open) = open {
-        let disclosure = Rect::from_center_size(pos2(x + glyph / 2.0, rect.center().y), vec2(glyph, glyph));
-        crate::icons::paint_ink(painter, disclosure, if open { "disclosure_open" } else { "disclosure_closed" }, t.text_dim);
-    }
-    x += glyph + t.space_4;
-    let icon_size = t.space_16;
-    let icon_rect = Rect::from_center_size(pos2(x + icon_size / 2.0, rect.center().y), vec2(icon_size, icon_size));
-    crate::icons::paint_icon(painter, icon_rect, icon, if enabled { 1.0 } else { 0.4 });
-    x += icon_size + t.space_6;
-    let font = if bold { crate::ui_kit::type_face::semibold(t.font_body) } else { egui::FontId::proportional(t.font_body) };
-    let color = if !enabled {
-        t.text_dim
-    } else if selected {
-        t.selected_ink
-    } else {
-        t.text
-    };
-    let room = (rect.right() - x - t.space_4).max(0.0);
-    let galley = painter.layout(text.to_owned(), font, color, room);
-    let galley_height = galley.size().y;
-    painter.with_clip_rect(rect).galley(pos2(x, rect.center().y - galley_height / 2.0), galley, color);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, text));
-    response
-}
+use crate::multiphysics_property_grid::{disclosure_left, tree_row as row};
 
 // ── Floating windows ─────────────────────────────────────────────────────────────────────────
 
@@ -1773,14 +1903,19 @@ pub(super) fn feature_panel(
     ui.separator();
     let footer = t.control_height + t.space_12;
     egui::ScrollArea::vertical().id_salt("multiphysics_feature_panel").max_height((ui.available_height() - footer).max(80.0)).show(ui, |ui| {
+        // Hints and notes wrap at the panel's width instead of widening it to their length.
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+        ui.set_max_width(ui.available_width());
         feature(app, state, study, report, node, ui);
     });
     ui.separator();
     ui.horizontal(|ui| {
         let dirty = state.drafts.get(&study.id).is_some_and(Draft::dirty);
-        let ok = crate::ui_kit::button(ui, "✓", crate::ui_kit::Button::Normal).backing_on_hover_text(tr("multiphysics.panel_ok"));
+        let ok = crate::ui_kit::button(ui, tr("multiphysics.panel_ok_label"), crate::ui_kit::Button::Primary)
+            .backing_on_hover_text(tr("multiphysics.panel_ok"));
         crate::scenario::publish_target("multiphysics:panel_ok", ok.rect);
-        let close = crate::ui_kit::button(ui, "✕", crate::ui_kit::Button::Normal).backing_on_hover_text(tr("multiphysics.panel_close"));
+        let close = crate::ui_kit::button(ui, tr("multiphysics.panel_close_label"), crate::ui_kit::Button::Normal)
+            .backing_on_hover_text(tr("multiphysics.panel_close"));
         crate::scenario::publish_target("multiphysics:panel_close", close.rect);
         if ok.clicked() {
             if node.edits_case() && dirty {
@@ -1810,6 +1945,10 @@ fn feature(
     // Its mesh and goals have their own nodes, as in the analysis tree of a flow tool.
     if study.model.is_some() && node == Node::Mesh {
         super::model_ui::mesh_panel(app, state, study, ui);
+        return;
+    }
+    if study.model.is_some() && node == Node::SolidMaterials {
+        super::model_ui::heat_panel(app, state, study, ui);
         return;
     }
     if study.model.is_some() && node == Node::Goals {
@@ -1929,6 +2068,11 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
                 && study.model.is_some()
             {
                 super::model_ui::overlay(app, state, study, ui, rect);
+                // A flow tool open in the property panel draws its lines on this model.
+                #[cfg(not(target_arch = "wasm32"))]
+                if state.view.model_flow_docked && matches!(current(state), Node::Trajectories | Node::Particles | Node::Isosurfaces) {
+                    super::on_model::flow_on_graphics(app, ui, &mut state.view, rect);
+                }
             }
             // Drawn after the CAD window so it stays on top of it.
             if offer_case {
@@ -1975,121 +2119,164 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
     );
     let mut finish = false;
     let mut cancel = false;
-    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_wizard"), "new", &title).cards(2.0).page_rows(18.0).show_body(ctx, |ui| {
+    let closed = crate::ui_kit::Window::new(egui::Id::unique("multiphysics_wizard"), "new", &title).cards(2.8).page_rows(24.0).show_body(ctx, |ui| {
         crate::scenario::publish_rect("multiphysics:wizard", ui.max_rect());
         crate::scenario::publish_count("multiphysics:wizard_step", wizard.step as f64);
-        match wizard.step {
-            0 => {
-                ui.label(tr("multiphysics.wizard_name_hint"));
-                let r = crate::ui_kit::row(ui, tr("multiphysics.name"), |ui| {
-                    crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("wizard_name"), &mut wizard.name, "", false, 160)
-                });
-                crate::scenario::publish_target("multiphysics:wizard_name", r.rect);
+        let t = Tokens::get();
+        // Fill the window's body down to the footer, whatever its rows make it.
+        let footer = t.control_height + t.space_16 + t.space_8;
+        let room = ui.available_height() - footer;
+        let height = if room.is_finite() && room >= 360.0 { room } else { (t.control_height * 16.5).max(360.0) };
+        let top = ui.available_rect_before_wrap().min;
+        let width = ui.available_width();
+        let rail_width = (width * 0.27).clamp(170.0, 230.0);
+        let rail = Rect::from_min_size(top, vec2(rail_width, height));
+        let page = Rect::from_min_max(pos2(rail.right() + t.space_12, top.y), pos2(top.x + width, top.y + height));
+        ui.allocate_rect(Rect::from_min_size(top, vec2(width, height)), Sense::hover());
+        let reachable = wizard.candidate.is_some();
+        crate::multiphysics_property_grid::pane(ui, rail, tr("multiphysics.wizard_steps"), |ui| {
+            for (index, key) in WIZARD_STEPS.iter().enumerate() {
+                let enabled = index <= wizard.step || reachable;
+                let response = wizard_step_row(ui, index, tr(key), wizard.step, enabled);
+                crate::scenario::publish_target(&format!("multiphysics:wizard_rail:{index}"), response.rect);
+                if response.clicked() && enabled {
+                    wizard.step = index;
+                }
             }
-            1 => {
-                let current = wizard.category.clone().unwrap_or_else(|| tr("multiphysics.template_category_all").to_string());
-                let r = crate::ui_kit::dropdown_menu(ui, "multiphysics_wizard_category", &current, |ui| {
-                    let response = crate::ui_kit::list_picker(
-                        ui,
-                        "multiphysics_wizard_category_all",
-                        tr("multiphysics.template_category_all"),
-                        wizard.category.is_none(),
-                    );
-                    crate::scenario::publish_target("multiphysics:wizard_category:all", response.rect);
-                    if response.clicked() {
-                        wizard.category = None;
-                        ui.close();
-                    }
-                    for category in &categories {
-                        let response = crate::ui_kit::list_picker(
-                            ui,
-                            &format!("multiphysics_wizard_category_{category}"),
-                            category,
-                            wizard.category.as_ref() == Some(category),
-                        );
-                        crate::scenario::publish_target(&format!("multiphysics:wizard_category:{category}"), response.rect);
+        });
+        ui.scope_builder(egui::UiBuilder::new().max_rect(page).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
+            ui.set_clip_rect(page.intersect(ui.clip_rect()));
+            ui.label(egui::RichText::new(tr(WIZARD_STEPS[wizard.step])).font(crate::ui_kit::type_face::semibold(t.font_subtitle)));
+            let hint = match wizard.step {
+                0 => "multiphysics.wizard_name_hint",
+                1 => "multiphysics.wizard_template_hint",
+                2 => "multiphysics.wizard_si_scope",
+                3..=5 => "multiphysics.wizard_case_scope",
+                _ => "multiphysics.wizard_summary_hint",
+            };
+            ui.add(egui::Label::new(egui::RichText::new(tr(hint)).small().color(t.text_dim)).wrap());
+            ui.add_space(t.space_8);
+            let columns = [tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_value")];
+            match wizard.step {
+                0 => {
+                    crate::multiphysics_property_grid::header(ui, &columns, &[0.46, 0.54]);
+                    let (_, r) = crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.name"), false, |ui: &mut egui::Ui| {
+                        crate::ui_kit::bounded_cell_editor(ui, ui.scope_id().with("wizard_name"), &mut wizard.name, "", false, 160)
+                    });
+                    crate::scenario::publish_target("multiphysics:wizard_name", r.rect);
+                }
+                1 => {
+                    // Every category as a filter chip, then the chosen category's templates.
+                    ui.horizontal_wrapped(|ui| {
+                        let response = crate::ui_kit::choice_chip(ui, "multiphysics_wizard_category_all", tr("multiphysics.template_category_all"), wizard.category.is_none());
+                        crate::scenario::publish_target("multiphysics:wizard_category:all", response.rect);
                         if response.clicked() {
-                            wizard.category = Some(category.clone());
-                            ui.close();
+                            wizard.category = None;
                         }
-                    }
-                });
-                crate::scenario::publish_target("multiphysics:wizard_category_menu", r.rect);
-                egui::ScrollArea::vertical().id_salt("multiphysics_wizard_templates").max_height(280.0).show(ui, |ui| {
-                    for (i, template) in templates.iter().enumerate() {
-                        if wizard.category.as_deref().is_some_and(|c| template_category(&template.name) != c) {
-                            continue;
+                        for category in &categories {
+                            let selected = wizard.category.as_ref() == Some(category);
+                            let response = crate::ui_kit::choice_chip(ui, &format!("multiphysics_wizard_category_{category}"), category, selected);
+                            crate::scenario::publish_target(&format!("multiphysics:wizard_category:{category}"), response.rect);
+                            if response.clicked() {
+                                wizard.category = Some(category.clone());
+                            }
                         }
-                        let response = crate::ui_kit::list_picker(
-                            ui,
-                            &format!("multiphysics_wizard_template_{}", template.id),
-                            &template.name,
-                            wizard.template == Some(i),
-                        );
-                        crate::scenario::publish_target(&format!("multiphysics:wizard_template:{}", template.id), response.rect);
-                        if response.clicked() {
-                            wizard.template = Some(i);
-                        }
-                    }
-                });
-                synchronize(&mut wizard);
-            }
-            2 => {
-                ui.label(tr("multiphysics.wizard_si_scope"));
-            }
-            3..=5 => {
-                ui.small(tr("multiphysics.wizard_case_scope"));
-                let groups: &[Node] = match wizard.step {
-                    3 => &[Node::General, Node::Control, Node::Domain, Node::Mesh],
-                    4 => &[Node::FluidSubdomains, Node::SolidMaterials, Node::Boundary, Node::Radiation, Node::Sources, Node::Fans, Node::Porous],
-                    _ => &[Node::Initial],
-                };
-                let r = ui
-                    .scope(|ui| {
-                        egui::ScrollArea::vertical().id_salt(("wizard_case", wizard.step)).max_height(320.0).show(ui, |ui| {
-                            let mut any = false;
-                            if let Some(case) = &mut wizard.candidate {
-                                for &group in groups {
-                                    if entries(case, group).is_empty() {
-                                        continue;
-                                    }
-                                    any = true;
-                                    ui.push_id(group.key(), |ui| {
-                                        ui.strong(tr(group.key()));
-                                        fields_group(ui, case, group);
-                                    });
+                    });
+                    ui.add_space(t.space_4);
+                    let right = ui.available_rect_before_wrap();
+                    ui.allocate_rect(right, Sense::hover());
+                    ui.scope_builder(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
+                        let shares = [0.56, 0.44];
+                        crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_step_template"), tr("multiphysics.wizard_profile")], &shares);
+                        egui::ScrollArea::vertical().id_salt("multiphysics_wizard_templates").auto_shrink([false, false]).show(ui, |ui| {
+                            let mut shown = 0usize;
+                            for (i, template) in templates.iter().enumerate() {
+                                if wizard.category.as_deref().is_some_and(|c| template_category(&template.name) != c) {
+                                    continue;
+                                }
+                                let response = crate::multiphysics_property_grid::item(
+                                    ui,
+                                    &[&template.name, &template.profile],
+                                    &shares,
+                                    wizard.template == Some(i),
+                                    !shown.is_multiple_of(2),
+                                );
+                                shown += 1;
+                                visible_target(ui, &format!("multiphysics:wizard_template:{}", template.id), &response);
+                                if response.clicked() {
+                                    wizard.template = Some(i);
+                                }
+                                if response.double_clicked() {
+                                    wizard.template = Some(i);
+                                    wizard.step += 1;
                                 }
                             }
-                            if !any {
-                                ui.label(tr("multiphysics.wizard_no_case_fields"));
-                            }
                         });
-                    })
-                    .response;
-                crate::scenario::publish_rect(
-                    match wizard.step {
-                        3 => "multiphysics:wizard_case_general",
-                        4 => "multiphysics:wizard_case_materials",
-                        _ => "multiphysics:wizard_case_initial",
-                    },
-                    r.rect,
-                );
-            }
-            _ => {
-                if let Some(t) = wizard.template.and_then(|i| templates.get(i)) {
-                    ui.strong(if wizard.name.trim().is_empty() { &t.name } else { &wizard.name });
-                    ui.label(&t.profile);
+                    });
+                    synchronize(&mut wizard);
                 }
-                ui.label(tr("multiphysics.wizard_summary_hint"));
-                egui::CollapsingHeader::new(tr("multiphysics.case_settings")).show(ui, |ui| {
-                    if let Some(case) = &wizard.candidate {
-                        egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
-                            ui.monospace(pretty(case));
-                        });
+                2 => {
+                    let shares = [0.46, 0.54];
+                    crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_unit")], &shares);
+                    for (index, (key, unit)) in SI_UNITS.iter().enumerate() {
+                        crate::multiphysics_property_grid::item(ui, &[tr(key), unit], &shares, false, !index.is_multiple_of(2));
                     }
-                });
+                }
+                3..=5 => {
+                    let groups: &[Node] = match wizard.step {
+                        3 => &[Node::General, Node::Control, Node::Domain, Node::Mesh],
+                        4 => &[Node::FluidSubdomains, Node::SolidMaterials, Node::Boundary, Node::Radiation, Node::Sources, Node::Fans, Node::Porous],
+                        _ => &[Node::Initial],
+                    };
+                    crate::multiphysics_property_grid::header(ui, &columns, &[0.46, 0.54]);
+                    let r = ui
+                        .scope(|ui| {
+                            egui::ScrollArea::vertical().id_salt(("wizard_case", wizard.step)).auto_shrink([false, true]).show(ui, |ui| {
+                                let mut rows = 0;
+                                if let Some(case) = &mut wizard.candidate {
+                                    for &group in groups {
+                                        super::case_table(ui, case, group, &mut rows);
+                                    }
+                                }
+                                if rows == 0 {
+                                    ui.add_space(t.space_8);
+                                    ui.label(tr("multiphysics.wizard_no_case_fields"));
+                                }
+                            });
+                        })
+                        .response;
+                    crate::scenario::publish_rect(
+                        match wizard.step {
+                            3 => "multiphysics:wizard_case_general",
+                            4 => "multiphysics:wizard_case_materials",
+                            _ => "multiphysics:wizard_case_initial",
+                        },
+                        r.rect,
+                    );
+                }
+                _ => {
+                    crate::multiphysics_property_grid::header(ui, &columns, &[0.46, 0.54]);
+                    egui::ScrollArea::vertical().id_salt("multiphysics_wizard_summary").auto_shrink([false, true]).show(ui, |ui| {
+                        if let Some(t) = wizard.template.and_then(|i| templates.get(i)) {
+                            let name = if wizard.name.trim().is_empty() { t.name.clone() } else { wizard.name.clone() };
+                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.name"), false, |ui: &mut egui::Ui| ui.label(name));
+                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_step_template"), true, |ui: &mut egui::Ui| ui.label(&t.name));
+                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_profile"), false, |ui: &mut egui::Ui| ui.label(&t.profile));
+                        }
+                        // The whole case, read only: edits belong to their own pages.
+                        if let Some(case) = &wizard.candidate {
+                            let mut copy = case.clone();
+                            let mut rows = 0;
+                            ui.add_enabled_ui(false, |ui| {
+                                for group in SUMMARY_GROUPS {
+                                    super::case_table(ui, &mut copy, group, &mut rows);
+                                }
+                            });
+                        }
+                    });
+                }
             }
-        }
+        });
         let valid = wizard.candidate.as_ref().map(solidcraft_engine::multiphysics::validate_case);
         if let Some(Err(e)) = &valid {
             ui.colored_label(Tokens::get().form_error, e.to_string());
@@ -2098,19 +2285,18 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
             ui.colored_label(Tokens::get().form_error, e);
         }
         ui.separator();
-        ui.horizontal(|ui| {
-            if button(ui, "multiphysics.wizard_back", "multiphysics:wizard_back", wizard.step > 0).clicked() {
-                wizard.step = wizard.step.saturating_sub(1);
-            }
-            if wizard.step < 6 {
-                if button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", wizard.step == 0 || wizard.candidate.is_some()).clicked() {
-                    wizard.step += 1;
-                }
-            } else if button(ui, "multiphysics.wizard_finish", "multiphysics:wizard_finish", matches!(valid, Some(Ok(())))).clicked() {
-                finish = true;
-            }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if button(ui, "multiphysics.cancel_draft", "multiphysics:wizard_cancel", true).clicked() {
                 cancel = true;
+            }
+            if wizard.step >= 6 && button(ui, "multiphysics.wizard_finish", "multiphysics:wizard_finish", matches!(valid, Some(Ok(())))).clicked() {
+                finish = true;
+            }
+            if wizard.step < 6 && button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", wizard.step == 0 || wizard.candidate.is_some()).clicked() {
+                wizard.step += 1;
+            }
+            if button(ui, "multiphysics.wizard_back", "multiphysics:wizard_back", wizard.step > 0).clicked() {
+                wizard.step = wizard.step.saturating_sub(1);
             }
         });
     });

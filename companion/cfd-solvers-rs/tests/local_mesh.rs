@@ -94,6 +94,7 @@ fn channel(graded: bool) -> CollocatedFlowCase {
         boundaries: vec![],
         buoyancy: None,
         thermoelectric_coolers: vec![],
+        face_sources: vec![],
     });
     case
 }

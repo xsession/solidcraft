@@ -481,6 +481,8 @@ impl Case {
                 "balanced_body_force_v1".into(),
                 "body_face_conditions_v1".into(),
                 "cut_cells_v1".into(),
+                "face_heat_sources_v1".into(),
+                "goals_v3".into(),
             ],
             complete_clone: false,
             execution_completed: false,

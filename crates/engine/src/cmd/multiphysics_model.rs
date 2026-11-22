@@ -109,6 +109,7 @@ fn commit(session: &mut Session, id: &str, expected_revision: u64, mut link: Mod
         fluid_regions: built.fluid_regions,
         notes: built.notes,
         issues: built.issues,
+        adapted: None,
     })
 }
 
@@ -161,7 +162,75 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     if let Some(cut) = input.cut_cells {
         link.cut_cells = cut;
     }
+    if let Some(level) = input.mesh_level {
+        link.mesh_level = (level != 0).then_some(level);
+        link.cell_mm = None;
+    }
     commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn fan(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelFanInput = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        link.fan = None;
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let pick = input.face.ok_or_else(|| bad("face", "give the face: {body, face} or {body, point}"))?;
+    let face = pick_face(session, &link, pick)?;
+    let curve = input.curve.or_else(|| link.fan.as_ref().map(|f| f.curve.clone())).ok_or_else(|| bad("curve", "give the fan curve"))?;
+    let name = input.name.or_else(|| link.fan.as_ref().map(|f| f.name.clone())).unwrap_or_else(|| "Fan".into());
+    link.fan = Some(model::ModelFan { name, face, curve, total_pressure: input.total_pressure });
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+/// The name every adaptive refinement starts with.
+const ADAPT: &str = "adapt_";
+
+pub(super) fn adapt(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelAdapt = parse(params)?;
+    let (study, mut link) = linked(session, &input.id)?;
+    link.refinements.retain(|r| !r.name.starts_with(ADAPT));
+    if input.remove {
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let run = study.runs.iter().find(|r| r.id == input.run_id).ok_or_else(|| bad("run_id", format!("the study has no kept run {}", input.run_id)))?;
+    let artifact = match &input.artifact {
+        Some(name) => run.artifacts.iter().find(|a| &a.name == name),
+        None => run.artifacts.iter().filter(|a| a.name.starts_with("flow_") && a.name.ends_with(".vtu")).max_by(|a, b| a.name.cmp(&b.name)),
+    }
+    .ok_or_else(|| bad("artifact", "the run kept no such field file (flow_*.vtu)"))?;
+    let found = solidcraft_multiphysics::adapt::regions(
+        &artifact.text,
+        input.field.as_deref(),
+        input.fraction.unwrap_or(0.1),
+        input.regions.unwrap_or(4),
+    )
+    .map_err(|e| bad("", e.to_string()))?;
+    // The run's coordinates are case metres from the domain's low corner.
+    let (domain, _) = marks(session, &link)?;
+    let origin = domain.map(|[low, _]| low).ok_or_else(|| bad("id", "the study's bodies have no extent"))?;
+    let regions_mm: Vec<[[f64; 3]; 2]> =
+        found.regions_m.iter().map(|(low, high)| [[0, 1, 2].map(|a| low[a] * 1000.0 + origin[a]), [0, 1, 2].map(|a| high[a] * 1000.0 + origin[a])]).collect();
+    for (index, [low, high]) in regions_mm.iter().enumerate() {
+        link.refinements.push(model::Refinement {
+            name: format!("{ADAPT}{}", index + 1),
+            target: model::RefineTarget::Region { low_mm: *low, high_mm: *high },
+            factor: input.factor.unwrap_or(2),
+            margin_cells: 0.0,
+        });
+    }
+    let mut reply = commit(session, &input.id, input.expected_revision, link)?;
+    let adapted = ModelAdapted {
+        run_id: run.id.clone(),
+        artifact: artifact.name.clone(),
+        field: found.field,
+        cells: found.cells,
+        flagged: found.flagged,
+        regions_mm,
+    };
+    reply["adapted"] = serde_json::to_value(adapted).map_err(|e| bad("", e.to_string()))?;
+    Ok(reply)
 }
 
 /// The persistent name of a picked face (by its name or by a point on it, exact nearest face),
@@ -260,10 +329,153 @@ pub(super) fn goal(session: &mut Session, params: &Value) -> Result<Value> {
     }
     let kind = input.kind.ok_or_else(|| bad("kind", "give the goal's kind, or remove: true"))?;
     let face = input.face.map(|pick| pick_face(session, &link, pick)).transpose()?;
-    let goal = model::ModelGoal { name: input.name.clone(), kind, face, point_mm: input.point_mm, expression: input.expression };
+    if let Some(body) = &input.body {
+        known_body(session, &link, body)?;
+    }
+    let goal = model::ModelGoal { name: input.name.clone(), kind, face, point_mm: input.point_mm, expression: input.expression, body: input.body };
     match link.goals.iter_mut().find(|g| g.name == input.name) {
         Some(existing) => *existing = goal,
         None => link.goals.push(goal),
+    }
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+/// That `body` is one of the study's bodies in the design now.
+fn known_body(session: &Session, link: &ModelLink, body: &str) -> Result<()> {
+    let state = session.world_state()?;
+    if !state.bodies.iter().any(|b| b.name == body) || (!link.bodies.is_empty() && !link.bodies.iter().any(|b| b == body)) {
+        return Err(bad("body", format!("{body} is not one of the study's bodies")));
+    }
+    Ok(())
+}
+
+/// The study's heat settings, which must be on.
+fn heat_of(link: &mut ModelLink) -> Result<&mut model::ModelHeat> {
+    link.heat.as_mut().ok_or_else(|| bad("id", "turn heat transfer on first (multiphysics.model.heat with enabled: true)"))
+}
+
+pub(super) fn heat(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelHeatSet = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    match input.enabled {
+        Some(false) => {
+            link.heat = None;
+            // Temperature goals go with it.
+            link.goals.retain(|g| !g.kind.thermal());
+        }
+        Some(true) if link.heat.is_none() => link.heat = Some(model::ModelHeat::default()),
+        _ => {}
+    }
+    if input.inflow_temperature_k.is_some() || input.fluid.is_some() {
+        let heat = heat_of(&mut link)?;
+        if let Some(t) = input.inflow_temperature_k {
+            heat.inflow_temperature_k = t;
+        }
+        if let Some(fluid) = input.fluid {
+            heat.fluid = fluid;
+        }
+    }
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn material(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelMaterial = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.bodies.is_empty() || input.bodies.len() > model::MAX_BODIES {
+        return Err(bad("bodies", format!("name 1 to {} bodies", model::MAX_BODIES)));
+    }
+    for body in &input.bodies {
+        known_body(session, &link, body)?;
+    }
+    let heat = heat_of(&mut link)?;
+    if input.remove {
+        heat.materials.retain(|m| !input.bodies.contains(&m.body));
+    } else {
+        for body in &input.bodies {
+            let index = match heat.materials.iter().position(|m| &m.body == body) {
+                Some(index) => index,
+                None => {
+                    let conductivity = input.conductivity_w_per_m_k.ok_or_else(|| bad("conductivity_w_per_m_k", format!("give {body}'s conductivity")))?;
+                    heat.materials.push(model::BodyHeat {
+                        body: body.clone(),
+                        conductivity_w_per_m_k: conductivity,
+                        power_w: 0.0,
+                        density_kg_per_m3: None,
+                        specific_heat_j_per_kg_k: None,
+                        max_temperature_k: None,
+                    });
+                    heat.materials.len() - 1
+                }
+            };
+            let Some(m) = heat.materials.get_mut(index) else { continue };
+            if let Some(k) = input.conductivity_w_per_m_k {
+                m.conductivity_w_per_m_k = k;
+            }
+            if let Some(p) = input.power_w {
+                m.power_w = p;
+            }
+            if input.density_kg_per_m3.is_some() {
+                m.density_kg_per_m3 = input.density_kg_per_m3;
+            }
+            if input.specific_heat_j_per_kg_k.is_some() {
+                m.specific_heat_j_per_kg_k = input.specific_heat_j_per_kg_k;
+            }
+            if input.max_temperature_k.is_some() {
+                m.max_temperature_k = input.max_temperature_k;
+            }
+        }
+    }
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn heat_source(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelHeatSource = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        let heat = heat_of(&mut link)?;
+        let before = heat.face_sources.len();
+        heat.face_sources.retain(|s| s.name != input.name);
+        if heat.face_sources.len() == before {
+            return Err(bad("name", format!("there is no heat source called {}", input.name)));
+        }
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let pick = input.face.ok_or_else(|| bad("face", "give the face: {body, face} or {body, point}"))?;
+    let face = pick_face(session, &link, pick)?;
+    let heat = heat_of(&mut link)?;
+    let power_w = match (input.power_w, heat.face_sources.iter().find(|s| s.name == input.name)) {
+        (Some(p), _) => p,
+        (None, Some(existing)) => existing.power_w,
+        (None, None) => return Err(bad("power_w", "give the heat source's power")),
+    };
+    let source = model::FaceHeat { name: input.name.clone(), face, power_w };
+    match heat.face_sources.iter_mut().find(|s| s.name == input.name) {
+        Some(existing) => *existing = source,
+        None => heat.face_sources.push(source),
+    }
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn thermal_face(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModelThermalFace = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        let heat = heat_of(&mut link)?;
+        let before = heat.face_conditions.len();
+        heat.face_conditions.retain(|c| c.name != input.name);
+        if heat.face_conditions.len() == before {
+            return Err(bad("name", format!("there is no thermal condition called {}", input.name)));
+        }
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let condition = input.condition.ok_or_else(|| bad("condition", "give the thermal condition, or remove: true"))?;
+    let pick = input.face.ok_or_else(|| bad("face", "give the face: {body, face} or {body, point}"))?;
+    let face = pick_face(session, &link, pick)?;
+    let heat = heat_of(&mut link)?;
+    let thermal = model::FaceThermal { name: input.name.clone(), face, condition };
+    match heat.face_conditions.iter_mut().find(|c| c.name == input.name) {
+        Some(existing) => *existing = thermal,
+        None => heat.face_conditions.push(thermal),
     }
     commit(session, &input.id, input.expected_revision, link)
 }

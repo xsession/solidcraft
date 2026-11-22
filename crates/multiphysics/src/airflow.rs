@@ -20,56 +20,63 @@ pub struct Requirement {
 
 pub const GRID_OBSTACLES: Requirement = Requirement {
     capability: "grid_obstacles_v1",
-    versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 pub const FAN_CURVE: Requirement = Requirement {
     capability: "fan_curve_v1",
-    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 pub const POROUS_BLOCKS: Requirement = Requirement {
     capability: "porous_blocks_v1",
-    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 pub const CONJUGATE_HEAT: Requirement = Requirement {
     capability: "conjugate_heat_v1",
-    versions: &["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 pub const SURFACE_BODIES: Requirement = Requirement {
     capability: "surface_bodies_v1",
-    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 pub const GOALS: Requirement =
-    Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+    Requirement { capability: "goals_v1", versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 pub const NATURAL_CONVECTION: Requirement = Requirement {
     capability: "natural_convection_v1",
-    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"],
+    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"],
 };
 /// Electrical, mechanics, particle, kinetic and coupled domain cases added in 0.7.0.
 pub const DOMAIN_CASES: Requirement =
-    Requirement { capability: "domain_cases_v1", versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+    Requirement { capability: "domain_cases_v1", versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Contact resistance, two-resistor junctions, heat pipes and thermoelectric coolers (0.8.0).
 pub const THERMAL_DEVICES: Requirement =
-    Requirement { capability: "thermal_devices_v1", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+    Requirement { capability: "thermal_devices_v1", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Global, point and equation goals (0.8.0).
 /// Explicit rectilinear mesh coordinates (local mesh refinement, 0.9.0).
 pub const LOCAL_MESH: Requirement =
-    Requirement { capability: "local_mesh_v1", versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+    Requirement { capability: "local_mesh_v1", versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Per-face transferred boundary profiles (zoom-in from a parent run, 0.10.0).
-pub const TRANSFERRED: Requirement = Requirement { capability: "transferred_bc_v1", versions: &["0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+pub const TRANSFERRED: Requirement = Requirement { capability: "transferred_bc_v1", versions: &["0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Rotating regions, the multiple reference frame model (0.11.0).
-pub const ROTATING: Requirement = Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+pub const ROTATING: Requirement = Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// PISO correctors that rebuild H(u)/a_P (stable at larger time steps, 0.11.0).
-pub const PISO_UPDATE: Requirement = Requirement { capability: "piso_neighbour_update_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+pub const PISO_UPDATE: Requirement = Requirement { capability: "piso_neighbour_update_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Internal fans: actuator blocks following a pressure-flow curve (0.12.0).
-pub const INTERNAL_FANS: Requirement = Requirement { capability: "internal_fans_v1", versions: &["0.12.0", "0.13.0", "0.14.0"] };
+pub const INTERNAL_FANS: Requirement = Requirement { capability: "internal_fans_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Balanced-force pressure and body-force coupling (0.12.0).
-pub const BALANCED_FORCES: Requirement = Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0", "0.13.0", "0.14.0"] };
+pub const BALANCED_FORCES: Requirement = Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Boundary patches on parts of surface bodies: conditions on model faces (0.13.0).
-pub const BODY_FACE_CONDITIONS: Requirement = Requirement { capability: "body_face_conditions_v1", versions: &["0.13.0", "0.14.0"] };
+pub const BODY_FACE_CONDITIONS: Requirement = Requirement { capability: "body_face_conditions_v1", versions: &["0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
 /// Cut cells for surface bodies (0.14.0).
-pub const CUT_CELLS: Requirement = Requirement { capability: "cut_cells_v1", versions: &["0.14.0"] };
+pub const CUT_CELLS: Requirement = Requirement { capability: "cut_cells_v1", versions: &["0.14.0", "0.15.0", "0.16.0"] };
+/// Power on parts of surface bodies, and heat transfer with closed body face conditions (0.15.0).
+pub const FACE_HEAT_SOURCES: Requirement = Requirement { capability: "face_heat_sources_v1", versions: &["0.15.0", "0.16.0"] };
+/// Global flow goals: the fluid's largest and mean speed and pressure (0.16.0).
+pub const GOALS_V3: Requirement = Requirement { capability: "goals_v3", versions: &["0.16.0"] };
 pub const GOALS_V2: Requirement =
-    Requirement { capability: "goals_v2", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0"] };
+    Requirement { capability: "goals_v2", versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0"] };
+
+/// Goal kinds added with `goals_v3`.
+pub const GOAL_KINDS_V3: &[&str] = &["global_max_speed", "global_mean_speed", "global_max_pressure", "global_min_pressure", "global_mean_pressure"];
 
 /// Goal kinds added with `goals_v2`.
 pub const GOAL_KINDS_V2: &[&str] = &[
@@ -163,6 +170,13 @@ pub fn requirements(case: &Value) -> Vec<Requirement> {
     if goals_v2 {
         out.push(GOALS_V2);
     }
+    let goals_v3 = case
+        .get("goals")
+        .and_then(Value::as_array)
+        .is_some_and(|goals| goals.iter().any(|g| g.get("kind").and_then(Value::as_str).is_some_and(|k| GOAL_KINDS_V3.contains(&k))));
+    if goals_v3 {
+        out.push(GOALS_V3);
+    }
     if case.pointer("/mesh/coordinates").is_some_and(|c| !c.is_null()) {
         out.push(LOCAL_MESH);
     }
@@ -186,6 +200,10 @@ pub fn requirements(case: &Value) -> Vec<Requirement> {
     }
     if case.get("cut_cells").and_then(Value::as_bool) == Some(true) {
         out.push(CUT_CELLS);
+    }
+    let heat = case.get("thermal").filter(|t| !t.is_null());
+    if heat.is_some_and(|t| nonempty_array(t, "face_sources")) || (heat.is_some() && nonempty_array(case, "face_conditions")) {
+        out.push(FACE_HEAT_SOURCES);
     }
     out
 }
@@ -680,7 +698,22 @@ struct Thermal {
     buoyancy: Option<BuoyancyInput>,
     #[serde(default)]
     thermoelectric_coolers: Vec<CoolerInput>,
+    #[serde(default)]
+    face_sources: Vec<FaceSourceInput>,
 }
+
+/// Power on part of a surface body (`face_heat_sources_v1`).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FaceSourceInput {
+    name: String,
+    body: String,
+    triangles: Vec<usize>,
+    power_w: f64,
+}
+
+/// Most face heat sources a case holds.
+const MAX_FACE_SOURCES: usize = 64;
 
 fn kelvin(value: f64) -> bool {
     value.is_finite() && value > 0.0
@@ -756,6 +789,44 @@ fn validate_thermal(case: &Value, value: &Value) -> Result<()> {
         && !(b.gravity_m_per_s2.iter().all(|g| g.is_finite()) && kelvin(b.expansion_per_k) && kelvin(b.reference_temperature_k))
     {
         return Err(Error::Invalid("buoyancy needs finite gravity, positive expansion and a kelvin reference".into()));
+    }
+    if thermal.face_sources.len() > MAX_FACE_SOURCES {
+        return Err(Error::Limit(format!("at most {MAX_FACE_SOURCES} face heat sources")));
+    }
+    let mut sources = BTreeSet::new();
+    for source in &thermal.face_sources {
+        if source.name.is_empty() || source.name.len() > 80 || !sources.insert(source.name.as_str()) {
+            return Err(Error::Invalid("face heat sources need unique names of at most 80 characters".into()));
+        }
+        let triangles = case
+            .get("bodies")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .find(|b| b["name"].as_str() == Some(source.body.as_str()))
+            .and_then(|b| b["triangles"].as_array())
+            .map(Vec::len)
+            .ok_or_else(|| Error::Invalid(format!("face heat source {} names no surface body {}", source.name, source.body)))?;
+        if source.triangles.is_empty() || source.triangles.iter().any(|t| *t >= triangles) {
+            return Err(Error::Invalid(format!("face heat source {}: list triangles of {}", source.name, source.body)));
+        }
+        if !source.power_w.is_finite() {
+            return Err(Error::Invalid(format!("face heat source {}: power must be finite", source.name)));
+        }
+    }
+    // The heat solve runs on the grid, where a body face lies between fluid and solid: flow
+    // through a body face would carry heat out of the solid, so only closed ones are taken.
+    for condition in case.get("face_conditions").and_then(Value::as_array).into_iter().flatten() {
+        let Some(name) = condition["name"].as_str() else { continue };
+        let rows = |key: &str| case.get(key).and_then(Value::as_array).into_iter().flatten().filter(move |row| row["patch"].as_str() == Some(name));
+        let moving = |row: &Value| ["x", "y", "z"].iter().any(|k| row["value"][*k].as_f64().is_some_and(|v| v != 0.0));
+        let open = rows("pressure_boundaries").any(|row| row["kind"] == "fixed_value")
+            || rows("velocity_boundaries").any(|row| row["kind"] == "zero_gradient" || (row["kind"] == "fixed_value" && moving(row)));
+        if open {
+            return Err(Error::Invalid(format!(
+                "{name}: flow through a body face does not work with heat transfer yet; put openings on faces on the domain boundary"
+            )));
+        }
     }
     let mut patches = BTreeSet::new();
     for boundary in &thermal.boundaries {
@@ -874,6 +945,11 @@ enum GoalKindInput {
     GlobalMaxSolidTemperature,
     PointTemperature,
     PointPressure,
+    GlobalMaxSpeed,
+    GlobalMeanSpeed,
+    GlobalMaxPressure,
+    GlobalMinPressure,
+    GlobalMeanPressure,
     Equation,
 }
 
@@ -950,6 +1026,11 @@ fn validate_goals(case: &Value) -> Result<()> {
                 (goal.kind == GoalKindInput::PointPressure || thermal)
                     && goal.point.is_some_and(|p| p.iter().zip(lengths).all(|(v, l)| v.is_finite() && *v >= 0.0 && l.is_none_or(|l| *v <= l)))
             }
+            GoalKindInput::GlobalMaxSpeed
+            | GoalKindInput::GlobalMeanSpeed
+            | GoalKindInput::GlobalMaxPressure
+            | GoalKindInput::GlobalMinPressure
+            | GoalKindInput::GlobalMeanPressure => true,
             GoalKindInput::Equation => equation_refers_to_goals(goal.expression.as_deref(), &goals),
         };
         if !ok {

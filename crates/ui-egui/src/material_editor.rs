@@ -40,7 +40,7 @@ impl Editor {
     /// Follow the targets until the user deliberately chooses a material. Keep a
     /// choice by name: inserting, renaming or deleting a library row must not
     /// silently turn it into another material at the same ordinal.
-    pub(crate) fn sync_selection(&mut self, doc: &Document, bodies: &[String], index: &mut usize) {
+    pub fn sync_selection(&mut self, doc: &Document, bodies: &[String], index: &mut usize) {
         if self.editing() {
             return;
         }
@@ -452,7 +452,7 @@ fn card_rows(ui: &mut egui::Ui, card: &mut CardDraft) {
     }
 }
 
-pub(crate) fn rows(app: &mut SolveApp, ui: &mut egui::Ui, index: &mut usize, editor: &mut Editor) {
+pub fn rows(app: &mut SolveApp, ui: &mut egui::Ui, index: &mut usize, editor: &mut Editor) {
     let names = app.session.doc.material_names();
     if editor.draft.is_none() {
         let placeholder = if editor.mixed_materials { "material.selection.mixed" } else { "material.selection.choose" };

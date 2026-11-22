@@ -132,10 +132,10 @@ fn put_work(app: &mut SolveApp, mut work: DocWork, before: u64) {
 
 /// The per-design part of the UI state the session doesn't keep (what is hidden, shown or locked
 /// is in the session's `visibility`, saved with the design).
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 struct DocView {
     render: crate::render_workspace::ViewState,
-    multiphysics: crate::multiphysics_workspace::ViewState,
+    multiphysics: crate::multiphysics_workspace::Slot,
     /// The runs and folders opened and folded in its History, and which part of the design it
     /// shows.
     history_folds: crate::history_folds::Folds,
@@ -412,7 +412,7 @@ pub fn follow_file_rename(app: &mut SolveApp, old_path: &str, new_path: &str) {
 fn take_view(app: &mut SolveApp) -> DocView {
     DocView {
         render: std::mem::take(&mut app.render_workspace.view),
-        multiphysics: std::mem::take(&mut app.multiphysics_workspace.view),
+        multiphysics: crate::multiphysics_workspace::take_view(app),
         history_folds: std::mem::take(&mut app.tree.history_folds),
         timeline_scope: std::mem::take(&mut app.tree.timeline_scope),
         timeline_followed: app.tree.timeline_followed.take(),
@@ -425,7 +425,7 @@ fn take_view(app: &mut SolveApp) -> DocView {
 
 fn put_view(app: &mut SolveApp, v: DocView) {
     app.render_workspace.view = v.render;
-    app.multiphysics_workspace.view = v.multiphysics;
+    crate::multiphysics_workspace::put_view(app, v.multiphysics);
     crate::render_workspace::invalidate_images(app);
     crate::render_workspace::invalidate_scene(app);
     crate::render_workspace::sync_backend(app);

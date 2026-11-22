@@ -1,0 +1,21 @@
+{
+  "en": {
+    "multiphysics.panel_close_label": "Close",
+    "multiphysics.panel_ok_label": "OK",
+    "multiphysics.ribbon_boundary": "Inlets & walls",
+    "multiphysics.ribbon_check": "Check",
+    "multiphysics.ribbon_domain": "Domain",
+    "multiphysics.ribbon_export": "Export",
+    "multiphysics.ribbon_general": "Settings",
+    "multiphysics.ribbon_global_mesh": "Global mesh",
+    "multiphysics.ribbon_goal_plot": "Goal plots",
+    "multiphysics.ribbon_load_results": "Results",
+    "multiphysics.ribbon_local_mesh": "Local mesh",
+    "multiphysics.ribbon_materials": "Library",
+    "multiphysics.ribbon_model_study": "Model study",
+    "multiphysics.ribbon_monitor": "Monitor",
+    "multiphysics.ribbon_trajectories": "Flow paths",
+    "multiphysics.ribbon_verify": "Validate",
+    "multiphysics.ribbon_xy_plot": "XY plots"
+  }
+}

@@ -1248,6 +1248,8 @@ fn main() -> eframe::Result {
     solidcraft_ui_egui::i18n::install();
     solidcraft_look::install_tables();
     solidcraft_ui_egui::workspace::install_tabs();
+    // The Multiphysics workspace lives in its own crate and installs itself here.
+    solidcraft_multiphysics_ui::register();
     solidcraft_ui_egui::navigation_slots::install();
     // On OCLP-patched Macs, wgpu picks a Metal Shading Language standard that the system's
     // compiler refuses (`invalid value 'metal3.2'`), because the patched OS reports a newer

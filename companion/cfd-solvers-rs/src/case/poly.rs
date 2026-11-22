@@ -551,12 +551,30 @@ impl CollocatedFlowCase {
     }
 
     pub(super) fn run(&self, out: &Path, m: &mut RunManifest) -> Result<()> {
-        // The coupled heat solve treats every patch after the exterior ones as a solid's
-        // interface; a condition patch on a body would sit between them unexplained.
-        require(
-            self.face_conditions.is_empty() || self.thermal.is_none(),
-            "conditions on body faces are not supported with conjugate heat transfer yet",
-        )?;
+        // The heat solve runs on the background grid, where a body face is between a fluid cell
+        // and a solid one: flow through it would carry heat out of the solid. Closed conditions
+        // (walls, slip) on body faces are fine; openings there are not yet.
+        if self.thermal.is_some() {
+            for condition in &self.face_conditions {
+                let open = self.pressure_boundaries.iter().any(|p| {
+                    p.patch == condition.name && matches!(p.kind, PressureBoundaryType::FixedValue)
+                }) || self.velocity_boundaries.iter().any(|v| {
+                    v.patch == condition.name
+                        && match v.kind {
+                            VelocityBoundaryType::FixedValue => v.value.norm() > 0.0,
+                            VelocityBoundaryType::ZeroGradient => true,
+                            VelocityBoundaryType::Slip => false,
+                        }
+                });
+                require(
+                    !open,
+                    format!(
+                        "body face condition {} lets flow through a body face, which is not supported with conjugate heat transfer yet",
+                        condition.name
+                    ),
+                )?;
+            }
+        }
         // Cut cells change which cells and faces exist; the features that map grid cells or
         // exterior faces by index are not combined with them yet.
         if self.cut_cells {
@@ -711,6 +729,7 @@ impl CollocatedFlowCase {
                                 &mesh,
                                 s.face_flux(),
                                 s.pressure(),
+                                s.velocity(),
                                 &lookup,
                                 energy.as_ref(),
                             )? {

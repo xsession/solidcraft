@@ -834,6 +834,10 @@ pub struct ImportOptions {
     /// domain boundary.
     #[serde(default)]
     pub domain_mm: Option<[[f64; 3]; 2]>,
+    /// Without `cell_mm`, multiply the automatic cell size by this (a mesh level: below 1 is
+    /// finer). The cell limit still applies.
+    #[serde(default)]
+    pub cell_scale: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -1004,7 +1008,11 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
                 if options.margin_mm > 0.0 {
                     h = h.min(options.margin_mm / 1000.0);
                 }
-                h
+                match options.cell_scale {
+                    Some(scale) if scale.is_finite() && scale > 0.0 && scale <= 1e3 => h * scale,
+                    Some(_) => return Err(bad("the cell scale must be positive and at most 1000")),
+                    None => h,
+                }
             }
         };
         let count = |h: f64| size.map(|l| ((l / h) - 1e-9).ceil().max(1.0) as usize);
@@ -1014,6 +1022,13 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
             h *= 1.05;
             fitted = count(h);
             guard += 1;
+        }
+        if guard > 0 {
+            notes.push(format!(
+                "the cell limit ({} cells, {MAX_AXIS_CELLS} along an axis) made the cells {:.3} mm",
+                crate::MAX_CELLS,
+                h * 1000.0
+            ));
         }
         if thinnest.is_finite() && thinnest < 2.0 * h {
             notes.push(format!(

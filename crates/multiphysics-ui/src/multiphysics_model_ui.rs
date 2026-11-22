@@ -38,10 +38,249 @@ pub(super) struct ModelUi {
     goal_kind: usize,
     goal_name: String,
     goal_expression: String,
+    /// Heat: the inflow temperature (°C), a material's conductivity and power, a heat source's
+    /// name and power, and a thermal condition's kind (index in [`THERMAL_KINDS`]) and values.
+    inflow_c: String,
+    conductivity: String,
+    power: String,
+    source_name: String,
+    source_power: String,
+    thermal_kind: usize,
+    thermal_value: String,
+    thermal_ambient: String,
+    /// The mesh level being dragged (applied when the drag ends), and the grid drawn on the model.
+    level: Option<u8>,
+    pub(super) show_grid: bool,
+    /// What the last adaptation found, for the study.
+    adapted: Option<(String, Value)>,
+    /// The fan curve being typed: `flow pressure; flow pressure; …` (m³/s, Pa).
+    fan_curve: String,
 }
 
-/// The goal kinds the panel offers, as `multiphysics.model.goal` names them.
-const GOAL_KINDS: [&str; 4] = ["face_volume_flow", "face_mean_pressure", "point_pressure", "equation"];
+/// The goal kinds the panel offers, as `multiphysics.model.goal` names them; the temperature
+/// goals only with heat transfer on.
+const GOAL_KINDS: [&str; 15] = [
+    "face_volume_flow",
+    "face_mean_pressure",
+    "point_pressure",
+    "equation",
+    "global_max_speed",
+    "global_mean_speed",
+    "global_max_pressure",
+    "global_min_pressure",
+    "global_mean_pressure",
+    "body_max_temperature",
+    "body_mean_temperature",
+    "point_temperature",
+    "global_max_fluid_temperature",
+    "global_mean_fluid_temperature",
+    "global_max_solid_temperature",
+];
+/// The goal kinds without heat transfer: the first nine of [`GOAL_KINDS`].
+const FLOW_GOAL_KINDS: usize = 9;
+
+/// The thermal conditions on faces on the domain boundary, as `multiphysics.model.thermal_face` names them.
+const THERMAL_KINDS: [&str; 4] = ["temperature", "heat_flux", "convection", "adiabatic"];
+
+/// A row's remove button: the delete icon, named for screen readers and its tooltip.
+fn remove_button(ui: &mut egui::Ui) -> egui::Response {
+    let size = Tokens::get().control_height;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+    crate::ui_kit::quiet_icon_button_at(ui, rect, "delete", tr("multiphysics.model_remove")).backing_on_hover_text(tr("multiphysics.model_remove"))
+}
+
+/// A text field published under `handle`, so scripts and agents can type into it.
+fn field(ui: &mut egui::Ui, value: &mut String, hint: &str, handle: &str) {
+    let (_, response) = crate::ui_kit::text_field_reserving(ui, value, hint, 0.0);
+    crate::scenario::publish_target(handle, response.rect);
+}
+
+/// Kelvin from a typed Celsius value.
+fn kelvin(text: &str) -> Option<f64> {
+    text.trim().parse::<f64>().ok().filter(|c| c.is_finite()).map(|c| c + 273.15)
+}
+
+/// Heat transfer in a study of the model (the Solid Materials node): on or off, the inflow
+/// temperature, the bodies' materials and power, heat sources on faces and thermal conditions
+/// on the faces on the domain boundary.
+pub(super) fn heat_panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let Some(link) = study.model.clone() else { return };
+    let t = Tokens::get();
+    let base = || json!({"id":study.id,"expected_revision":study.revision});
+    let mut on = link.heat.is_some();
+    let response = crate::ui_kit::checkbox(ui, tr("multiphysics.model_heat"), &mut on);
+    crate::scenario::publish_target("multiphysics:model_heat", response.rect);
+    ui.label(RichText::new(tr("multiphysics.model_heat_hint")).small().color(t.text_dim));
+    if on != link.heat.is_some() {
+        let mut params = base();
+        params["enabled"] = json!(on);
+        model_command(app, state, study, "multiphysics.model.heat", params);
+        return;
+    }
+    let Some(heat) = link.heat.clone() else { return };
+    if let Some((id, reply)) = &state.model_ui.last_build
+        && *id == study.id
+    {
+        for note in reply["notes"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            ui.colored_label(t.warning, note);
+        }
+    }
+    // The fluid flowing in.
+    if state.model_ui.inflow_c.is_empty() {
+        state.model_ui.inflow_c = format!("{}", ((heat.inflow_temperature_k - 273.15) * 100.0).round() / 100.0);
+    }
+    let mut apply_inflow = false;
+    crate::ui_kit::row(ui, tr("multiphysics.model_inflow_temperature"), |ui| {
+        field(ui, &mut state.model_ui.inflow_c, "20", "multiphysics:model_inflow");
+        let response = crate::ui_kit::button(ui, tr("multiphysics.model_apply"), crate::ui_kit::Button::Small);
+        crate::scenario::publish_target("multiphysics:model_apply_inflow", response.rect);
+        apply_inflow = response.clicked();
+    });
+    if apply_inflow && let Some(k) = kelvin(&state.model_ui.inflow_c) {
+        let mut params = base();
+        params["inflow_temperature_k"] = json!(k);
+        model_command(app, state, study, "multiphysics.model.heat", params);
+        return;
+    }
+    ui.separator();
+    // Materials and power of the bodies.
+    ui.strong(tr("multiphysics.model_materials"));
+    let mut remove: Option<(&str, Value)> = None;
+    for m in &heat.materials {
+        ui.horizontal(|ui| {
+            ui.label(format!("{} · {} W/(m·K) · {} W", m.body, m.conductivity_w_per_m_k, m.power_w));
+            let response = remove_button(ui);
+            crate::scenario::publish_target(&format!("multiphysics:model_remove_material:{}", m.body), response.rect);
+            if response.clicked() {
+                remove = Some(("multiphysics.model.material", json!({"bodies":[m.body],"remove":true})));
+            }
+        });
+    }
+    if heat.materials.is_empty() {
+        ui.label(RichText::new(tr("multiphysics.model_material_starter")).small().color(t.text_dim));
+    }
+    crate::ui_kit::row(ui, tr("multiphysics.model_conductivity"), |ui| field(ui, &mut state.model_ui.conductivity, "200", "multiphysics:model_conductivity"));
+    crate::ui_kit::row(ui, tr("multiphysics.model_power"), |ui| field(ui, &mut state.model_ui.power, "0", "multiphysics:model_power"));
+    let bodies = selected_bodies(app);
+    let conductivity = state.model_ui.conductivity.trim().parse::<f64>().ok();
+    if button(ui, "multiphysics.model_apply_material", "multiphysics:model_apply_material", !bodies.is_empty() && conductivity.is_some()).clicked() {
+        let mut params = base();
+        params["bodies"] = json!(bodies);
+        params["conductivity_w_per_m_k"] = json!(conductivity);
+        params["power_w"] = json!(state.model_ui.power.trim().parse::<f64>().unwrap_or(0.0));
+        model_command(app, state, study, "multiphysics.model.material", params);
+        return;
+    }
+    if bodies.is_empty() {
+        ui.label(RichText::new(tr("multiphysics.model_pick_bodies")).small().color(t.text_dim));
+    }
+    ui.separator();
+    // Heat sources on faces.
+    ui.strong(tr("multiphysics.model_heat_sources"));
+    for source in &heat.face_sources {
+        ui.horizontal(|ui| {
+            ui.label(format!("{} · {} W · {}", source.name, source.power_w, source.face.body));
+            let response = remove_button(ui);
+            crate::scenario::publish_target(&format!("multiphysics:model_remove_heat_source:{}", source.name), response.rect);
+            if response.clicked() {
+                remove = Some(("multiphysics.model.heat_source", json!({"name":source.name,"remove":true})));
+            }
+        });
+    }
+    crate::ui_kit::row(ui, tr("multiphysics.name"), |ui| {
+        crate::ui_kit::text_field(ui, &mut state.model_ui.source_name, &format!("source {}", heat.face_sources.len() + 1))
+    });
+    crate::ui_kit::row(ui, tr("multiphysics.model_power"), |ui| field(ui, &mut state.model_ui.source_power, "1", "multiphysics:model_source_power"));
+    let faces = selected_faces(app);
+    let power = state.model_ui.source_power.trim().parse::<f64>().ok();
+    if button(ui, "multiphysics.model_add_heat_source", "multiphysics:model_add_heat_source", faces.len() == 1 && power.is_some()).clicked()
+        && let Some(face) = faces.first()
+    {
+        let name = if state.model_ui.source_name.trim().is_empty() {
+            format!("source {}", heat.face_sources.len() + 1)
+        } else {
+            state.model_ui.source_name.trim().to_string()
+        };
+        let mut params = base();
+        params["name"] = json!(name);
+        params["face"] = face.clone();
+        params["power_w"] = json!(power);
+        if model_command(app, state, study, "multiphysics.model.heat_source", params) {
+            state.model_ui.source_name.clear();
+        }
+        return;
+    }
+    ui.separator();
+    // Thermal conditions on the domain boundary.
+    ui.strong(tr("multiphysics.model_thermal_faces"));
+    for condition in &heat.face_conditions {
+        ui.horizontal(|ui| {
+            let kind = serde_json::to_value(condition.condition).ok().and_then(|v| v["kind"].as_str().map(str::to_string)).unwrap_or_default();
+            ui.label(format!("{} · {}", condition.name, tr(&format!("multiphysics.model_thermal_{kind}"))));
+            let response = remove_button(ui);
+            crate::scenario::publish_target(&format!("multiphysics:model_remove_thermal_face:{}", condition.name), response.rect);
+            if response.clicked() {
+                remove = Some(("multiphysics.model.thermal_face", json!({"name":condition.name,"remove":true})));
+            }
+        });
+    }
+    if let Some((command_id, extra)) = remove {
+        let mut params = base();
+        if let (Some(target), Some(extra)) = (params.as_object_mut(), extra.as_object()) {
+            target.extend(extra.clone());
+        }
+        model_command(app, state, study, command_id, params);
+        return;
+    }
+    let kind = THERMAL_KINDS.get(state.model_ui.thermal_kind).copied().unwrap_or(THERMAL_KINDS[0]);
+    crate::ui_kit::row(ui, tr("multiphysics.model_thermal_kind"), |ui| {
+        crate::ui_kit::dropdown_menu(ui, "multiphysics_model_thermal_kind", tr(&format!("multiphysics.model_thermal_{kind}")), |ui| {
+            for (index, k) in THERMAL_KINDS.iter().enumerate() {
+                let response = crate::ui_kit::list_picker(
+                    ui,
+                    &format!("multiphysics_model_thermal_kind_{k}"),
+                    tr(&format!("multiphysics.model_thermal_{k}")),
+                    index == state.model_ui.thermal_kind,
+                );
+                crate::scenario::publish_target(&format!("multiphysics:model_thermal_kind:{k}"), response.rect);
+                if response.clicked() {
+                    state.model_ui.thermal_kind = index;
+                    ui.close();
+                }
+            }
+        });
+    });
+    let value_label = match kind {
+        "temperature" => Some("multiphysics.model_temperature_c"),
+        "heat_flux" => Some("multiphysics.model_heat_flux"),
+        "convection" => Some("multiphysics.model_htc"),
+        _ => None,
+    };
+    if let Some(label) = value_label {
+        crate::ui_kit::row(ui, tr(label), |ui| field(ui, &mut state.model_ui.thermal_value, "", "multiphysics:model_thermal_value"));
+    }
+    if kind == "convection" {
+        crate::ui_kit::row(ui, tr("multiphysics.model_ambient_c"), |ui| field(ui, &mut state.model_ui.thermal_ambient, "20", "multiphysics:model_thermal_ambient"));
+    }
+    let value = state.model_ui.thermal_value.trim().parse::<f64>().ok().filter(|v| v.is_finite());
+    let condition = match kind {
+        "temperature" => kelvin(&state.model_ui.thermal_value).map(|k| json!({"kind":"temperature","temperature_k":k})),
+        "heat_flux" => value.map(|w| json!({"kind":"heat_flux","w_per_m2":w})),
+        "convection" => value.zip(kelvin(&state.model_ui.thermal_ambient)).map(|(h, k)| json!({"kind":"convection","h_w_per_m2_k":h,"ambient_k":k})),
+        _ => Some(json!({"kind":"adiabatic"})),
+    };
+    if button(ui, "multiphysics.model_add_thermal_face", "multiphysics:model_add_thermal_face", faces.len() == 1 && condition.is_some()).clicked()
+        && let (Some(face), Some(condition)) = (faces.first(), condition)
+    {
+        let mut params = base();
+        params["name"] = json!(format!("{} {}", tr(&format!("multiphysics.model_thermal_{kind}")), heat.face_conditions.len() + 1));
+        params["face"] = face.clone();
+        params["condition"] = condition;
+        model_command(app, state, study, "multiphysics.model.thermal_face", params);
+        return;
+    }
+    ui.label(RichText::new(tr("multiphysics.model_thermal_face_hint")).small().color(t.text_dim));
+}
 
 /// The bodies in the design's selection.
 fn selected_bodies(app: &SolveApp) -> Vec<String> {
@@ -61,6 +300,62 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
     let t = Tokens::get();
     let faces = selected_faces(app);
     let bodies = selected_bodies(app);
+    // The level of the initial mesh: the automatic cells scaled by √2 per level.
+    ui.strong(tr("multiphysics.model_mesh_level"));
+    let current = link.mesh_level.unwrap_or(solidcraft_engine::multiphysics::model::AUTOMATIC_MESH_LEVEL);
+    let mut level = state.model_ui.level.unwrap_or(current);
+    let options = crate::ui_kit::Slider { integer: true, format: |v| format!("{v:.0}"), ..Default::default() };
+    let response = crate::ui_kit::slider(ui, &mut level, 1..=solidcraft_engine::multiphysics::model::MAX_MESH_LEVEL, options);
+    crate::scenario::publish_target("multiphysics:model_mesh_level", response.rect);
+    state.model_ui.level = Some(level);
+    let settled = response.drag_stopped() || (response.changed() && !response.dragged());
+    if settled && (level != current || link.cell_mm.is_some()) {
+        state.model_ui.level = None;
+        model_command(app, state, study, "multiphysics.model.set", json!({"id":study.id,"expected_revision":study.revision,"mesh_level":level}));
+        return;
+    }
+    if !response.dragged() && !response.has_focus() {
+        state.model_ui.level = None;
+    }
+    let hint = if link.cell_mm.is_some() { "multiphysics.model_mesh_level_typed" } else { "multiphysics.model_mesh_level_hint" };
+    ui.label(RichText::new(tr(hint)).small().color(t.text_dim));
+    if let Ok((dimensions, _)) = solidcraft_engine::multiphysics::case_scene::grid(&study.case) {
+        ui.monospace(format!("{} × {} × {} = {}", dimensions[0], dimensions[1], dimensions[2], dimensions.iter().product::<usize>()));
+    }
+    let response = crate::ui_kit::checkbox(ui, tr("multiphysics.model_show_grid"), &mut state.model_ui.show_grid);
+    crate::scenario::publish_target("multiphysics:model_show_grid", response.rect);
+    ui.separator();
+    // Solution-adaptive refinement from a kept run.
+    ui.strong(tr("multiphysics.model_adaptive"));
+    let run = state.view.shown_run.clone().filter(|id| study.runs.iter().any(|r| &r.id == id)).or_else(|| study.runs.last().map(|r| r.id.clone()));
+    if button(ui, "multiphysics.model_adapt", "multiphysics:model_adapt", run.is_some()).clicked()
+        && let Some(run) = run
+    {
+        if let Some(reply) = command(app, state, "multiphysics.model.adapt", json!({"id":study.id,"expected_revision":study.revision,"run_id":run})) {
+            state.model_ui.adapted = Some((study.id.clone(), reply["adapted"].clone()));
+            state.model_ui.last_build = Some((study.id.clone(), reply));
+        }
+        return;
+    }
+    let adaptive = link.refinements.iter().any(|r| r.name.starts_with("adapt_"));
+    if adaptive && button(ui, "multiphysics.model_adapt_remove", "multiphysics:model_adapt_remove", true).clicked() {
+        model_command(app, state, study, "multiphysics.model.adapt", json!({"id":study.id,"expected_revision":study.revision,"run_id":"","remove":true}));
+        state.model_ui.adapted = None;
+        return;
+    }
+    match &state.model_ui.adapted {
+        Some((id, found)) if *id == study.id => {
+            let regions = found["regions_mm"].as_array().map_or(0, Vec::len).to_string();
+            ui.label(solidcraft_ui_text::format(
+                "multiphysics.model_adapt_result",
+                &[("flagged", &found["flagged"].to_string()), ("cells", &found["cells"].to_string()), ("regions", &regions)],
+            ));
+        }
+        _ => {
+            ui.label(RichText::new(tr(if run.is_some() { "multiphysics.model_adapt_hint" } else { "multiphysics.model_adapt_no_run" })).small().color(t.text_dim));
+        }
+    }
+    ui.separator();
     ui.strong(tr("multiphysics.model_local_mesh"));
     let mut remove: Option<(&str, String)> = None;
     for r in &link.refinements {
@@ -68,9 +363,10 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
             let what = match &r.target {
                 solidcraft_engine::multiphysics::model::RefineTarget::Body { body } => body.clone(),
                 solidcraft_engine::multiphysics::model::RefineTarget::Face { face } => format!("{} · {}", face.body, face.face),
+                solidcraft_engine::multiphysics::model::RefineTarget::Region { .. } => tr("multiphysics.model_adaptive_box").to_string(),
             };
             ui.label(format!("{} · ×{} · {what}", r.name, r.factor));
-            let response = crate::ui_kit::button(ui, "✕", crate::ui_kit::Button::Small).backing_on_hover_text(tr("multiphysics.model_remove"));
+            let response = remove_button(ui);
             crate::scenario::publish_target(&format!("multiphysics:model_remove_refinement:{}", r.name), response.rect);
             if response.clicked() {
                 remove = Some(("multiphysics.model.refine", r.name.clone()));
@@ -120,7 +416,7 @@ pub(super) fn goals_panel(app: &mut SolveApp, state: &mut State, study: &Study, 
         ui.horizontal(|ui| {
             let kind = serde_json::to_value(g.kind).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
             ui.label(format!("{} · {}", g.name, tr(&format!("multiphysics.model_goal_{kind}"))));
-            let response = crate::ui_kit::button(ui, "✕", crate::ui_kit::Button::Small).backing_on_hover_text(tr("multiphysics.model_remove"));
+            let response = remove_button(ui);
             crate::scenario::publish_target(&format!("multiphysics:model_remove_goal:{}", g.name), response.rect);
             if response.clicked() {
                 remove = Some(("multiphysics.model.goal", g.name.clone()));
@@ -131,13 +427,18 @@ pub(super) fn goals_panel(app: &mut SolveApp, state: &mut State, study: &Study, 
         model_command(app, state, study, command_id, json!({"id":study.id,"expected_revision":study.revision,"name":name,"remove":true}));
         return;
     }
+    let offered = if link.heat.is_some() { GOAL_KINDS.len() } else { FLOW_GOAL_KINDS };
+    if state.model_ui.goal_kind >= offered {
+        state.model_ui.goal_kind = 0;
+    }
     let kind = GOAL_KINDS.get(state.model_ui.goal_kind).copied().unwrap_or(GOAL_KINDS[0]);
+    let bodies = selected_bodies(app);
     crate::ui_kit::row(ui, tr("multiphysics.name"), |ui| {
         crate::ui_kit::text_field(ui, &mut state.model_ui.goal_name, &format!("goal_{}", link.goals.len() + 1))
     });
     crate::ui_kit::row(ui, tr("multiphysics.model_goal_kind"), |ui| {
-        crate::ui_kit::dropdown_menu(ui, "multiphysics_model_goal_kind", tr(&format!("multiphysics.model_goal_{kind}")), |ui| {
-            for (index, k) in GOAL_KINDS.iter().enumerate() {
+        let menu = crate::ui_kit::dropdown_menu(ui, "multiphysics_model_goal_kind", tr(&format!("multiphysics.model_goal_{kind}")), |ui| {
+            for (index, k) in GOAL_KINDS.iter().enumerate().take(offered) {
                 let response = crate::ui_kit::list_picker(
                     ui,
                     &format!("multiphysics_model_goal_kind_{k}"),
@@ -151,6 +452,7 @@ pub(super) fn goals_panel(app: &mut SolveApp, state: &mut State, study: &Study, 
                 }
             }
         });
+        crate::scenario::publish_target("multiphysics:model_goal_kind_menu", menu.rect);
     });
     if kind == "equation" {
         crate::ui_kit::row(ui, tr("multiphysics.model_goal_expression"), |ui| {
@@ -159,6 +461,8 @@ pub(super) fn goals_panel(app: &mut SolveApp, state: &mut State, study: &Study, 
     }
     let ready = match kind {
         "equation" => !state.model_ui.goal_expression.trim().is_empty(),
+        "body_max_temperature" | "body_mean_temperature" => bodies.len() == 1,
+        global if global.starts_with("global_") => true,
         _ => faces.len() == 1,
     };
     if button(ui, "multiphysics.model_add_goal", "multiphysics:model_add_goal", ready).clicked() {
@@ -170,7 +474,9 @@ pub(super) fn goals_panel(app: &mut SolveApp, state: &mut State, study: &Study, 
         let mut params = json!({"id":study.id,"expected_revision":study.revision,"name":name,"kind":kind});
         match kind {
             "equation" => params["expression"] = json!(state.model_ui.goal_expression.trim()),
-            "point_pressure" => params["point_mm"] = faces[0]["point"].clone(),
+            "point_pressure" | "point_temperature" => params["point_mm"] = faces[0]["point"].clone(),
+            "body_max_temperature" | "body_mean_temperature" => params["body"] = json!(bodies[0]),
+            global if global.starts_with("global_") => {}
             _ => params["face"] = faces[0].clone(),
         }
         if model_command(app, state, study, "multiphysics.model.goal", params) {
@@ -268,7 +574,7 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     ui.horizontal(|ui| {
         for (kind, key) in [("internal", "multiphysics.model_internal"), ("external", "multiphysics.model_external")] {
             let on = serde_json::to_value(link.analysis).ok().as_ref().and_then(Value::as_str) == Some(kind);
-            let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_model_{kind}"), tr(key), on);
+            let response = crate::ui_kit::choice_chip(ui, &format!("multiphysics_model_{kind}"), tr(key), on);
             crate::scenario::publish_target(&format!("multiphysics:model_{kind}"), response.rect);
             if response.clicked() && !on {
                 analysis = Some(kind);
@@ -339,7 +645,7 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     for opening in &link.openings {
         ui.horizontal(|ui| {
             ui.label(format!("{} · {} · {}", opening.name, role_label(&serde_json::to_value(opening.role).unwrap_or_default()), opening.face.body));
-            let response = crate::ui_kit::button(ui, "✕", crate::ui_kit::Button::Small).backing_on_hover_text(tr("multiphysics.model_remove"));
+            let response = remove_button(ui);
             crate::scenario::publish_target(&format!("multiphysics:model_remove:{}", opening.name), response.rect);
             if response.clicked() {
                 remove = Some(opening.name.clone());
@@ -415,6 +721,46 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     }
     ui.label(RichText::new(tr("multiphysics.model_inside_face_hint")).small().color(t.text_dim));
     ui.separator();
+    // A fan on a face on the domain boundary, following its curve.
+    ui.strong(tr("multiphysics.model_fan"));
+    if let Some(fan) = &link.fan {
+        let mut removed = false;
+        ui.horizontal(|ui| {
+            ui.label(format!("{} · {} · {} {}", fan.name, fan.face.body, fan.curve.len(), tr("multiphysics.model_fan_points")));
+            let response = remove_button(ui);
+            crate::scenario::publish_target("multiphysics:model_remove_fan", response.rect);
+            removed = response.clicked();
+        });
+        if removed {
+            model_command(app, state, study, "multiphysics.model.fan", json!({"id":study.id,"expected_revision":study.revision,"remove":true}));
+            return;
+        }
+    }
+    crate::ui_kit::row(ui, tr("multiphysics.model_fan_curve"), |ui| {
+        field(ui, &mut state.model_ui.fan_curve, "0 4; 0.0004 3; 0.001 0", "multiphysics:model_fan_curve")
+    });
+    let curve: Option<Vec<[f64; 2]>> = state
+        .model_ui
+        .fan_curve
+        .split(';')
+        .filter(|point| !point.trim().is_empty())
+        .map(|point| {
+            let values: Vec<f64> = point.split_whitespace().filter_map(|v| v.parse().ok()).collect();
+            match values.as_slice() {
+                [q, p] => Some([*q, *p]),
+                _ => None,
+            }
+        })
+        .collect::<Option<Vec<_>>>()
+        .filter(|points| points.len() >= 2);
+    if button(ui, "multiphysics.model_add_fan", "multiphysics:model_add_fan", faces.len() == 1 && curve.is_some()).clicked()
+        && let (Some(face), Some(curve)) = (faces.first(), curve)
+    {
+        model_command(app, state, study, "multiphysics.model.fan", json!({"id":study.id,"expected_revision":study.revision,"face":face,"curve":curve}));
+        return;
+    }
+    ui.label(RichText::new(tr("multiphysics.model_fan_hint")).small().color(t.text_dim));
+    ui.separator();
     // Leak tracking: the fluid path between two picked faces.
     ui.label(RichText::new(tr("multiphysics.model_leak_hint")).small().color(t.text_dim));
     if button(ui, "multiphysics.model_leak", "multiphysics:model_leak", faces.len() == 2).clicked() {
@@ -459,6 +805,30 @@ pub(super) fn overlay(app: &mut SolveApp, state: &mut State, study: &Study, ui: 
         if let Some(p) = to_screen(hi) {
             painter.text(p, Align2::LEFT_BOTTOM, tr("multiphysics.model_domain"), FontId::proportional(t.font_small), t.accent);
         }
+    }
+    // The grid's planes on the domain's three low faces.
+    if state.model_ui.show_grid
+        && let Some([lo, hi]) = domain
+        && let Ok(nodes) = solidcraft_engine::multiphysics::case_scene::nodes(&study.case)
+    {
+        let stroke = Stroke::new(1.0, t.text_dim.gamma_multiply(0.6));
+        let mut lines = 0usize;
+        for face in 0..3 {
+            for along in (0..3).filter(|a| *a != face) {
+                let across = 3 - face - along;
+                for x in &nodes[along] {
+                    let mut p = lo;
+                    p[along] = lo[along] + x * 1000.0;
+                    let mut q = p;
+                    q[across] = hi[across];
+                    if let (Some(a), Some(b)) = (to_screen(p), to_screen(q)) {
+                        painter.line_segment([a, b], stroke);
+                        lines += 1;
+                    }
+                }
+            }
+        }
+        crate::scenario::publish_count("multiphysics:model_grid_lines", lines as f64);
     }
     // The last leak path, through the fluid.
     if let Some((id, true, path)) = &state.model_ui.leak

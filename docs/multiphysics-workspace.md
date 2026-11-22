@@ -3,20 +3,49 @@
 Multiphysics adds saved numerical studies, actual companion execution and portable results under a separate workspace and command namespace.
 The planned Simulation entry is unchanged. Existing Design and Render defaults are unchanged.
 
+The workspace's interface is its own crate, `crates/multiphysics-ui`. The apps call
+`solidcraft_multiphysics_ui::register()` at start-up, which installs its hooks (draw, tick, reset,
+close, the per-document view) into `ui-egui`'s `multiphysics_workspace` module; that module keeps
+the tab, the routing and the state slot. Editing the workspace rebuilds only its crate and relinks
+the app, and its tests (`cargo test -p solidcraft-multiphysics-ui`) do not build `ui-egui`'s.
+
 ## Layout
 
 The workspace is laid out like a CAD-embedded flow-analysis tool:
 
 | Area | What it holds |
 |---|---|
-| Ribbon, **Analysis** tab | Project (Wizard, New project, General settings, Calculation control, Delete project), Input (Computational domain, Boundary condition, Sources, Engineering database, Goals, Coupling), Mesh (Mesh settings, Check project), Solve (Run, Solver monitor, Stop), Tools (Templates, Verification, Export case) |
-| Ribbon, **Results** tab | Load results; Plots (Cut plots, Surface plots, Isosurfaces, Flow trajectories, Particle studies); Parameters (Point, Surface, Volume); Charts (XY plots, Goal plots); Output (Report, Animation, Compare, Export results) |
+| Ribbon, **Flow analysis** tab | One row: Project (Wizard, New project, Model study, Settings, Domain), Insert (Inlets & walls, Goals), Mesh (Global mesh, Local mesh), Solve (Run, Monitor, Stop), Results (Results, Cut plots, Surface plots, Flow paths), Tools (Check, Library), Help (Validate). Short labels; the full name is the button's accessible name. Each group's drop-down (and the menu bar) also holds the rest: Clone, Component control, Add from components, Batch run, Calculation control, Isosurfaces, Particle studies, Point and Surface parameters, Create openings, Templates |
 | Quick access (right of the tabs) | Save, Undo, Redo |
 | Resource bar (far left) | Analysis tree, Engineering database, Templates |
 | Analysis tree | Every project of the design; the active one (bold) expands into **General settings**, **Calculation control**, **Input data**, **Results** (with the loaded run) and **Verification**. See below |
 | Graphics window (centre) | The CAD model, or the Results folder, a cut plot, an animation or the verification record when one is selected. A cue line at the bottom says what to do next |
 | Floating windows | The feature dialog of the selected input node (its case settings, Apply and Cancel), result windows (goal plot, XY plot, point and volume parameters, report, compare), the Solver monitor, the template list and the Wizard |
 | Status bar | Worker state, export progress, the last error or notice |
+
+### Engineering database and Wizard
+
+The **Engineering database** fills the graphics window. On the left, the database tree lists the
+internal reference library, by family (metals, polymers, glass, wood, other) with a count each,
+and the design's own materials. On the right, **Items** is a table of the chosen folder (name,
+family, number of properties) under the search row, and **Item properties** is the chosen
+reference's ruled Property | Value | Unit | Basis table. Hovering a row shows its conditions,
+uncertainty, original value and source. Double-clicking an item opens its properties. While a
+reference is chosen, a bar under both pages names its copy in the design, asks for the review
+and copies it (`material.create`). The design folder lists the design's materials in a Name |
+Origin | Density table (built-in first) above the material editor; choosing a row opens it there,
+and the table steps aside while a material is being edited.
+
+The **Wizard** shows its seven steps in a list on the left: passed steps are ticked, and a
+passed step, or any step once a template is chosen, can be opened by clicking it. The page on
+the right shows the step's title and hint, then its settings as a ruled Parameter | Value
+table: a band per case group, a heading per entry or list item (named from its `name`, `id`,
+`patch` or `type`), and one row per value. Short tuples are one row of fields. The template
+step shows every category as a filter chip above a table of templates and their solver
+profiles; double-clicking a template moves on. The
+units step lists the SI units every case uses. The summary repeats the name, template and
+profile, and shows the whole case read only. Back, Next, Finish and Cancel draft sit at the
+bottom right.
 
 ### Analysis tree
 
@@ -240,7 +269,8 @@ prescribed at 0.01 m/s. This is isothermal laminar airflow, without fan curves
 or coupled solid/fluid temperatures. Obstacle min/max values are half-open
 grid-cell indices. They are not CAD selections or millimetres.
 
-After Run and Keep result, select a VTU artifact in Results and Inspect. The
+After a run, **Results** (ribbon or menu) keeps the finished run if it is not kept yet and
+opens it on its last flow field, which is read at once (no separate Inspect step). The
 preview supports XY/XZ/YZ slices of canonical axis-aligned HEX8 cells, scalar
 fields and vector magnitudes. Cell values and holes are preserved without
 point interpolation. Coordinates and field names retain producer conventions;
@@ -522,8 +552,18 @@ again before a run when the design has changed since (`multiphysics.model.*` com
   side of the domain (a duct's end, a vent in an outer wall). Any other face becomes a condition
   on its own body (companion 0.13.0, `body_face_conditions_v1`): the body's grid faces nearest the
   face's triangles. Not yet with heat transfer.
-- *Mesh* (the Mesh node): smaller cells around a selected body or face, split 2 to 4 times, plus
-  one cell around it; the time step is fitted again to the smallest cells (local mesh, 0.9.0).
+- *Mesh* (the Mesh node):
+  - *Level of initial mesh*, 1 to 7: the automatic cell size (level 3) made about 1.4 times
+    smaller per level up. Moving it drops a typed cell size. The grid's cell counts are shown,
+    and the cell limit says when it made the cells bigger than asked.
+  - *Show the grid on the model*: the grid's planes drawn on the domain's three low faces.
+  - *Refine where the run changes most* (solution-adaptive): reads the shown or last kept run's
+    velocity, flags the tenth of cells with the largest jump to a face neighbour, and splits the
+    cells around each cluster of them (up to four boxes, `adapt_1`, …, ×2). Adapting again
+    replaces the earlier boxes; run again to use the finer grid. By command
+    (`multiphysics.model.adapt`) the field, share, number of boxes and split can be chosen.
+  - Smaller cells around a selected body or face, split 2 to 4 times, plus one cell around it.
+  - After any refinement the time step is fitted again to the smallest cells (local mesh, 0.9.0).
 - *Goals* (the Goals node): volume flow through or mean pressure on a selected face, pressure at
   a point, or an equation of other goals. A face goal uses the face's condition patch, the
   domain side it lies on, or a wall patch made on its body for the goal. Goal plots show them.
@@ -537,6 +577,43 @@ again before a run when the design has changed since (`multiphysics.model.*` com
   merged into a neighbour. Thin walls and slanted or curved faces keep their volume and open
   area. Not yet with heat transfer, porous media, fans, rotating regions or transferred
   conditions. The cut-cell report compares the fluid volume with the exact one.
+- *Fan* (General): a fan curve (`flow pressure; …`, m³/s and Pa) on a flat face of the model on
+  the domain boundary; it blows in against an outlet there (the companion's fan curve). One fan
+  per study, not with cut cells (`multiphysics.model.fan`).
+- Global goals (Goals node): the fluid's largest and mean speed and its largest, smallest and
+  mean pressure (companion 0.16.0, `goals_v3`), and with heat on its largest and mean fluid
+  temperature and largest solid temperature.
+- *Heat transfer* (the Solid Materials node, always listed for a study of the model): the bodies
+  conduct heat and the temperature is solved after the flow (conjugate heat transfer).
+  - The inflow temperature (°C); the fluid is air unless set by command.
+  - A material on the selected bodies: conductivity and power spread evenly through the body.
+    A body without one conducts like the starter material (1 W/(m·K)), with a note.
+  - Heat sources on faces: power on a picked face goes into the body's cells behind its grid
+    faces (companion 0.15.0, `face_heat_sources_v1`).
+  - Thermal conditions (temperature, heat flux, convection, adiabatic) on a flat face of the
+    model on the domain boundary, such as a duct's open end. A face inside the domain is refused
+    with the reason: give it a heat source instead.
+  - Goals: a body's highest or mean temperature (the selected body) and the temperature at a
+    point.
+  - Not yet with cut cells, or with inlets and outlets on faces inside the domain (a wall goal on
+    such a face works).
+- Results on the model (once a run's field file is shown):
+  - Cut Plots offers *On the model*: the slice is drawn on its plane in the design's 3-D view,
+    with the design's camera. *Vectors* adds arrows of the in-plane velocity, scaled to the
+    largest (at most 600; cells are skipped evenly beyond that).
+  - Flow Trajectories, Particle Studies and Isosurfaces draw on the model, without a cut plot:
+    in the graphics window while the tool is open in the property panel beside it, else in a
+    view below the tool. The seeds and *Trace* (or *Compute*) come first; the lines are
+    coloured by speed on the panel's colour map and range.
+  - The view on the model is framed on the model the first time it is shown for a study, and
+    only its part on screen is drawn, so a scrolled view still lines up with the model.
+  - Surface Plots colours each wetted face of the model by the fluid cell next to it (looked up
+    half a cell to one and a half cells off the face). Faces with no fluid beside them (outer
+    faces of an internal study, solid-side faces) are drawn see-through, so wetted faces behind
+    them show.
+  - A click on the slice or on a coloured face probes the result there: a marker and the value
+    on the model, and the point goes into the Point Parameters probe. A click where there is
+    no fluid says so.
 
 ### Bringing CAD bodies into the case
 

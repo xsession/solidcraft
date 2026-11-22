@@ -115,6 +115,21 @@ pub struct ConjugateHeat {
     pub buoyancy: Option<Buoyancy>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub thermoelectric_coolers: Vec<ThermoelectricCooler>,
+    /// Heat released on parts of surface bodies (`face_heat_sources_v1`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub face_sources: Vec<FaceHeatSource>,
+}
+
+/// Power released on part of a surface body's surface: the triangles of one model face. The
+/// power goes into the body's cells behind the grid faces of its staircase surface nearest those
+/// triangles (exact point-triangle distance), each in proportion to its face area.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct FaceHeatSource {
+    pub name: String,
+    pub body: String,
+    pub triangles: Vec<usize>,
+    pub power_w: f64,
 }
 
 impl ConjugateHeat {
@@ -453,6 +468,72 @@ pub fn solve_energy(
     ))
 }
 
+/// Adds each face heat source's power to the cells of its body behind the surface grid faces
+/// nearest its triangles: faces between a cell of the body and a cell outside it, or on the
+/// domain boundary.
+fn face_sources(
+    case: &CollocatedFlowCase,
+    heat: &ConjugateHeat,
+    mesh: &PolyMesh,
+    cell_solid: &[Option<usize>],
+    source: &mut [f64],
+) -> Result<()> {
+    let mut names = BTreeSet::new();
+    for fs in &heat.face_sources {
+        require(
+            !fs.name.is_empty() && names.insert(fs.name.as_str()),
+            "face heat sources need unique names",
+        )?;
+        require(fs.power_w.is_finite(), format!("face heat source {}: power must be finite", fs.name))?;
+        let bi = case.bodies.iter().position(|b| b.name == fs.body).ok_or_else(|| {
+            SolverError::InvalidInput(format!("face heat source {} names no surface body {}", fs.name, fs.body))
+        })?;
+        let body = &case.bodies[bi];
+        require(!fs.triangles.is_empty(), format!("face heat source {} lists no triangles", fs.name))?;
+        let mut wanted = vec![false; body.triangles.len()];
+        for &t in &fs.triangles {
+            let slot = wanted.get_mut(t).ok_or_else(|| {
+                SolverError::InvalidInput(format!("face heat source {} lists triangle {t}, which {} does not have", fs.name, fs.body))
+            })?;
+            *slot = true;
+        }
+        let si = case.obstacles.len() + bi;
+        let inside = |c: usize| cell_solid.get(c).copied().flatten() == Some(si);
+        // Surface faces of the body: (its cell, face centre, face area).
+        let surface: Vec<(usize, [f64; 3], f64)> = mesh
+            .faces()
+            .iter()
+            .filter_map(|f| {
+                let cell = match (inside(f.owner), f.neighbour.map(inside)) {
+                    (true, Some(false) | None) => f.owner,
+                    (false, Some(true)) => f.neighbour?,
+                    _ => return None,
+                };
+                Some((cell, [f.center.x, f.center.y, f.center.z], f.area.norm()))
+            })
+            .collect();
+        let centres: Vec<[f64; 3]> = surface.iter().map(|(_, c, _)| *c).collect();
+        let nearest = body.nearest_triangles(&centres)?;
+        let chosen: Vec<(usize, f64)> = surface
+            .iter()
+            .zip(&nearest)
+            .filter(|(_, t)| wanted.get(**t).copied().unwrap_or(false))
+            .map(|((cell, _, area), _)| (*cell, *area))
+            .collect();
+        let total: f64 = chosen.iter().map(|(_, a)| a).sum();
+        require(
+            total > 0.0,
+            format!("face heat source {} covers no grid face of {}; refine the grid near it", fs.name, fs.body),
+        )?;
+        for (cell, area) in chosen {
+            if let Some(slot) = source.get_mut(cell) {
+                *slot += fs.power_w * area / total;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Per-component verdict against an optional limit. Warn when the margin is below 5% of the
 /// allowed rise above the inflow temperature.
 fn verdict(max_k: f64, limit: Option<f64>, inflow_k: f64) -> (&'static str, f64) {
@@ -669,6 +750,7 @@ impl EnergyState {
                 }
             }
         }
+        face_sources(case, heat, &mesh, &cell_solid, &mut source)?;
         let condition = conditions(&mesh, &heat.boundaries)?;
         let origins = obstacles::fluid_face_origins(spec, &case.obstacles, &case.bodies)?;
         let fluid_cells = (0..n).filter(|c| cell_solid[*c].is_none()).collect();
@@ -894,6 +976,7 @@ impl EnergyState {
             "inflow_temperature_k": heat.inflow_temperature_k,
             "fluid": heat.fluid, "rho_cp_j_per_m3_k": self.rho_cp,
             "total_power_w": power,
+            "face_sources": heat.face_sources.iter().map(|f| serde_json::json!({"name": f.name, "body": f.body, "power_w": f.power_w})).collect::<Vec<_>>(),
             "advected_heat_out_w": solution.advection_out_w,
             "conducted_heat_out_w": solution.conduction_out_w.iter().map(|(p, q)| serde_json::json!({"patch":p,"w":q})).collect::<Vec<_>>(),
             "storage_rate_w": self.storage_w,

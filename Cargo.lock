@@ -5936,6 +5936,7 @@ dependencies = [
  "solidcraft-gpu",
  "solidcraft-look",
  "solidcraft-multiphysics-host",
+ "solidcraft-multiphysics-ui",
  "solidcraft-space-mouse",
  "solidcraft-theme",
  "solidcraft-ui-egui",
@@ -6245,6 +6246,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "solidcraft-multiphysics-ui"
+version = "0.44.0"
+dependencies = [
+ "egui",
+ "serde_json",
+ "solidcore-record",
+ "solidcraft-engine",
+ "solidcraft-theme",
+ "solidcraft-ui-egui",
+ "solidcraft-ui-text",
+ "solidcraft-viewport",
+]
+
+[[package]]
 name = "solidcraft-profile"
 version = "0.44.0"
 dependencies = [
@@ -6459,6 +6474,7 @@ dependencies = [
  "solidcraft-control",
  "solidcraft-engine",
  "solidcraft-look",
+ "solidcraft-multiphysics-ui",
  "solidcraft-ui-egui",
  "solidcraft-ui-text",
  "url",

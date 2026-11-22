@@ -4,8 +4,10 @@
 //! 3.6e-3 m². The face's inflow, 0.05 m/s × 4e-4 m² = 2e-5 m³/s, must leave through the outlet.
 
 use cfd_solvers::case::*;
+use cfd_solvers::case::conjugate::ConjugateHeat;
 use cfd_solvers::core::Vec3;
 use cfd_solvers::fvm::{PressureBoundaryType, VelocityBoundaryType};
+use serde_json::json;
 
 struct Scratch(std::path::PathBuf);
 impl Scratch {
@@ -97,15 +99,57 @@ fn body_face_conditions_are_checked() {
     assert!(run(vec![named("jet", "block", vec![])]).contains("lists no triangles"));
     assert!(run(vec![named("right", "block", vec![2])]).contains("unique ASCII identifiers"));
     assert!(run(vec![named("a", "block", vec![2]), named("b", "block", vec![2, 3])]).contains("in two body face conditions"));
-    // With conjugate heat the condition patches are refused rather than left uncoupled.
+    // With conjugate heat a body face that lets flow through is refused rather than left
+    // uncoupled; a closed one is accepted (see the face heat source test).
     let mut thermal = channel(vec![jet()]);
-    thermal.thermal = Some(serde_json::from_value(serde_json::json!({
-        "fluid": {"specific_heat_j_per_kg_k": 1005.0, "conductivity_w_per_m_k": 0.026},
-        "inflow_temperature_k": 300.0, "solids": [{"obstacle": "block", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0}]
-    }))
-    .unwrap());
+    thermal.velocity_boundaries.push(VelocityPatch { patch: "jet".into(), kind: VelocityBoundaryType::FixedValue, value: Vec3::new(SPEED, 0.0, 0.0) });
+    thermal.thermal = Some(heat(json!([])));
     let why = Case::CollocatedFlow3d(thermal).run(&scratch.0).unwrap_err().to_string();
     assert!(why.contains("not supported with conjugate heat"), "{why}");
+}
+
+fn heat(face_sources: serde_json::Value) -> ConjugateHeat {
+    serde_json::from_value(json!({
+        "fluid": {"specific_heat_j_per_kg_k": 1005.0, "conductivity_w_per_m_k": 0.026},
+        "inflow_temperature_k": 300.0, "solids": [{"obstacle": "block", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0}],
+        "face_sources": face_sources
+    }))
+    .unwrap()
+}
+
+/// Heat on a body face (`face_heat_sources_v1`): 2 W on the block's +x face add to its 1 W of
+/// volume power, the air carries all 3 W out, and a closed condition on that face (a wall to
+/// monitor) runs with heat transfer.
+#[test]
+fn a_face_heat_source_heats_its_body_and_a_closed_face_condition_runs_with_heat() {
+    let mut case = channel(vec![BodyFaceCondition { name: "monitor".into(), body: "block".into(), triangles: vec![2, 3] }]);
+    case.velocity_boundaries.retain(|b| b.patch != "left");
+    case.velocity_boundaries.push(VelocityPatch { patch: "left".into(), kind: VelocityBoundaryType::FixedValue, value: Vec3::new(SPEED, 0.0, 0.0) });
+    case.velocity_boundaries.push(VelocityPatch { patch: "monitor".into(), kind: VelocityBoundaryType::FixedValue, value: Vec3::ZERO });
+    case.thermal = Some(heat(json!([{"name": "chip", "body": "block", "triangles": [2, 3], "power_w": 2.0}])));
+    let scratch = Scratch::new("face-heat");
+    let manifest = Case::CollocatedFlow3d(case.clone()).run(&scratch.0).unwrap();
+    assert!(manifest.capabilities.iter().any(|c| c == "face_heat_sources_v1"));
+    let report: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(scratch.0.join("thermal_report.json")).unwrap()).unwrap();
+    assert!((report["total_power_w"].as_f64().unwrap() - 3.0).abs() < 1e-9, "{report}");
+    assert_eq!(report["face_sources"][0]["name"], "chip");
+    let relative = report["relative_energy_imbalance"].as_f64().unwrap();
+    assert!(relative.abs() < 1e-3, "{report}");
+    // A source on no triangle, an unknown body, or a face the grid does not reach is refused.
+    for (i, (sources, why)) in [
+        (json!([{"name": "chip", "body": "block", "triangles": [], "power_w": 1.0}]), "lists no triangles"),
+        (json!([{"name": "chip", "body": "nobody", "triangles": [2], "power_w": 1.0}]), "names no surface body"),
+        (json!([{"name": "chip", "body": "block", "triangles": [99], "power_w": 1.0}]), "does not have"),
+        (json!([{"name": "a", "body": "block", "triangles": [2], "power_w": 1.0}, {"name": "a", "body": "block", "triangles": [3], "power_w": 1.0}]), "unique names"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut bad = case.clone();
+        bad.thermal = Some(heat(sources));
+        let error = Case::CollocatedFlow3d(bad).run(&scratch.0.join(i.to_string())).unwrap_err().to_string();
+        assert!(error.contains(why), "{error}");
+    }
 }
 
 #[test]

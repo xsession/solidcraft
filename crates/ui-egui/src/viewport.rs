@@ -140,7 +140,7 @@ pub struct ViewportState {
     /// The last pick (its key and hits): reused while nothing it depends on changed.
     last_pick: Option<(u64, Vec<Hit>)>,
     pub rect: Option<Rect>,
-    pub(crate) layout: Option<crate::viewport_layout::Layout>,
+    pub layout: Option<crate::viewport_layout::Layout>,
     pub(crate) palette_rect: Option<Rect>,
     /// None before the host's early confirmation paint; Some(NOTHING) means
     /// no visible pair this pass. Late controls retain the already drawn rect.
@@ -456,7 +456,7 @@ impl Proj {
 /// A projected 3D face (convex): an unfeathered triangle fan, outlined one edge at a time (no
 /// joins between the edges). Unlike `Shape::convex_polygon`, it stays inside its outline when
 /// the face turns edge-on.
-pub(crate) fn projected_polygon(pts: &[Pos2], fill: Color32, stroke: Stroke) -> Vec<Shape> {
+pub fn projected_polygon(pts: &[Pos2], fill: Color32, stroke: Stroke) -> Vec<Shape> {
     let mut mesh = egui::Mesh::default();
     for (i, p) in (0u32..).zip(pts) {
         mesh.colored_vertex(*p, fill);

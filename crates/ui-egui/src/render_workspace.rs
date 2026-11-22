@@ -1063,8 +1063,7 @@ pub(crate) fn cancel_entry_fit(app: &mut SolveApp) {
 }
 
 /// Independent camera pages must not cancel a pending product framing request.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn preserve_entry_fit_during<R>(app: &mut SolveApp, action: impl FnOnce(&mut SolveApp) -> R) -> R {
+pub fn preserve_entry_fit_during<R>(app: &mut SolveApp, action: impl FnOnce(&mut SolveApp) -> R) -> R {
     let original = app.render_workspace.entry_fit.take();
     let result = action(app);
     app.render_workspace.entry_fit = original;

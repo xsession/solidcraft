@@ -1282,6 +1282,8 @@ mod web {
         solidcraft_look::install_tables();
         solidcraft_ui_egui::workspace::install_tabs();
         solidcraft_ui_egui::navigation_slots::install();
+        // The Multiphysics workspace lives in its own crate and installs itself here.
+        solidcraft_multiphysics_ui::register();
         wasm_bindgen_futures::spawn_local(async {
             let Some(window) = web_sys::window() else { return };
             let launch = crate::Launch::parse(&query());

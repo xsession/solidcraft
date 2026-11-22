@@ -1,4 +1,20 @@
-# cfd-solvers-rs 0.14.0
+# cfd-solvers-rs 0.16.0
+
+## Global flow goals (0.16.0)
+
+`goals_v3` adds goals over the whole fluid: `global_max_speed` and `global_mean_speed` (m/s, the
+mean weighted by cell volume) and `global_max_pressure`, `global_min_pressure` and
+`global_mean_pressure` (Pa, kinematic pressure times `config.density`). They need no target.
+
+## Heat on surface bodies (0.15.0)
+
+`thermal.face_sources` (`face_heat_sources_v1`) releases power on part of a surface body: a name,
+the body, the triangles of the face and `power_w`. The power goes into the body's cells behind the
+staircase grid faces nearest those triangles (exact point-triangle distance), each in proportion
+to its face area, and is part of the energy balance. Conjugate heat transfer now also runs with
+body face conditions that are closed (no-slip or slip walls, used to monitor goals on a body
+face); a body face condition that lets flow through is still refused with heat transfer, and so
+are cut cells.
 
 ## Cut cells (0.14.0)
 

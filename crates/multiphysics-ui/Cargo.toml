@@ -1,0 +1,28 @@
+[package]
+name = "solidcraft-multiphysics-ui"
+description = "SolidCraft's Multiphysics workspace (egui): studies, the case and model views, runs and results"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# The app it is a workspace of: SolveApp, the UI kit, the viewport, the scenario handles. It
+# registers its hooks there (`multiphysics_workspace::register`), so editing this crate does not
+# rebuild the rest of the interface.
+solidcraft-ui-egui = { workspace = true }
+solidcraft-engine = { workspace = true }
+solidcraft-theme = { workspace = true }
+solidcraft-ui-text = { workspace = true }
+solidcraft-viewport = { workspace = true }
+solidcore-record = { workspace = true }
+egui = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The app's test fixtures: the bundled-font test context and the kit's raster helpers.
+solidcraft-ui-egui = { workspace = true, features = ["test-support"] }
+# The same engine features as ui-egui's tests, so the two test builds share their dependencies.
+solidcraft-engine = { workspace = true, features = ["bundled-render-library", "profile"] }
