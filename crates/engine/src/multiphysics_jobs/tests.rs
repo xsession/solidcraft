@@ -552,7 +552,8 @@ fn a_study_of_the_model_carries_heat_on_its_bodies_and_faces() {
     // Materials need heat on.
     let early = json!({"id":id,"expected_revision":revision(&s),"bodies":["Duct"],"conductivity_w_per_m_k":200.0});
     assert!(s.execute("multiphysics.model.material", &early).unwrap_err().to_string().contains("heat transfer on"));
-    let on = s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":true,"inflow_temperature_k":300.0})).unwrap();
+    let on =
+        s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":true,"inflow_temperature_k":300.0})).unwrap();
     // The duct has no material yet: the starter one, with a note.
     assert_eq!(on["study"]["case"]["thermal"]["solids"][0]["conductivity_w_per_m_k"], json!([1.0, 1.0, 1.0]), "{on}");
     assert!(on["notes"].as_array().unwrap().iter().any(|n| n.as_str().unwrap().contains("starter material")), "{on}");
@@ -725,7 +726,9 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     assert_eq!(listed["selections"][0]["bodies"], json!(["U1", "U2"]), "{listed}");
     assert_eq!(listed["selections"][1]["bodies"], json!(["C1"]), "{listed}");
     // A study of the selection builds from its two bodies, and follows a retag on rebuild.
-    let reply = s.execute("multiphysics.model.create", &json!({"name":"Power","analysis":"external","margin_mm":10.0,"cell_mm":5.0,"selection":"Power parts"})).unwrap();
+    let reply = s
+        .execute("multiphysics.model.create", &json!({"name":"Power","analysis":"external","margin_mm":10.0,"cell_mm":5.0,"selection":"Power parts"}))
+        .unwrap();
     let id = reply["study"]["id"].as_str().unwrap().to_string();
     s.execute("multiphysics.parts.tag", &json!({"bodies":["C1"],"add_tags":["power"]})).unwrap();
     assert_eq!(s.execute("multiphysics.model.status", &json!({"id":id})).unwrap()["current"], false);
@@ -753,6 +756,28 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     let small = s.execute("multiphysics.parts.table", &json!({"id":id,"selection":"Small"})).unwrap();
     assert_eq!(small["table"]["rows"].as_array().unwrap().len(), 1);
     assert!(s.execute("multiphysics.parts.table", &json!({"id":id,"run_id":"missing"})).is_err());
+    // Linked selection: a part selection becomes the design's selection, the one the tree, the
+    // table and the 3-D view show; selecting is not an undo step.
+    let undo = s.undo.len();
+    let picked = s.execute("multiphysics.parts.select", &json!({"selection":"Small"})).unwrap();
+    assert_eq!(picked["selected"], json!(["C1"]), "{picked}");
+    let picked = s.execute("multiphysics.parts.select", &json!({"bodies":["U2"],"add":true})).unwrap();
+    assert_eq!(picked["selected"], json!(["U2", "C1"]), "in the design's order: {picked}");
+    assert_eq!(s.selection, vec![crate::Sel::Body { name: "C1".into() }, crate::Sel::Body { name: "U2".into() }]);
+    assert!(s.execute("multiphysics.parts.select", &json!({"bodies":["nope"]})).is_err());
+    assert!(s.execute("multiphysics.parts.select", &json!({"bodies":["U1"],"selection":"Small"})).is_err());
+    assert_eq!(s.execute("multiphysics.parts.select", &json!({})).unwrap()["selected"], json!([]));
+    // Ghosting is view state: see-through parts, not saved and not undone.
+    let ghosted = s.execute("multiphysics.parts.ghost", &json!({"selection":"Power parts"})).unwrap();
+    assert_eq!(ghosted["ghosted"], json!(["U1", "U2", "C1"]), "{ghosted}");
+    let ghosted = s.execute("multiphysics.parts.ghost", &json!({"bodies":["U2"],"ghost":false})).unwrap();
+    assert_eq!(ghosted["ghosted"], json!(["U1", "C1"]));
+    let ghosted = s.execute("multiphysics.parts.ghost", &json!({"bodies":["U2"],"only":true})).unwrap();
+    assert_eq!(ghosted["ghosted"], json!(["U2"]), "only: every other part solid");
+    assert!(s.execute("multiphysics.parts.ghost", &json!({})).is_err(), "nothing named and not only");
+    assert_eq!(s.undo.len(), undo);
+    assert!(!s.doc.to_json().contains("ghost"), "not saved");
+    assert_eq!(s.execute("multiphysics.parts.ghost", &json!({"only":true})).unwrap()["ghosted"], json!([]));
     // Everything survives saving and reopening.
     let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(reopened.multiphysics, s.doc.multiphysics);

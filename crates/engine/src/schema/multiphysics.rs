@@ -722,3 +722,56 @@ pub struct PartsTableReply {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub csv: Option<String>,
 }
+
+/// `multiphysics.parts.select`: put some of the design's parts in its selection, the one the
+/// tree, the component table and the 3-D view share.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsSelect {
+    /// The bodies, by name; or `selection`. None (and no selection): the selection is cleared.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    /// A part selection whose bodies, as the design is now, are selected.
+    #[serde(default)]
+    pub selection: Option<String>,
+    /// Add to what is selected instead of replacing it.
+    #[serde(default)]
+    pub add: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsSelectReply {
+    /// The bodies selected now, in the design's order.
+    pub selected: Vec<String>,
+    /// Bodies a saved selection names that the design no longer has.
+    pub missing: Vec<String>,
+}
+
+/// `multiphysics.parts.ghost`: draw some parts see-through, letting clicks reach what is behind.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsGhost {
+    /// The bodies, by name; or `selection`.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    /// A part selection whose bodies, as the design is now, are changed.
+    #[serde(default)]
+    pub selection: Option<String>,
+    /// False: draw them solid again.
+    #[serde(default = "yes")]
+    pub ghost: bool,
+    /// Ghost only these, drawing every other part solid (with `ghost`); or, with no bodies or
+    /// selection, draw every part solid.
+    #[serde(default)]
+    pub only: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsGhostReply {
+    /// The parts drawn see-through now, in the design's order.
+    pub ghosted: Vec<String>,
+}

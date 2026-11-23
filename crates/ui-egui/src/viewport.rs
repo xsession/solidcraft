@@ -1037,6 +1037,7 @@ fn base_scene_key(app: &SolveApp) -> u64 {
     app.preview.effective_replaced().hash(&mut h);
     app.preview.rolled_back.hash(&mut h);
     frame_ghosting(app).hash(&mut h);
+    app.session.ghosted_bodies.hash(&mut h);
     app.preferences.cosmetic_threads.hash(&mut h);
     app.preferences.section_hatch.hash(&mut h);
     solidcraft_theme::is_dark().hash(&mut h);
@@ -1181,6 +1182,12 @@ pub(crate) fn frame_ghosted(app: &SolveApp, body: &solidcraft_engine::doc::Model
     use solidcraft_engine::doc::FeatureKind;
     frame_ghosting(app)
         && app.session.doc.feature(body.feature).is_some_and(|f| matches!(f.kind, FeatureKind::FrameMember { .. } | FeatureKind::FrameEndCap { .. }))
+}
+
+/// A body drawn see-through whose faces let a click through to what is behind: a frame member
+/// while [`frame_ghosting`], or a part `multiphysics.parts.ghost` ghosted.
+pub(crate) fn see_through(app: &SolveApp, body: &solidcraft_engine::doc::ModelBody) -> bool {
+    frame_ghosted(app, body) || app.session.ghosted_bodies.contains(&body.name)
 }
 
 /// With a component active, bodies outside it are drawn faded.
@@ -1682,7 +1689,7 @@ fn face_classes(app: &SolveApp, b: &solidcraft_engine::doc::ModelBody, active_bo
     if body_faded(app, b, active_bodies) {
         return vec![crate::gpu::TriClass::Faded; b.body.face_count()];
     }
-    if frame_ghosted(app, b) {
+    if see_through(app, b) {
         return vec![crate::gpu::TriClass::Glass; b.body.face_count()];
     }
     let resolved = resolve_appearance(app, b);
@@ -2875,7 +2882,7 @@ fn body_scene(
             }
         }
         // Ghost Frame Members: see-through in the plain body colour, whatever its appearance.
-        let ghosted = !faded && frame_ghosted(app, b);
+        let ghosted = !faded && see_through(app, b);
         let base = if ghosted { tk.body } else { resolved.component.or(resolved.body).unwrap_or(tk.body) };
         let col = if faded { c4(base.gamma_multiply(0.35)) } else { c4(base) };
         set_palette_color(&mut arena, &mut sc.palette, slots.body, col);
@@ -4822,7 +4829,7 @@ fn pick_hits(app: &SolveApp, proj: &Proj, pos: Pos2, options: PickOptions<'_>) -
     // quadratic for assemblies with many small parts.
     for (i, b) in st.bodies.iter().enumerate() {
         // A ghosted frame member's faces don't stop a click: it goes through to what is behind.
-        if (!through && !app.body_visible(&b.name)) || frame_ghosted(app, b) {
+        if (!through && !app.body_visible(&b.name)) || see_through(app, b) {
             continue;
         }
         // Bodies whose box the ray misses (or enters behind the best hit so far) are skipped.
@@ -4900,7 +4907,7 @@ fn pick_hits(app: &SolveApp, proj: &Proj, pos: Pos2, options: PickOptions<'_>) -
             continue;
         }
         // A ghosted frame member's vertices are picked, its edges are not.
-        let ghosted = frame_ghosted(app, b);
+        let ghosted = see_through(app, b);
         let mut body_slack = slack;
         if let Some(bb) = body_box(i, b) {
             // Only bodies whose outline on screen is near the cursor can have an edge under it.

@@ -254,7 +254,7 @@ fn face_candidates(
         }
         let ghosted = crate::viewport::body_faded(app, b, active_bodies);
         // Ghost Frame Members lets clicks through a member's faces, as the mouse picker does.
-        if (ghosted && !include_ghosted) || crate::viewport::frame_ghosted(app, b) {
+        if (ghosted && !include_ghosted) || crate::viewport::see_through(app, b) {
             continue;
         }
         if let Some((_, bb)) = bounds.get(i) {
@@ -430,7 +430,7 @@ pub(crate) fn body_cut_at(
             continue;
         }
         // Ghost Frame Members lets picks through a member, its cut too, as `face_candidates` does.
-        if crate::viewport::frame_ghosted(app, b) {
+        if crate::viewport::see_through(app, b) {
             continue;
         }
         // A sheet or an open shell has no inside to cut: a ray crossing it once is not within
@@ -505,7 +505,7 @@ fn near_edges(
             continue;
         }
         // A frame member Ghost Frame Members draws see-through: its vertices, not its edges.
-        let frame_ghosted = crate::viewport::frame_ghosted(app, b);
+        let frame_ghosted = crate::viewport::see_through(app, b);
         let mut body_slack = slack;
         if let Some((_, bb)) = bounds.get(i) {
             if crate::viewport::screen_box(proj, bb, edge_px).is_some_and(|r| !r.contains(pos)) {

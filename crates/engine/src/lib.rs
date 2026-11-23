@@ -810,6 +810,9 @@ pub struct Session {
     /// Sketch temporarily shown while editing a feature that consumes it. View state only.
     pub feature_edit_sketch: Option<u64>,
     pub selection: Vec<Sel>,
+    /// Bodies drawn see-through, by name, that clicks pass through (`multiphysics.parts.ghost`).
+    /// View state only: not saved, not undone, and a name the design no longer has does nothing.
+    pub ghosted_bodies: Vec<String>,
     pub path: Option<String>,
     /// Where the drawing commands' object ids come from: one source for the session, kept across
     /// a file change, so a session seeded alike and run alike gives the same ids
@@ -1371,6 +1374,7 @@ impl Session {
             model_focus: false,
             sketch_entry: None,
             feature_edit_sketch: None,
+            ghosted_bodies: Vec::new(),
             selection: Vec::new(),
             path: None,
             ids: solidcraft_doc::ids::IdSource::from_entropy(),
@@ -3284,6 +3288,7 @@ impl Session {
             sketch_entry: self.sketch_entry.clone(),
             feature_edit_sketch: self.feature_edit_sketch,
             selection: self.selection.clone(),
+            ghosted_bodies: self.ghosted_bodies.clone(),
             path: None,
             ids: self.ids.clone(),
             uid: self.uid,

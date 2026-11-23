@@ -1,0 +1,28 @@
+{
+  "en": {
+    "cmd.multiphysics.parts.ghost": "Ghost Parts",
+    "cmd.multiphysics.parts.select": "Select Parts",
+    "multiphysics.parts_column_limit": "Limit (°C)",
+    "multiphysics.parts_column_margin": "Margin (K)",
+    "multiphysics.parts_column_max": "Max (°C)",
+    "multiphysics.parts_column_part": "Part",
+    "multiphysics.parts_column_power": "Power (W)",
+    "multiphysics.parts_column_status": "Status",
+    "multiphysics.parts_ghost": "Ghost",
+    "multiphysics.parts_ghosted": "{part} (ghosted)",
+    "multiphysics.parts_hidden": "{part} (hidden)",
+    "multiphysics.parts_hide": "Hide",
+    "multiphysics.parts_hint": "The study's parts. Picking a part here, in the tree or in the 3-D view picks it in all three.",
+    "multiphysics.parts_isolate": "Isolate",
+    "multiphysics.parts_named": "Part selection",
+    "multiphysics.parts_no_result": "–",
+    "multiphysics.parts_no_run": "No run with a thermal report yet: results show after one.",
+    "multiphysics.parts_select": "Select",
+    "multiphysics.parts_show_all": "Show All",
+    "multiphysics.parts_solid": "Solid",
+    "multiphysics.parts_solid_all": "All Solid",
+    "multiphysics.parts_stale": "The results come from an earlier setup of this study.",
+    "multiphysics.parts_total_power": "Total power: {watts} W",
+    "multiphysics.tree_parts": "Parts"
+  }
+}

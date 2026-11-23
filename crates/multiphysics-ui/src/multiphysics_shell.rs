@@ -54,6 +54,8 @@ pub(super) enum Node {
     Transferred,
     Goals,
     Mesh,
+    /// A study of the model's parts, linked to the design's selection.
+    Parts,
     Coupling,
     Results,
     ResultsMesh,
@@ -107,6 +109,7 @@ impl Node {
         Self::Batteries,
         Self::Goals,
         Self::Mesh,
+        Self::Parts,
         Self::FromComponents,
         Self::Coupling,
     ];
@@ -166,6 +169,7 @@ impl Node {
             Self::Transferred => "multiphysics.tree_transferred",
             Self::Goals => "multiphysics.tree_goals",
             Self::Mesh => "multiphysics.tree_mesh",
+            Self::Parts => "multiphysics.tree_parts",
             Self::Coupling => "multiphysics.tree_coupling",
             Self::Results => "multiphysics.tree_results",
             Self::CutPlots => "multiphysics.tree_cut_plots",
@@ -220,6 +224,7 @@ impl Node {
             Self::Transferred => "import",
             Self::Goals => "checkpoint",
             Self::Mesh => "mesh_body",
+            Self::Parts => "body",
             Self::Coupling => "joint",
             Self::CutPlots => "section",
             Self::SurfacePlots => "surface",
@@ -242,6 +247,7 @@ impl Node {
         match self {
             Self::Project => Stage::Prepare,
             Self::Mesh => Stage::Mesh,
+            Self::Parts => Stage::Physics,
             Self::Coupling => Stage::Couple,
             Self::Verify => Stage::Verify,
             node if node.edits_case() => Stage::Physics,
@@ -272,6 +278,10 @@ impl Node {
     /// A study of the loaded model (`model`) turns heat transfer on in Solid Materials, so that
     /// folder is always listed for it.
     fn visible(self, state: &State, case: &Value, model: bool) -> bool {
+        // The Parts folder lists the design's bodies a study of the model holds; a case has none.
+        if self == Self::Parts {
+            return model && state.tree_custom.get(self.key()).copied().unwrap_or(true);
+        }
         state.tree_custom.get(self.key()).copied().unwrap_or_else(|| self.default_visible())
             || case_has(case, self)
             || (model && self == Self::SolidMaterials)
@@ -291,7 +301,8 @@ impl Node {
 
     /// The case editor's view of this node: which top-level case entries it lists.
     pub(super) fn edits_case(self) -> bool {
-        matches!(self, Self::Input | Self::General | Self::Control | Self::Mesh) || (Self::INPUT.contains(&self) && self != Self::Coupling)
+        matches!(self, Self::Input | Self::General | Self::Control | Self::Mesh)
+            || (Self::INPUT.contains(&self) && !matches!(self, Self::Coupling | Self::Parts))
     }
 
     /// The stage handle this node is also published under (scripts that drove the old stage
@@ -592,10 +603,8 @@ fn wizard_step_row(ui: &mut egui::Ui, index: usize, text: &str, current: usize, 
     if index < current {
         painter.circle_filled(center, radius, t.accent);
         let r = radius * 0.5;
-        painter.line(
-            vec![center + vec2(-r, 0.0), center + vec2(-r * 0.25, r * 0.7), center + vec2(r, -r * 0.6)],
-            egui::Stroke::new(1.8, t.on_accent),
-        );
+        painter
+            .line(vec![center + vec2(-r, 0.0), center + vec2(-r * 0.25, r * 0.7), center + vec2(r, -r * 0.6)], egui::Stroke::new(1.8, t.on_accent));
     } else {
         if here {
             painter.circle_filled(center, radius, t.accent);
@@ -1225,6 +1234,8 @@ pub(super) enum TreeAction {
     DeleteItem(String, String),
     /// Copy an entry's draft value into another study's draft at the same pointer.
     CopyTo(String, String, Value),
+    /// Pick, hide, isolate or ghost parts (the Parts folder's rows).
+    Part(super::parts_ui::PartAction),
 }
 
 /// A context-menu entry (kit ghost button) that closes the menu when chosen.
@@ -1417,7 +1428,8 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     // case's own entries are not listed for editing.
                     let pointers = if study.model.is_some() { Vec::new() } else { entries(&case, folder) };
                     let folded = state.tree_folded.contains(folder.key());
-                    let has_rows = !pointers.is_empty() || folder == Node::Mesh;
+                    let parts = if folder == Node::Parts { super::parts_ui::bodies(app, state, study) } else { Vec::new() };
+                    let has_rows = !pointers.is_empty() || folder == Node::Mesh || !parts.is_empty();
                     let response = row(
                         ui,
                         2,
@@ -1436,6 +1448,23 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     }
                     crate::ui_kit::Menu::context(&response, |ui| folder_menu(ui, study, folder, &mut actions));
                     if folded || folder == Node::Coupling {
+                        continue;
+                    }
+                    if folder == Node::Parts {
+                        // One row per part, picked when the design's selection holds it.
+                        let chosen = super::parts_ui::selected(app);
+                        for body in &parts {
+                            let on = chosen.iter().any(|b| b == body);
+                            let label = super::parts_ui::label(app, body);
+                            let response = row(ui, 3, None, "body", &label, on, true, false);
+                            crate::scenario::publish_target(&format!("multiphysics:tree_part:{body}"), response.rect);
+                            if response.clicked() {
+                                actions.push(TreeAction::Part(super::parts_ui::pick(ui, body)));
+                            }
+                            let mut picked = Vec::new();
+                            crate::ui_kit::Menu::context(&response, |ui| super::parts_ui::menu(app, ui, body, &mut picked));
+                            actions.extend(picked.into_iter().map(TreeAction::Part));
+                        }
                         continue;
                     }
                     if folder == Node::Mesh {
@@ -1725,6 +1754,7 @@ pub(super) fn apply_tree_action(app: &mut SolveApp, state: &mut State, studies: 
             state.tree_custom.insert(node.key(), false);
         }
         TreeAction::Customize => state.show_customize = true,
+        TreeAction::Part(action) => super::parts_ui::apply(app, state, action),
         TreeAction::Revert(id, pointer) => {
             let Some(draft) = state.drafts.get_mut(&id) else { return };
             let Ok(mut case) = serde_json::from_str::<Value>(&draft.case_text) else {
@@ -1952,6 +1982,10 @@ fn feature(
         super::model_ui::heat_panel(app, state, study, ui);
         return;
     }
+    if study.model.is_some() && node == Node::Parts {
+        super::parts_ui::panel(app, state, study, ui);
+        return;
+    }
     if study.model.is_some() && node == Node::Goals {
         super::model_ui::goals_panel(app, state, study, ui);
         return;
@@ -2169,7 +2203,12 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
                 1 => {
                     // Every category as a filter chip, then the chosen category's templates.
                     ui.horizontal_wrapped(|ui| {
-                        let response = crate::ui_kit::choice_chip(ui, "multiphysics_wizard_category_all", tr("multiphysics.template_category_all"), wizard.category.is_none());
+                        let response = crate::ui_kit::choice_chip(
+                            ui,
+                            "multiphysics_wizard_category_all",
+                            tr("multiphysics.template_category_all"),
+                            wizard.category.is_none(),
+                        );
                         crate::scenario::publish_target("multiphysics:wizard_category:all", response.rect);
                         if response.clicked() {
                             wizard.category = None;
@@ -2188,7 +2227,11 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
                     ui.allocate_rect(right, Sense::hover());
                     ui.scope_builder(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
                         let shares = [0.56, 0.44];
-                        crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_step_template"), tr("multiphysics.wizard_profile")], &shares);
+                        crate::multiphysics_property_grid::header(
+                            ui,
+                            &[tr("multiphysics.wizard_step_template"), tr("multiphysics.wizard_profile")],
+                            &shares,
+                        );
                         egui::ScrollArea::vertical().id_salt("multiphysics_wizard_templates").auto_shrink([false, false]).show(ui, |ui| {
                             let mut shown = 0usize;
                             for (i, template) in templates.iter().enumerate() {
@@ -2218,7 +2261,11 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
                 }
                 2 => {
                     let shares = [0.46, 0.54];
-                    crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_unit")], &shares);
+                    crate::multiphysics_property_grid::header(
+                        ui,
+                        &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_unit")],
+                        &shares,
+                    );
                     for (index, (key, unit)) in SI_UNITS.iter().enumerate() {
                         crate::multiphysics_property_grid::item(ui, &[tr(key), unit], &shares, false, !index.is_multiple_of(2));
                     }
@@ -2261,8 +2308,12 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
                         if let Some(t) = wizard.template.and_then(|i| templates.get(i)) {
                             let name = if wizard.name.trim().is_empty() { t.name.clone() } else { wizard.name.clone() };
                             crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.name"), false, |ui: &mut egui::Ui| ui.label(name));
-                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_step_template"), true, |ui: &mut egui::Ui| ui.label(&t.name));
-                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_profile"), false, |ui: &mut egui::Ui| ui.label(&t.profile));
+                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_step_template"), true, |ui: &mut egui::Ui| {
+                                ui.label(&t.name)
+                            });
+                            crate::multiphysics_property_grid::row(ui, 0, tr("multiphysics.wizard_profile"), false, |ui: &mut egui::Ui| {
+                                ui.label(&t.profile)
+                            });
                         }
                         // The whole case, read only: edits belong to their own pages.
                         if let Some(case) = &wizard.candidate {
@@ -2293,7 +2344,9 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
             if wizard.step >= 6 && button(ui, "multiphysics.wizard_finish", "multiphysics:wizard_finish", matches!(valid, Some(Ok(())))).clicked() {
                 finish = true;
             }
-            if wizard.step < 6 && button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", wizard.step == 0 || wizard.candidate.is_some()).clicked() {
+            if wizard.step < 6
+                && button(ui, "multiphysics.wizard_next", "multiphysics:wizard_next", wizard.step == 0 || wizard.candidate.is_some()).clicked()
+            {
                 wizard.step += 1;
             }
             if button(ui, "multiphysics.wizard_back", "multiphysics:wizard_back", wizard.step > 0).clicked() {

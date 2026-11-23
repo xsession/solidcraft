@@ -96,10 +96,12 @@ pub fn switch(app: &mut SolveApp, workspace: &str) -> Result<(), String> {
     }
 }
 
-/// Leaves the workspace for the model's tab; another workspace may then be entered.
+/// Leaves the workspace for the model's tab; another workspace may then be entered. Parts it
+/// ghosted are drawn solid again, as the other workspaces have no way to bring them back.
 pub fn leave(app: &mut SolveApp) {
     if active(app) {
         app.ui.tab = "MODEL".into();
+        app.session.ghosted_bodies.clear();
     }
 }
 

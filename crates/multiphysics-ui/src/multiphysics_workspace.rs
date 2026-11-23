@@ -17,6 +17,8 @@ mod model_ui;
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "multiphysics_on_model.rs"]
 mod on_model;
+#[path = "multiphysics_parts_ui.rs"]
+mod parts_ui;
 #[path = "multiphysics_shell.rs"]
 mod shell;
 
@@ -262,6 +264,8 @@ pub struct State {
     cad_origin: BTreeMap<String, [f64; 3]>,
     /// A study of the loaded model: its status, last build and the condition being added.
     model_ui: model_ui::ModelUi,
+    /// A study of the model's Parts folder: its component table and the picked part selection.
+    parts_ui: parts_ui::PartsUi,
 }
 
 #[derive(Default)]
@@ -4739,6 +4743,54 @@ mod tests {
         assert_eq!(goals[0].body.as_deref(), Some("Duct"));
         let case = h.app.session.doc.multiphysics.study(&id).unwrap().case.clone();
         assert_eq!(case["goals"][0]["kind"], "solid_max_temperature");
+    }
+
+    /// The Parts folder: the tree's part rows, the component table and the 3-D view share the
+    /// design's selection, and the selection hides, isolates and ghosts through commands.
+    #[test]
+    fn parts_in_the_tree_and_table_share_the_design_selection() {
+        let mut h = harness();
+        for (name, x) in [("U1", 0.0), ("U2", 30.0)] {
+            h.app.run("solid.box", json!({"length":10,"width":10,"height":10,"center":[x,0,0],"operation":"new","body_name":name})).unwrap();
+        }
+        h.app.run("multiphysics.model.create", json!({"name":"Board","analysis":"external","margin_mm":10.0,"cell_mm":5.0})).unwrap();
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.frames(3);
+        let selected = |h: &Harness| super::parts_ui::selected(&h.app);
+        // A part row in the tree picks the body in the design, as the 3-D view would.
+        h.step(&json!({"click":{"handle":"multiphysics:tree_part:U2"}})).unwrap();
+        h.frames(2);
+        assert_eq!(selected(&h), ["U2"], "{:?}", ws(&mut h.app).error);
+        // The Parts panel's table rows show and change the same selection.
+        h.step(&json!({"click":{"handle":"multiphysics:tree:tree_parts"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:parts_row:U1"}})).unwrap();
+        h.frames(2);
+        assert_eq!(selected(&h), ["U1"]);
+        // A pick in the 3-D view is what the tree and the table show.
+        h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: "U2".into() }];
+        h.frames(2);
+        // Ghost draws U2 see-through, All Solid brings it back; neither is an undo step.
+        let undo = h.app.session.undo.len();
+        h.step(&json!({"click":{"handle":"multiphysics:parts_ghost"}})).unwrap();
+        h.frames(2);
+        let ghosted = h.app.session.ghosted_bodies.clone();
+        assert_eq!(ghosted, ["U2"], "{:?}", ws(&mut h.app).error);
+        h.step(&json!({"click":{"handle":"multiphysics:parts_solid_all"}})).unwrap();
+        h.frames(2);
+        assert!(h.app.session.ghosted_bodies.is_empty());
+        assert_eq!(h.app.session.undo.len(), undo);
+        // Isolate hides the other part in the design; Show All shows it again.
+        h.step(&json!({"click":{"handle":"multiphysics:parts_isolate"}})).unwrap();
+        h.frames(2);
+        assert!(!h.app.body_visible("U1") && h.app.body_visible("U2"), "{:?}", ws(&mut h.app).error);
+        h.step(&json!({"click":{"handle":"multiphysics:parts_show_all"}})).unwrap();
+        h.frames(2);
+        assert!(h.app.body_visible("U1"));
+        // Leaving the workspace draws ghosted parts solid again.
+        h.app.run("multiphysics.parts.ghost", json!({"bodies":["U1"]})).unwrap();
+        switch(&mut h.app, "design").unwrap();
+        assert!(h.app.session.ghosted_bodies.is_empty());
     }
 
     /// The Mesh node of a study of the model: the grid drawn on the model, the level of the

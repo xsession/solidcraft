@@ -33,6 +33,21 @@ pub(super) fn resolve(state: &solidcraft_doc::ModelState, parts: &Registry, name
     parts.resolve(name, &facts).map_err(|e| bad("selection", e.to_string()))
 }
 
+/// The bodies a command names, by name or by a part selection (not both), and the bodies a
+/// saved selection names that the design no longer has.
+fn named(state: &solidcraft_doc::ModelState, parts: &Registry, bodies: Vec<String>, selection: Option<&str>) -> Result<(Vec<String>, Vec<String>)> {
+    match (selection, bodies.is_empty()) {
+        (Some(_), false) => Err(bad("selection", "name bodies or a part selection, not both")),
+        (Some(selection), true) => resolve(state, parts, selection),
+        (None, _) => {
+            if let Some(unknown) = bodies.iter().find(|n| !state.bodies.iter().any(|b| &&b.name == n)) {
+                return Err(bad("bodies", format!("the design has no body called {unknown}")));
+            }
+            Ok((bodies, Vec::new()))
+        }
+    }
+}
+
 fn view(session: &Session) -> Result<PartsReply> {
     let state = session.world_state()?;
     let parts = &session.doc.multiphysics.parts;
@@ -81,16 +96,7 @@ pub(super) fn tag(session: &mut Session, params: &Value) -> Result<Value> {
     let input: PartsTag = parse(params)?;
     let mut parts = session.doc.multiphysics.parts.clone();
     let state = session.world_state()?;
-    let bodies = match (&input.selection, input.bodies.is_empty()) {
-        (Some(_), false) => return Err(bad("selection", "name bodies or a part selection, not both")),
-        (Some(selection), true) => resolve(&state, &parts, selection)?.0,
-        (None, _) => {
-            if let Some(unknown) = input.bodies.iter().find(|n| !state.bodies.iter().any(|b| &&b.name == n)) {
-                return Err(bad("bodies", format!("the design has no body called {unknown}")));
-            }
-            input.bodies
-        }
-    };
+    let bodies = named(&state, &parts, input.bodies, input.selection.as_deref())?.0;
     if bodies.is_empty() {
         return Err(bad("bodies", "no bodies to tag"));
     }
@@ -146,4 +152,58 @@ pub(super) fn table(session: &mut Session, params: &Value) -> Result<Value> {
         .map_err(|e| bad("run_id", e.to_string()))?;
     let csv = input.csv.then(|| solidcraft_multiphysics::component_table::to_csv(&table));
     reply(PartsTableReply { table, csv })
+}
+
+/// The design's selection: the one the Multiphysics tree, the component table and the 3-D view
+/// all show, so picking a part in any of them picks it in the others.
+pub(super) fn select(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: PartsSelect = parse(params)?;
+    let state = session.world_state()?;
+    let (bodies, missing) = named(&state, &session.doc.multiphysics.parts, input.bodies, input.selection.as_deref())?;
+    if !input.add {
+        session.selection.clear();
+    }
+    for name in bodies {
+        let pick = crate::Sel::Body { name };
+        if !session.selection.contains(&pick) {
+            session.selection.push(pick);
+        }
+    }
+    session.refresh_display();
+    let selected = state
+        .bodies
+        .iter()
+        .filter(|b| session.selection.iter().any(|s| matches!(s, crate::Sel::Body { name } if name == &b.name)))
+        .map(|b| b.name.clone())
+        .collect();
+    reply(PartsSelectReply { selected, missing })
+}
+
+/// Parts drawn see-through, so the parts inside an assembly show and can be picked.
+pub(super) fn ghost(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: PartsGhost = parse(params)?;
+    let state = session.world_state()?;
+    let named_any = input.selection.is_some() || !input.bodies.is_empty();
+    let bodies = if named_any { named(&state, &session.doc.multiphysics.parts, input.bodies, input.selection.as_deref())?.0 } else { Vec::new() };
+    if !named_any && !input.only {
+        return Err(bad("bodies", "name bodies or a part selection, or give only: true to draw every part solid"));
+    }
+    if input.only {
+        session.ghosted_bodies.clear();
+    }
+    for name in bodies {
+        let there = session.ghosted_bodies.iter().position(|g| g == &name);
+        match (input.ghost, there) {
+            (true, None) => session.ghosted_bodies.push(name),
+            (false, Some(at)) => {
+                session.ghosted_bodies.remove(at);
+            }
+            _ => {}
+        }
+    }
+    // Names the design no longer has are dropped, so the list stays as long as the design.
+    session.ghosted_bodies.retain(|g| state.bodies.iter().any(|b| &b.name == g));
+    session.refresh_display();
+    let ghosted = state.bodies.iter().filter(|b| session.ghosted_bodies.contains(&b.name)).map(|b| b.name.clone()).collect();
+    reply(PartsGhostReply { ghosted })
 }

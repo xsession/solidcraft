@@ -86,6 +86,12 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.parts.tag", "Tag Parts", crate::checked!("multiphysics.parts.tag", parts::tag))
         .doc_only().icon("settings").contract(&TypedContract::<PartsTag>::new()).output(output_schema_for::<PartsReply>)
         .params("bodies (names) or selection (a part selection's bodies as they are now); add_tags?, remove_tags? (single words); attributes? {name: number | text | null (remove)}. volume_mm3 and size_mm are measured and cannot be set. One undo step."),
+    CommandSpec::new("multiphysics.parts.ghost", "Ghost Parts", crate::checked!("multiphysics.parts.ghost", parts::ghost))
+        .noundo().icon("eye").contract(&TypedContract::<PartsGhost>::new()).output(output_schema_for::<PartsGhostReply>)
+        .params("bodies (names) or selection (a part selection's bodies as they are now); ghost?: true (false: solid again); only?: false (true: every other part solid; with no bodies or selection, every part solid). Ghosted parts are drawn see-through and clicks reach what is behind them. View state: not saved, not an undo step."),
+    CommandSpec::new("multiphysics.parts.select", "Select Parts", crate::checked!("multiphysics.parts.select", parts::select))
+        .noundo().icon("select").contract(&TypedContract::<PartsSelect>::new()).output(output_schema_for::<PartsSelectReply>)
+        .params("bodies (names) or selection (a part selection's bodies as they are now; none: clear); add?: false (add to what is selected). Sets the design's selection, the one the Multiphysics tree, the component table and the 3-D view share; hide or isolate it with browser.visibility. Not an undo step."),
     CommandSpec::new("multiphysics.parts.selection", "Part Selection", crate::checked!("multiphysics.parts.selection", parts::selection))
         .doc_only().icon("settings").contract(&TypedContract::<PartsSelection>::new()).output(output_schema_for::<PartsReply>)
         .params("name; members: {kind: saved, bodies: [names]} | {kind: query, rules: [{rule: tag|not_tag, tag} | {rule: name, pattern (* and ?)} | {rule: attribute, key (own or volume_mm3, size_mm), compare: exists|eq|ne|lt|le|gt|ge, value?} | {rule: in_selection, name (an earlier selection)}]} (a part meets every rule); or remove: true. A query is worked out again each time it is used; model studies use one with multiphysics.model.set selection. One undo step."),
