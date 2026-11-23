@@ -56,6 +56,8 @@ pub fn active(app: &SolveApp) -> bool {
 pub fn workspace_name(app: &SolveApp) -> &'static str {
     if active(app) {
         "multiphysics"
+    } else if crate::drawing_workspace::active(app) {
+        "drawing"
     } else if crate::render_workspace::active(app) {
         "render"
     } else {
@@ -89,8 +91,15 @@ pub fn switch(app: &mut SolveApp, workspace: &str) -> Result<(), String> {
             app.cam_anim = None;
             Ok(())
         }
-        "design" | "render" => crate::render_workspace::enter(app, workspace == "render"),
+        "design" | "render" | "drawing" => crate::workspace::enter(app, workspace),
         _ => Err(solidcraft_ui_text::tr("multiphysics.unknown_workspace").into()),
+    }
+}
+
+/// Leaves the workspace for the model's tab; another workspace may then be entered.
+pub fn leave(app: &mut SolveApp) {
+    if active(app) {
+        app.ui.tab = "MODEL".into();
     }
 }
 

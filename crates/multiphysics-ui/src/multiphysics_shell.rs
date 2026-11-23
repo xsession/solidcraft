@@ -80,7 +80,7 @@ impl Node {
     /// SolidCraft-only folders. Computational domain, component control, fluid subdomains,
     /// boundary conditions, goals and mesh show by default; the others once the case has
     /// entries for them or Customize Tree turns them on.
-    pub(super) const INPUT: [Self; 28] = [
+    pub(super) const INPUT: &[Self] = &[
         Self::Domain,
         Self::ComponentControl,
         Self::FluidSubdomains,
@@ -113,7 +113,7 @@ impl Node {
     /// The Results folder's features in the reference tree's order (Mesh … Report, Export
     /// Results), then SolidCraft's Animation and Compare. Unbuilt tools are listed greyed when
     /// Customize Tree shows them, so the tree says what is missing.
-    const RESULTS: [Self; 15] = [
+    const RESULTS: &[Self] = &[
         Self::ResultsMesh,
         Self::CutPlots,
         Self::SurfacePlots,
@@ -552,7 +552,7 @@ static SI_UNITS: [(&str, &str); 8] = [
 ];
 
 /// Every group the summary page lists, in the pages' order.
-const SUMMARY_GROUPS: [Node; 12] = [
+const SUMMARY_GROUPS: &[Node] = &[
     Node::General,
     Node::Control,
     Node::Domain,
@@ -808,7 +808,7 @@ fn node_for(id: &str) -> Option<Node> {
 
 /// Commands that stay in their group's menu (and the menu bar) instead of the ribbon row: one
 /// row of every command squeezed each button to its narrowest and cut most labels short.
-const MENU_ONLY: [&str; 11] = [
+const MENU_ONLY: &[&str] = &[
     "clone",
     "component_control",
     "add_from_components",
@@ -960,6 +960,7 @@ pub(super) fn ribbon_bar(app: &mut SolveApp, state: &mut State, studies: &[Study
                         icon: command.icon,
                         size: ribbon::ButtonSize { width: label_room(&painter, label), min_width: ribbon::BUTTON_MIN_WIDTH },
                         enabled: command.enabled,
+                        planned: false,
                         pressed: command.pressed,
                         exit: false,
                         split: None,
@@ -1408,7 +1409,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                 }
             });
             if open {
-                for folder in Node::INPUT {
+                for &folder in Node::INPUT {
                     if !folder.visible(state, &case, study.model.is_some()) {
                         continue;
                     }
@@ -1516,7 +1517,7 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                 }
             });
             if open && let Some(run) = loaded {
-                for folder in Node::RESULTS {
+                for &folder in Node::RESULTS {
                     if !folder.visible(state, &Value::Null, false) {
                         continue;
                     }
@@ -1783,7 +1784,7 @@ pub(super) fn customize(state: &mut State, ctx: &egui::Context) {
         .show_body(ctx, |ui| {
             crate::scenario::publish_rect("multiphysics:customize_tree", ui.max_rect());
             ui.label(RichText::new(tr("multiphysics.tree_customize_hint")).small().color(Tokens::get().text_dim));
-            for (heading, folders) in [("multiphysics.tree_input", &Node::INPUT[..]), ("multiphysics.tree_results", &Node::RESULTS[..])] {
+            for (heading, folders) in [("multiphysics.tree_input", Node::INPUT), ("multiphysics.tree_results", Node::RESULTS)] {
                 ui.add_space(Tokens::get().space_6);
                 ui.strong(tr(heading));
                 for &folder in folders {
@@ -2268,7 +2269,7 @@ fn wizard(app: &mut SolveApp, state: &mut State, ctx: &egui::Context) {
                             let mut copy = case.clone();
                             let mut rows = 0;
                             ui.add_enabled_ui(false, |ui| {
-                                for group in SUMMARY_GROUPS {
+                                for &group in SUMMARY_GROUPS {
                                     super::case_table(ui, &mut copy, group, &mut rows);
                                 }
                             });

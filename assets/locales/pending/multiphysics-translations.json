@@ -101,6 +101,7 @@
     "multiphysics.y_axis": "Y"
   },
   "de": {
+    "Mesh": "Mesh",
     "cmd.multiphysics.case.export": "Multiphysics-Fall exportieren",
     "cmd.multiphysics.catalog": "Multiphysics-Katalog",
     "cmd.multiphysics.preflight": "Multiphysics-Studie prüfen",

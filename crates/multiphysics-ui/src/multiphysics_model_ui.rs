@@ -59,7 +59,7 @@ pub(super) struct ModelUi {
 
 /// The goal kinds the panel offers, as `multiphysics.model.goal` names them; the temperature
 /// goals only with heat transfer on.
-const GOAL_KINDS: [&str; 15] = [
+const GOAL_KINDS: &[&str] = &[
     "face_volume_flow",
     "face_mean_pressure",
     "point_pressure",
