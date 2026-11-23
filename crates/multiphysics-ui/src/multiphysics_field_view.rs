@@ -37,7 +37,7 @@ pub(crate) struct State3d {
     pub(crate) camera: Camera,
     pub(crate) glyphs: bool,
     /// Set by the parent each frame so 2D and 3D share one colour scale.
-    pub(crate) color_map: solidcraft_engine::multiphysics::results::ColorMap,
+    pub(crate) color_scale: solidcraft_engine::multiphysics::results::ColorScale,
     pub(crate) color_range: Option<(f64, f64)>,
     initialized: bool,
     viewport: Box<ViewportState>,
@@ -67,7 +67,7 @@ impl Clone for State3d {
         Self {
             camera: self.camera,
             glyphs: self.glyphs,
-            color_map: self.color_map,
+            color_scale: self.color_scale,
             color_range: self.color_range,
             initialized: self.initialized,
             viewport: Box::default(),
@@ -371,7 +371,6 @@ pub(crate) fn show(
         draw_line(a, b);
     }
     let (low, high) = state.color_range.unwrap_or(cached.range);
-    let scale = low.abs().max(high.abs()).max(1.0);
     let mut visible = 0;
     let hide_slice = state.overlay.as_ref().is_some_and(|overlay| overlay.hide_slice);
     for cell in cached.cells.iter().filter(|_| !hide_slice) {
@@ -380,9 +379,7 @@ pub(crate) fn show(
         if !egui::Rect::from_points(&points).intersects(rect) {
             continue;
         }
-        let fraction = if high > low { ((cell.value / scale - low / scale) / (high / scale - low / scale)).clamp(0.0, 1.0) as f32 } else { 0.5 };
-        let [r, g, b] = state.color_map.color(f64::from(fraction));
-        let color = egui::Color32::from_rgb(r, g, b);
+        let color = crate::multiphysics_workspace::shade_color(state.color_scale.shade(cell.value, low, high));
         let mut mesh = egui::Mesh::default();
         for point in points {
             mesh.colored_vertex(point, color);
@@ -393,7 +390,7 @@ pub(crate) fn show(
         visible += 1;
     }
     if let Some(overlay) = state.overlay.clone() {
-        draw_overlay(&painter, &overlay, state.color_map, state.camera.eye(), &transform, &project, rect);
+        draw_overlay(&painter, &overlay, state.color_scale, state.camera.eye(), &transform, &project, rect);
     }
     for (a, b) in front {
         draw_line(a, b);
@@ -444,7 +441,7 @@ pub(crate) fn show(
 fn draw_overlay(
     painter: &egui::Painter,
     overlay: &Overlay,
-    map: solidcraft_engine::multiphysics::results::ColorMap,
+    map: solidcraft_engine::multiphysics::results::ColorScale,
     eye: Vec3,
     transform: &DisplayTransform,
     project: &dyn Fn(Vec3) -> Option<Pos2>,
@@ -453,7 +450,7 @@ fn draw_overlay(
     let (low, high) = overlay.range;
     let color = |value: f64| {
         let fraction = if high > low && value.is_finite() { ((value - low) / (high - low)).clamp(0.0, 1.0) } else { 0.5 };
-        let [r, g, b] = map.color(fraction);
+        let [r, g, b] = map.at(fraction);
         egui::Color32::from_rgb(r, g, b)
     };
     let stride = overlay.triangles.len().div_ceil(MAX_OVERLAY_TRIANGLES).max(1);

@@ -1,0 +1,16 @@
+{
+  "en": {
+    "multiphysics.range_above": "Above the range",
+    "multiphysics.range_auto": "Data",
+    "multiphysics.range_bands": "Bands",
+    "multiphysics.range_bands_hint": "0 for a smooth map; 2 or more for that many bands of one colour each.",
+    "multiphysics.range_below": "Below the range",
+    "multiphysics.range_locked": "Locked",
+    "multiphysics.range_mark": "Mark out of range",
+    "multiphysics.range_mark_hint": "Draw values outside the range in their own colours instead of the map's end colours.",
+    "multiphysics.range_mode": "Range",
+    "multiphysics.range_percentile": "2–98 %",
+    "multiphysics.range_reversed": "Reversed",
+    "multiphysics.range_symmetric": "Around zero"
+  }
+}

@@ -70,6 +70,16 @@ impl ColorMap {
         }
     }
 
+    /// The colours for values below and above a marked range: ones the map itself never shows,
+    /// so a cell out of range cannot be read as a value at an end of the map.
+    pub fn out_of_range(self) -> ([u8; 3], [u8; 3]) {
+        match self {
+            ColorMap::Viridis | ColorMap::Turbo | ColorMap::CoolWarm => ([24, 24, 24], [255, 0, 255]),
+            ColorMap::Thermal => ([0, 90, 255], [0, 200, 80]),
+            ColorMap::Grayscale => ([0, 90, 255], [230, 40, 40]),
+        }
+    }
+
     /// Colour at `t` in `[0, 1]` (clamped; NaN maps to the lowest colour).
     pub fn color(self, t: f64) -> [u8; 3] {
         let stops = self.stops();
@@ -106,6 +116,120 @@ impl ColorRange {
     pub fn normalize(&self, value: f64) -> f64 {
         let span = self.max - self.min;
         if span.abs() <= f64::EPSILON * self.max.abs().max(self.min.abs()).max(1.0) { 0.5 } else { (value - self.min) / span }
+    }
+}
+
+/// How a plot's colour range is chosen.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RangeMode {
+    /// The data's lowest to highest value.
+    #[default]
+    Auto,
+    /// The values the user typed, so several plots, frames or runs share one scale.
+    Locked,
+    /// The 2nd to the 98th percentile: a few extreme cells no longer wash the plot out.
+    Percentile,
+    /// Centred on zero, out to the largest magnitude: for signed fields on a diverging map.
+    Symmetric,
+}
+
+impl RangeMode {
+    pub const ALL: [RangeMode; 4] = [RangeMode::Auto, RangeMode::Locked, RangeMode::Percentile, RangeMode::Symmetric];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            RangeMode::Auto => "auto",
+            RangeMode::Locked => "locked",
+            RangeMode::Percentile => "percentile",
+            RangeMode::Symmetric => "symmetric",
+        }
+    }
+}
+
+/// Fraction of values each percentile end leaves out.
+pub const PERCENTILE_CLIP: f64 = 0.02;
+/// Most values sorted for a percentile range; more are sampled evenly.
+pub const MAX_PERCENTILE_VALUES: usize = 1_000_000;
+
+/// The range `mode` gives `values`; `locked` is the user's range for [`RangeMode::Locked`].
+/// `None` when there is no finite value (or the locked range is not a range).
+pub fn range_for(mode: RangeMode, values: &[f64], locked: Option<(f64, f64)>) -> Option<(f64, f64)> {
+    let data = ColorRange::from_values(values.iter().copied())?;
+    match mode {
+        RangeMode::Auto => Some((data.min, data.max)),
+        RangeMode::Locked => locked.filter(|(lo, hi)| lo.is_finite() && hi.is_finite() && lo < hi).or(Some((data.min, data.max))),
+        RangeMode::Symmetric => {
+            let m = data.min.abs().max(data.max.abs());
+            Some((-m, m))
+        }
+        RangeMode::Percentile => {
+            let step = values.len().div_ceil(MAX_PERCENTILE_VALUES).max(1);
+            let mut sorted: Vec<f64> = values.iter().copied().step_by(step).filter(|v| v.is_finite()).collect();
+            sorted.sort_by(f64::total_cmp);
+            let at = |q: f64| sorted.get((sorted.len().saturating_sub(1) as f64 * q).round() as usize).copied();
+            Some(match (at(PERCENTILE_CLIP), at(1.0 - PERCENTILE_CLIP)) {
+                (Some(lo), Some(hi)) if lo < hi => (lo, hi),
+                _ => (data.min, data.max),
+            })
+        }
+    }
+}
+
+/// Where a value falls on a scale.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Shade {
+    /// A colour of the map.
+    In([u8; 3]),
+    /// Below or above the range, with out-of-range marking on: the map's
+    /// [`ColorMap::out_of_range`] colours.
+    Below([u8; 3]),
+    Above([u8; 3]),
+}
+
+/// A colour map as a plot uses it: reversed or not, continuous or in bands, and whether values
+/// outside the range take the end colours or colours of their own.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct ColorScale {
+    pub map: ColorMap,
+    #[serde(default)]
+    pub reversed: bool,
+    /// 0: continuous; otherwise that many bands of one colour each (2 to [`MAX_BANDS`]).
+    #[serde(default)]
+    pub bands: u8,
+    /// Values outside the range are shown as out of range instead of in the end colours.
+    #[serde(default)]
+    pub mark_out_of_range: bool,
+}
+
+/// Most colour bands a scale takes.
+pub const MAX_BANDS: u8 = 32;
+
+impl ColorScale {
+    /// The colour at `t` in `[0, 1]`, reversed and banded as set.
+    pub fn at(&self, t: f64) -> [u8; 3] {
+        let mut t = if t.is_nan() { 0.0 } else { t.clamp(0.0, 1.0) };
+        if self.bands >= 2 {
+            let n = f64::from(self.bands.min(MAX_BANDS));
+            // The band's middle, so n bands show n distinct colours from end to end.
+            t = (((t * n).floor().min(n - 1.0)) + 0.5) / n;
+        }
+        self.map.color(if self.reversed { 1.0 - t } else { t })
+    }
+
+    /// The shade of `value` on `[low, high]`.
+    pub fn shade(&self, value: f64, low: f64, high: f64) -> Shade {
+        if self.mark_out_of_range && value.is_finite() && low < high {
+            let slack = (high - low) * 1e-9;
+            let (below, above) = self.map.out_of_range();
+            if value < low - slack {
+                return Shade::Below(below);
+            }
+            if value > high + slack {
+                return Shade::Above(above);
+            }
+        }
+        Shade::In(self.at(ColorRange { min: low, max: high, locked: true }.normalize(value)))
     }
 }
 
@@ -1147,6 +1271,48 @@ mod tests {
         assert!((r.normalize(2.0) - 0.5).abs() < 1e-15);
         assert_eq!(ColorRange { min: 2.0, max: 2.0, locked: true }.normalize(7.0), 0.5);
         assert!(ColorRange::from_values([f64::NAN]).is_none());
+    }
+
+    #[test]
+    fn range_modes_clip_centre_and_lock() {
+        let mut values: Vec<f64> = (0..=100).map(f64::from).collect();
+        values.push(1e6);
+        assert_eq!(range_for(RangeMode::Auto, &values, None), Some((0.0, 1e6)));
+        // One extreme cell no longer sets the top of the scale.
+        let (lo, hi) = range_for(RangeMode::Percentile, &values, None).unwrap();
+        assert!((1.0..=3.0).contains(&lo) && (97.0..=100.0).contains(&hi), "{lo} {hi}");
+        assert_eq!(range_for(RangeMode::Symmetric, &[-2.0, 5.0], None), Some((-5.0, 5.0)));
+        assert_eq!(range_for(RangeMode::Locked, &values, Some((10.0, 20.0))), Some((10.0, 20.0)));
+        assert_eq!(range_for(RangeMode::Locked, &values, Some((20.0, 10.0))), Some((0.0, 1e6)), "not a range: the data's");
+        assert_eq!(range_for(RangeMode::Auto, &[f64::NAN], None), None);
+    }
+
+    #[test]
+    fn scales_reverse_band_and_mark_values_out_of_range() {
+        let plain = ColorScale::default();
+        assert_eq!(plain.at(0.0), ColorMap::Viridis.color(0.0));
+        let reversed = ColorScale { reversed: true, ..plain };
+        assert_eq!(reversed.at(0.0), ColorMap::Viridis.color(1.0));
+        // Four bands: 0.1 and 0.2 share a colour, 0.3 starts the next.
+        let banded = ColorScale { bands: 4, ..plain };
+        assert_eq!(banded.at(0.1), banded.at(0.2));
+        assert_ne!(banded.at(0.2), banded.at(0.3));
+        assert_eq!(banded.at(0.0), ColorMap::Viridis.color(0.125));
+        // Clamped by default; marked when asked.
+        assert_eq!(plain.shade(-5.0, 0.0, 1.0), Shade::In(ColorMap::Viridis.color(0.0)));
+        let marked = ColorScale { mark_out_of_range: true, ..plain };
+        assert_eq!(marked.shade(-5.0, 0.0, 1.0), Shade::Below(ColorMap::Viridis.out_of_range().0));
+        assert_eq!(marked.shade(5.0, 0.0, 1.0), Shade::Above(ColorMap::Viridis.out_of_range().1));
+        // No map shows its own out-of-range colours anywhere along it.
+        for map in ColorMap::ALL {
+            let (below, above) = map.out_of_range();
+            for step in 0..=100 {
+                let c = map.color(f64::from(step) / 100.0);
+                let near = |o: [u8; 3]| (0..3).map(|i| (i32::from(c[i]) - i32::from(o[i])).abs()).sum::<i32>() < 60;
+                assert!(!near(below) && !near(above), "{map:?} at {step}%: {c:?}");
+            }
+        }
+        assert_eq!(marked.shade(1.0, 0.0, 1.0), Shade::In(ColorMap::Viridis.color(1.0)));
     }
 
     #[test]

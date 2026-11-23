@@ -10,7 +10,7 @@ use solidcore_record::Vec3;
 use solidcraft_engine::multiphysics::vtk::BoxGrid;
 use solidcraft_theme::Tokens;
 
-use super::{ViewState, map_color, post, tr};
+use super::{ViewState, post, scale_color, tr};
 use crate::SolveApp;
 
 /// More bins than this and the lookup grid gets coarser.
@@ -266,9 +266,8 @@ pub(super) fn show(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, 
     }
     let proj = crate::viewport::projection(app, rect);
     let painter = ui.painter_at(rect);
-    let range = post::ColorRange { min: low, max: high, locked: true };
-    let (field, map) = (view.slice_field, view.color_map);
-    let colour = |cell: usize| grid.value(field, cell).map(|value| map_color(map, range.normalize(value)));
+    let (field, scale) = (view.slice_field, view.color_scale);
+    let colour = |cell: usize| grid.value(field, cell).map(|value| scale_color(scale, value, low, high));
     let to_screen = |p: [f64; 3]| proj.to_screen(vec(p));
     let (eye, ahead) = proj.ray(rect.center());
     let (eye, ahead) = (arr(eye), arr(ahead));
@@ -385,7 +384,7 @@ pub(super) fn show(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, 
     {
         // The flow tool's own scale, unless the plot is the flow itself (then the shown range).
         let (low, high) = if matches!(plot, Plot::Flow) { (low, high) } else { overlay.range };
-        let drawn = flow_overlay(&painter, &overlay, origin, (eye, ahead), (low, high), map, &to_screen);
+        let drawn = flow_overlay(&painter, &overlay, origin, (eye, ahead), (low, high), scale, &to_screen);
         crate::scenario::publish_count("multiphysics:model_flow_drawn", drawn as f64);
         if matches!(plot, Plot::Flow) {
             visible = drawn;
@@ -413,7 +412,7 @@ pub(super) fn flow_on_graphics(app: &mut SolveApp, ui: &egui::Ui, view: &mut Vie
     let (eye, ahead) = proj.ray(rect.center());
     let painter = ui.painter_at(rect);
     let to_screen = |p: [f64; 3]| proj.to_screen(vec(p));
-    let drawn = flow_overlay(&painter, &overlay, origin, (arr(eye), arr(ahead)), view.model_flow_range, view.color_map, &to_screen);
+    let drawn = flow_overlay(&painter, &overlay, origin, (arr(eye), arr(ahead)), view.model_flow_range, view.color_scale, &to_screen);
     crate::scenario::publish_count("multiphysics:model_flow_drawn", drawn as f64);
 }
 
@@ -484,11 +483,10 @@ fn flow_overlay(
     origin: [f64; 3],
     (eye, ahead): ([f64; 3], [f64; 3]),
     (low, high): (f64, f64),
-    map: post::ColorMap,
+    scale: post::ColorScale,
     to_screen: &dyn Fn([f64; 3]) -> Option<egui::Pos2>,
 ) -> usize {
-    let range = post::ColorRange { min: low, max: high, locked: true };
-    let colour = |value: f64| map_color(map, range.normalize(value));
+    let colour = |value: f64| scale_color(scale, value, low, high);
     let at = |p: [f64; 3]| add_scaled(origin, p, 1000.0);
     let mut drawn = 0;
     let stride = overlay.triangles.len().div_ceil(MAX_OVERLAY_TRIANGLES).max(1);

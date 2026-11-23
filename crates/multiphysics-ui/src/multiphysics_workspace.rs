@@ -101,7 +101,10 @@ pub struct ViewState {
     slice_axis: usize,
     slice_layer: usize,
     slice_field: usize,
-    color_map: post::ColorMap,
+    /// The colour map as plots use it: reversed, banded, out-of-range marking.
+    color_scale: post::ColorScale,
+    /// How the plots' colour range is chosen; `locked_range` holds the Locked values.
+    range_mode: post::RangeMode,
     /// A user-locked colour range shared by 2D and 3D field views and by PVD frames.
     locked_range: Option<(f64, f64)>,
     probe_field: String,
@@ -169,7 +172,8 @@ impl Default for ViewState {
             slice_axis: 2,
             slice_layer: 0,
             slice_field: 0,
-            color_map: post::ColorMap::default(),
+            color_scale: post::ColorScale::default(),
+            range_mode: post::RangeMode::default(),
             locked_range: None,
             probe_field: String::new(),
             probe_point: [0.0; 3],
@@ -2906,7 +2910,7 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         if overlay.is_none() {
             ui.label(tr("multiphysics.model_flow_hint"));
         }
-        let (low, high) = color_controls(ui, view, overlay.as_ref().map_or((0.0, 1.0), |o| o.range));
+        let (low, high) = color_controls(ui, view, &overlay.as_ref().map_or([0.0, 1.0], |o| [o.range.0, o.range.1]));
         view.model_flow_range = (low, high);
         if view.model_flow_docked {
             // The graphics window beside this panel shows the model, and the lines go on it.
@@ -2914,7 +2918,7 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
                 ui.label(tr("multiphysics.model_flow_in_graphics"));
                 let segments = overlay.lines.iter().map(|line| line.len().saturating_sub(1)).sum::<usize>() + overlay.triangles.len();
                 let unit = (!overlay.lines.is_empty()).then_some("m/s");
-                field_legend(ui, view.color_map, low, high, unit, segments);
+                field_legend(ui, view, low, high, unit, segments);
             }
             return;
         }
@@ -2930,7 +2934,7 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         let visible = on_model::show(app, ui, view, grid, rect, on_model::Plot::Flow, (low, high));
         if let Some(overlay) = overlay {
             let unit = (!overlay.lines.is_empty()).then_some("m/s");
-            field_legend(ui, view.color_map, low, high, unit, visible);
+            field_legend(ui, view, low, high, unit, visible);
         }
         return;
     }
@@ -3015,15 +3019,12 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
     if dx <= 0.0 || dy <= 0.0 {
         return;
     }
-    let extrema = (0..grid.cells.len()).filter_map(|cell| grid.value(view.slice_field, cell)).fold(None, |range, value| {
-        Some(match range {
-            None => (value, value),
-            Some((low, high)) => (value.min(low), value.max(high)),
-        })
-    });
-    let Some(data_range) = extrema else { return };
-    let (low, high) = color_controls(ui, view, data_range);
-    let map = view.color_map;
+    let values: Vec<f64> = (0..grid.cells.len()).filter_map(|cell| grid.value(view.slice_field, cell)).collect();
+    if !values.iter().any(|v| v.is_finite()) {
+        return;
+    }
+    let (low, high) = color_controls(ui, view, &values);
+    let scale = view.color_scale;
     let unit = post::unit_hint(&field.name);
     let t = Tokens::get();
     let visible_width = (ui.clip_rect().right() - ui.next_widget_position().x).max(1.0);
@@ -3037,14 +3038,14 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
             on_model::Plot::Slice { axis: view.slice_axis, along: (horizontal, vertical), coordinate }
         };
         let visible = on_model::show(app, ui, view, grid, rect, plot, (low, high));
-        field_legend(ui, map, low, high, unit, visible);
+        field_legend(ui, view, low, high, unit, visible);
         return;
     }
     if view.show_3d {
-        view.field_3d.color_map = map;
+        view.field_3d.color_scale = scale;
         view.field_3d.color_range = Some((low, high));
         match crate::multiphysics_field_view::show(app, ui, &mut view.field_3d, grid, view.slice_field, view.slice_axis, coordinate, plot_height) {
-            Ok(visible) => field_legend(ui, map, low, high, unit, visible),
+            Ok(visible) => field_legend(ui, view, low, high, unit, visible),
             Err(error) => {
                 ui.colored_label(t.form_error, error);
             }
@@ -3072,11 +3073,11 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         let Some(value) = grid.value(view.slice_field, cell_index) else { continue };
         let Some(x) = cell.get(horizontal) else { continue };
         let Some(y) = cell.get(vertical) else { continue };
-        let color = map_color(map, post::ColorRange { min: low, max: high, locked: true }.normalize(value));
+        let color = scale_color(scale, value, low, high);
         ui.painter().rect_filled(egui::Rect::from_two_pos(position(x[0], y[0]), position(x[1], y[1])), 0.0, color);
         visible += 1;
     }
-    field_legend(ui, map, low, high, unit, visible);
+    field_legend(ui, view, low, high, unit, visible);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -3086,8 +3087,9 @@ fn tick_label(value: f64) -> String {
 
 /// A continuous gradient bar with nice tick values, the range ends and the unit.
 #[cfg(not(target_arch = "wasm32"))]
-fn field_legend(ui: &mut egui::Ui, map: post::ColorMap, low: f64, high: f64, unit: Option<&str>, visible: usize) {
+fn field_legend(ui: &mut egui::Ui, view: &ViewState, low: f64, high: f64, unit: Option<&str>, visible: usize) {
     let t = Tokens::get();
+    let scale = view.color_scale;
     let legend = ui.vertical(|ui| {
         ui.horizontal_wrapped(|ui| {
             ui.label(tr("multiphysics.slice_value_range")).backing_on_hover_text(tr("multiphysics.slice_units"));
@@ -3096,6 +3098,7 @@ fn field_legend(ui: &mut egui::Ui, map: post::ColorMap, low: f64, high: f64, uni
                 ui.monospace(format!("[{unit}]"));
             }
             ui.monospace(format!("{}: {visible}", tr("multiphysics.slice_cells")));
+            ui.label(RichText::new(tr(&format!("multiphysics.range_{}", view.range_mode.key()))).small().color(t.text_dim));
         });
         let width = ui.available_width().clamp(120.0, 480.0);
         let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 14.0 + t.font_small + 4.0), Sense::hover());
@@ -3104,7 +3107,7 @@ fn field_legend(ui: &mut egui::Ui, map: post::ColorMap, low: f64, high: f64, uni
         for step in 0..steps {
             let left = bar.left() + bar.width() * step as f32 / steps as f32;
             let right = bar.left() + bar.width() * (step + 1) as f32 / steps as f32;
-            let color = map_color(map, (f64::from(step) + 0.5) / f64::from(steps));
+            let color = gradient_color(scale, (f64::from(step) + 0.5) / f64::from(steps));
             ui.painter().rect_filled(egui::Rect::from_min_max(egui::pos2(left, bar.top()), egui::pos2(right, bar.bottom())), 0.0, color);
         }
         let span = high - low;
@@ -3127,6 +3130,17 @@ fn field_legend(ui: &mut egui::Ui, map: post::ColorMap, low: f64, high: f64, uni
         }
     });
     crate::scenario::publish_rect("multiphysics:field_legend", legend.response.rect);
+    if scale.mark_out_of_range {
+        // What the plot draws for values outside the range.
+        ui.horizontal(|ui| {
+            let (below, above) = scale.map.out_of_range();
+            for (shade, key) in [(post::Shade::Below(below), "multiphysics.range_below"), (post::Shade::Above(above), "multiphysics.range_above")] {
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(t.space_14, t.space_14), Sense::hover());
+                ui.painter().rect_filled(rect, t.control_radius, shade_color(shade));
+                ui.label(RichText::new(tr(key)).small());
+            }
+        });
+    }
 }
 
 /// Limit serialization work as well as the number of displayed bytes.
@@ -3315,8 +3329,21 @@ const SERIES_COLORS: [egui::Color32; 8] = [
 ];
 
 #[cfg(not(target_arch = "wasm32"))]
-fn map_color(map: post::ColorMap, t: f64) -> egui::Color32 {
-    let [r, g, b] = map.color(t);
+fn gradient_color(scale: post::ColorScale, t: f64) -> egui::Color32 {
+    let [r, g, b] = scale.at(t);
+    egui::Color32::from_rgb(r, g, b)
+}
+
+/// A value's colour on the plots' scale; values out of range, when marked, in the map's own
+/// out-of-range colours, which it never shows for a value.
+#[cfg(not(target_arch = "wasm32"))]
+fn scale_color(scale: post::ColorScale, value: f64, low: f64, high: f64) -> egui::Color32 {
+    shade_color(scale.shade(value, low, high))
+}
+
+/// Also used by the 3-D field view, which the web build has too.
+pub(crate) fn shade_color(shade: post::Shade) -> egui::Color32 {
+    let (post::Shade::In([r, g, b]) | post::Shade::Below([r, g, b]) | post::Shade::Above([r, g, b])) = shade;
     egui::Color32::from_rgb(r, g, b)
 }
 
@@ -4062,7 +4089,9 @@ fn field_answer(ui: &mut egui::Ui, answer: &post::QueryResponse) {
                     let mean = times.iter().sum::<f64>() / times.len() as f64;
                     let max = times.iter().copied().fold(0.0, f64::max);
                     ui.label(tr("multiphysics.flow_residence"));
-                    ui.add(egui::Label::new(RichText::new(format!("{mean:.4e} s (max {max:.4e} s)")).monospace()).wrap_mode(egui::TextWrapMode::Extend));
+                    ui.add(
+                        egui::Label::new(RichText::new(format!("{mean:.4e} s (max {max:.4e} s)")).monospace()).wrap_mode(egui::TextWrapMode::Extend),
+                    );
                     ui.end_row();
                 }
             });
@@ -4105,32 +4134,65 @@ fn field_answer(ui: &mut egui::Ui, answer: &post::QueryResponse) {
     }
 }
 
-/// Colour map and an optional locked range shared by frames and views.
+/// The colour map (reversed, in bands, out-of-range marking) and how its range is chosen:
+/// from the data, locked so frames, views and runs share one scale, clipped to percentiles, or
+/// centred on zero. `values` are the plotted field's.
 #[cfg(not(target_arch = "wasm32"))]
-fn color_controls(ui: &mut egui::Ui, view: &mut ViewState, data: (f64, f64)) -> (f64, f64) {
+fn color_controls(ui: &mut egui::Ui, view: &mut ViewState, values: &[f64]) -> (f64, f64) {
+    let data = post::range_for(post::RangeMode::Auto, values, None).unwrap_or((0.0, 1.0));
     ui.horizontal_wrapped(|ui| {
         ui.label(tr("multiphysics.post_color_map"));
-        crate::ui_kit::dropdown_menu(ui, "multiphysics_color_map", view.color_map.name(), |ui| {
+        let current = view.color_scale.map;
+        crate::ui_kit::dropdown_menu(ui, "multiphysics_color_map", current.name(), |ui| {
             for map in post::ColorMap::ALL {
-                if crate::ui_kit::list_picker(ui, &format!("multiphysics_color_map_{}", map.name()), map.name(), view.color_map == map).clicked() {
-                    view.color_map = map;
+                if crate::ui_kit::list_picker(ui, &format!("multiphysics_color_map_{}", map.name()), map.name(), current == map).clicked() {
+                    view.color_scale.map = map;
                 }
             }
         });
-        let mut locked = view.locked_range.is_some();
-        let response = crate::ui_kit::checkbox(ui, tr("multiphysics.post_lock_range"), &mut locked)
-            .backing_on_hover_text(tr("multiphysics.post_lock_range_hint"));
-        crate::scenario::publish_target("multiphysics:lock_range", response.rect);
-        if locked != view.locked_range.is_some() {
-            view.locked_range = locked.then_some(data);
+        let response = crate::ui_kit::checkbox(ui, tr("multiphysics.range_reversed"), &mut view.color_scale.reversed);
+        crate::scenario::publish_target("multiphysics:color_reversed", response.rect);
+        ui.label(tr("multiphysics.range_bands"));
+        let response = crate::ui_kit::number_field(ui, &mut view.color_scale.bands, 0..=post::MAX_BANDS, 1.0, "")
+            .backing_on_hover_text(tr("multiphysics.range_bands_hint"));
+        crate::scenario::publish_target("multiphysics:color_bands", response.rect);
+        if view.color_scale.bands == 1 {
+            view.color_scale.bands = 2;
         }
-        if let Some((low, high)) = &mut view.locked_range {
-            crate::ui_kit::number_field(ui, low, f64::MIN..=f64::MAX, (data.1 - data.0).abs().max(1e-12) * 1e-3, "");
+        let response = crate::ui_kit::checkbox(ui, tr("multiphysics.range_mark"), &mut view.color_scale.mark_out_of_range)
+            .backing_on_hover_text(tr("multiphysics.range_mark_hint"));
+        crate::scenario::publish_target("multiphysics:color_mark_out_of_range", response.rect);
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tr("multiphysics.range_mode"));
+        for mode in post::RangeMode::ALL {
+            let key = mode.key();
+            let response = crate::ui_kit::choice_chip(
+                ui,
+                &format!("multiphysics_range_{key}"),
+                tr(&format!("multiphysics.range_{key}")),
+                view.range_mode == mode,
+            );
+            crate::scenario::publish_target(&format!("multiphysics:range_mode:{key}"), response.rect);
+            if response.clicked() && view.range_mode != mode {
+                // Locking starts from the range shown now.
+                if mode == post::RangeMode::Locked && view.locked_range.is_none() {
+                    view.locked_range = post::range_for(view.range_mode, values, None);
+                }
+                view.range_mode = mode;
+            }
+        }
+        if view.range_mode == post::RangeMode::Locked {
+            let (low, high) = view.locked_range.get_or_insert(data);
+            let step = (data.1 - data.0).abs().max(1e-12) * 1e-3;
+            let response = crate::ui_kit::number_field(ui, low, f64::MIN..=f64::MAX, step, "");
+            crate::scenario::publish_target("multiphysics:range_low", response.rect);
             ui.label("…");
-            crate::ui_kit::number_field(ui, high, f64::MIN..=f64::MAX, (data.1 - data.0).abs().max(1e-12) * 1e-3, "");
+            let response = crate::ui_kit::number_field(ui, high, f64::MIN..=f64::MAX, step, "");
+            crate::scenario::publish_target("multiphysics:range_high", response.rect);
         }
     });
-    view.locked_range.filter(|(low, high)| low.is_finite() && high.is_finite() && low < high).unwrap_or(data)
+    post::range_for(view.range_mode, values, view.locked_range).unwrap_or(data)
 }
 
 #[cfg(test)]
@@ -4498,11 +4560,12 @@ mod tests {
                     phase: egui::TouchPhase::Move,
                 });
             }
-            let mut output = ctx.run_ui(egui::RawInput { screen_rect: Some(bounds), time: Some(frame as f64 / 60.0), events, ..Default::default() }, |ui| {
-                Container::for_layout(LayoutMode::Docked, Surface::Viewport).central().show(ui, |ui| {
-                    crate::multiphysics_field_view::show(&mut app, ui, &mut state, &grid, 0, 2, 0.5, 400.0).unwrap();
+            let mut output =
+                ctx.run_ui(egui::RawInput { screen_rect: Some(bounds), time: Some(frame as f64 / 60.0), events, ..Default::default() }, |ui| {
+                    Container::for_layout(LayoutMode::Docked, Surface::Viewport).central().show(ui, |ui| {
+                        crate::multiphysics_field_view::show(&mut app, ui, &mut state, &grid, 0, 2, 0.5, 400.0).unwrap();
+                    });
                 });
-            });
             // The frame's font textures are not uploaded anywhere here; discard them explicitly.
             output.textures_delta.clear();
             assert_eq!(app.cam, camera);
@@ -4693,7 +4756,9 @@ mod tests {
         switch(&mut h.app, "multiphysics").unwrap();
         h.frames(3);
         let link = |h: &Harness| h.app.session.doc.multiphysics.study(&id).and_then(|s| s.model.clone()).unwrap();
-        let face = |point: [f64; 3]| vec![solidcraft_engine::Sel::Face { body: "Duct".into(), index: 0, point: solidcore_record::Vec3::new(point[0], point[1], point[2]) }];
+        let face = |point: [f64; 3]| {
+            vec![solidcraft_engine::Sel::Face { body: "Duct".into(), index: 0, point: solidcore_record::Vec3::new(point[0], point[1], point[2]) }]
+        };
         // Solid Materials is listed for a study of the model, and turns heat on.
         h.step(&json!({"click":{"handle":"multiphysics:tree:tree_solid_materials"}})).unwrap();
         h.frames(2);
@@ -4743,6 +4808,79 @@ mod tests {
         assert_eq!(goals[0].body.as_deref(), Some("Duct"));
         let case = h.app.session.doc.multiphysics.study(&id).unwrap().case.clone();
         assert_eq!(case["goals"][0]["kind"], "solid_max_temperature");
+    }
+
+    /// The plots' range follows its mode: the data's, 2–98 %, around zero, or locked (starting
+    /// from the range shown when it was locked).
+    #[test]
+    fn color_controls_follow_the_range_mode() {
+        let ctx = crate::fonts::test_context();
+        let mut view = ViewState::default();
+        let values: Vec<f64> = (0..=100).map(f64::from).chain([1e6]).collect();
+        let range = |view: &mut ViewState| {
+            let mut out = (0.0, 0.0);
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| out = color_controls(ui, view, &values));
+            output.textures_delta.clear();
+            out
+        };
+        assert_eq!(range(&mut view), (0.0, 1e6));
+        view.range_mode = post::RangeMode::Percentile;
+        let (low, high) = range(&mut view);
+        assert!(low >= 1.0 && high <= 100.0, "{low} {high}");
+        view.range_mode = post::RangeMode::Symmetric;
+        assert_eq!(range(&mut view), (-1e6, 1e6));
+        view.range_mode = post::RangeMode::Locked;
+        view.locked_range = Some((10.0, 20.0));
+        assert_eq!(range(&mut view), (10.0, 20.0));
+        // Marked out-of-range values take the map's out-of-range colours, not its end colours.
+        view.color_scale.mark_out_of_range = true;
+        let (below, above) = view.color_scale.map.out_of_range();
+        let rgb = |[r, g, b]: [u8; 3]| egui::Color32::from_rgb(r, g, b);
+        assert_eq!(scale_color(view.color_scale, 5.0, 10.0, 20.0), rgb(below));
+        assert_eq!(scale_color(view.color_scale, 25.0, 10.0, 20.0), rgb(above));
+        assert_ne!(scale_color(view.color_scale, 15.0, 10.0, 20.0), rgb(above));
+    }
+
+    /// Evidence: the colour controls, a field drawn in 8 bands on a locked range with values
+    /// outside it marked, and its legend, rendered offscreen. Written only with
+    /// SOLIDCRAFT_MULTIPHYSICS_EVIDENCE set.
+    #[test]
+    fn color_scale_controls_and_legend_render() {
+        let ctx = crate::fonts::test_context();
+        let mut view = ViewState {
+            color_scale: post::ColorScale { map: post::ColorMap::CoolWarm, reversed: false, bands: 8, mark_out_of_range: true },
+            range_mode: post::RangeMode::Locked,
+            locked_range: Some((-0.6, 0.6)),
+            ..Default::default()
+        };
+        let values: Vec<f64> = (0..400).map(|i| ((i % 20) as f64 / 19.0 * 2.0 - 1.0) * (1.0 - (i / 20) as f64 / 40.0)).collect();
+        let bounds = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(720.0, 420.0));
+        let mut textures = std::collections::HashMap::new();
+        let mut last = None;
+        for frame in 0..3 {
+            let mut output =
+                ctx.run_ui(egui::RawInput { screen_rect: Some(bounds), time: Some(f64::from(frame) / 60.0), ..Default::default() }, |ui| {
+                    let (low, high) = color_controls(ui, &mut view, &values);
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(400.0, 200.0), egui::Sense::hover());
+                    for (i, value) in values.iter().enumerate() {
+                        let (x, y) = ((i % 20) as f32, (i / 20) as f32);
+                        let cell = egui::Rect::from_min_size(rect.min + egui::vec2(x * 20.0, y * 10.0), egui::vec2(20.0, 10.0));
+                        ui.painter().rect_filled(cell, 0.0, scale_color(view.color_scale, *value, low, high));
+                    }
+                    field_legend(ui, &view, low, high, Some("K"), values.len());
+                });
+            crate::ui_kit::test_textures_update(&mut textures, &output.textures_delta);
+            output.textures_delta.clear();
+            last = Some(output);
+        }
+        let output = last.unwrap();
+        // Out-of-range cells are drawn, in the neutral colours, and the legend says what they are.
+        assert!(crate::scenario::rect_of("multiphysics:field_legend").is_some());
+        if let Ok(folder) = std::env::var("SOLIDCRAFT_MULTIPHYSICS_EVIDENCE") {
+            std::fs::create_dir_all(&folder).unwrap();
+            let image = crate::ui_kit::test_raster(&ctx, output.shapes, output.pixels_per_point, bounds, &textures);
+            image.save(std::path::Path::new(&folder).join("multiphysics-color-scale.png")).unwrap();
+        }
     }
 
     /// The Parts folder: the tree's part rows, the component table and the 3-D view share the
@@ -4852,7 +4990,10 @@ mod tests {
             study_revision: study.revision,
             case_hash: mp::case_hash(&study.case).unwrap(),
             input_case: study.case.clone(),
-            artifacts: vec![mp::Artifact { name: "flow_000010.vtu".into(), text: vtu }, mp::Artifact { name: "manifest.json".into(), text: manifest.to_string() }],
+            artifacts: vec![
+                mp::Artifact { name: "flow_000010.vtu".into(), text: vtu },
+                mp::Artifact { name: "manifest.json".into(), text: manifest.to_string() },
+            ],
             manifest,
         };
         let project = &mut Arc::make_mut(&mut h.app.session.doc).multiphysics;
@@ -4907,7 +5048,10 @@ mod tests {
             study_revision: study.revision,
             case_hash: mp::case_hash(&study.case).unwrap(),
             input_case: study.case.clone(),
-            artifacts: vec![mp::Artifact { name: "flow.vtu".into(), text: vtu.into() }, mp::Artifact { name: "manifest.json".into(), text: manifest.to_string() }],
+            artifacts: vec![
+                mp::Artifact { name: "flow.vtu".into(), text: vtu.into() },
+                mp::Artifact { name: "manifest.json".into(), text: manifest.to_string() },
+            ],
             manifest,
         };
         let project = &mut Arc::make_mut(&mut h.app.session.doc).multiphysics;
