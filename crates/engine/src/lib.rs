@@ -813,6 +813,9 @@ pub struct Session {
     /// Bodies drawn see-through, by name, that clicks pass through (`multiphysics.parts.ghost`).
     /// View state only: not saved, not undone, and a name the design no longer has does nothing.
     pub ghosted_bodies: Vec<String>,
+    /// Parts drawn in a colour-by swatch instead of their appearance, by name
+    /// (`multiphysics.parts.colour`). View state like `ghosted_bodies`.
+    pub part_swatches: Vec<(String, solidcraft_multiphysics::setup_check::Swatch)>,
     pub path: Option<String>,
     /// Where the drawing commands' object ids come from: one source for the session, kept across
     /// a file change, so a session seeded alike and run alike gives the same ids
@@ -1375,6 +1378,7 @@ impl Session {
             sketch_entry: None,
             feature_edit_sketch: None,
             ghosted_bodies: Vec::new(),
+            part_swatches: Vec::new(),
             selection: Vec::new(),
             path: None,
             ids: solidcraft_doc::ids::IdSource::from_entropy(),
@@ -3289,6 +3293,7 @@ impl Session {
             feature_edit_sketch: self.feature_edit_sketch,
             selection: self.selection.clone(),
             ghosted_bodies: self.ghosted_bodies.clone(),
+            part_swatches: self.part_swatches.clone(),
             path: None,
             ids: self.ids.clone(),
             uid: self.uid,

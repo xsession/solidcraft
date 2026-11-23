@@ -1428,7 +1428,13 @@ pub(super) fn tree(app: &mut SolveApp, state: &mut State, studies: &[Study], ui:
                     // case's own entries are not listed for editing.
                     let pointers = if study.model.is_some() { Vec::new() } else { entries(&case, folder) };
                     let folded = state.tree_folded.contains(folder.key());
-                    let parts = if folder == Node::Parts { super::parts_ui::bodies(app, state, study) } else { Vec::new() };
+                    let parts = if folder == Node::Parts {
+                        // Parts coloured by their setup stay so while the design changes.
+                        super::parts_ui::keep_colour(app, state, study);
+                        super::parts_ui::bodies(app, state, study)
+                    } else {
+                        Vec::new()
+                    };
                     let has_rows = !pointers.is_empty() || folder == Node::Mesh || !parts.is_empty();
                     let response = row(
                         ui,

@@ -1038,6 +1038,10 @@ fn base_scene_key(app: &SolveApp) -> u64 {
     app.preview.rolled_back.hash(&mut h);
     frame_ghosting(app).hash(&mut h);
     app.session.ghosted_bodies.hash(&mut h);
+    for (name, swatch) in &app.session.part_swatches {
+        name.hash(&mut h);
+        swatch_colour(*swatch).to_array().hash(&mut h);
+    }
     app.preferences.cosmetic_threads.hash(&mut h);
     app.preferences.section_hatch.hash(&mut h);
     solidcraft_theme::is_dark().hash(&mut h);
@@ -1188,6 +1192,36 @@ pub(crate) fn frame_ghosted(app: &SolveApp, body: &solidcraft_engine::doc::Model
 /// while [`frame_ghosting`], or a part `multiphysics.parts.ghost` ghosted.
 pub(crate) fn see_through(app: &SolveApp, body: &solidcraft_engine::doc::ModelBody) -> bool {
     frame_ghosted(app, body) || app.session.ghosted_bodies.contains(&body.name)
+}
+
+/// A colour-by swatch drawn from the theme: its status colours, a muted body colour, a place on
+/// the Viridis map, or one of the categorical colours. The legend uses the same colours.
+pub fn swatch_colour(swatch: solidcraft_engine::multiphysics::setup_check::Swatch) -> egui::Color32 {
+    use solidcraft_engine::multiphysics::setup_check::Swatch;
+    let t = Tokens::get();
+    match swatch {
+        Swatch::Good => t.form_success,
+        Swatch::Warn => t.warning,
+        Swatch::Bad => t.form_error,
+        Swatch::Muted => {
+            let [r, g, b, _] = t.body.to_array();
+            let dim = |c: u8| (f32::from(c) * 0.55) as u8;
+            egui::Color32::from_rgb(dim(r), dim(g), dim(b))
+        }
+        Swatch::Scale { t: at } => {
+            let [r, g, b] = solidcraft_engine::multiphysics::results::ColorMap::Viridis.color(at);
+            egui::Color32::from_rgb(r, g, b)
+        }
+        Swatch::Category { index } => {
+            let palette = [t.accent, t.axis_x, t.axis_y, t.axis_z, t.preview_new, t.construction_geom];
+            palette[usize::from(index).min(palette.len() - 1)]
+        }
+    }
+}
+
+/// The colour-by swatch of `body`, when the parts are coloured by their setup.
+pub(crate) fn part_swatch(app: &SolveApp, body: &solidcraft_engine::doc::ModelBody) -> Option<egui::Color32> {
+    app.session.part_swatches.iter().find(|(name, _)| *name == body.name).map(|(_, swatch)| swatch_colour(*swatch))
 }
 
 /// With a component active, bodies outside it are drawn faded.
@@ -2883,19 +2917,25 @@ fn body_scene(
         }
         // Ghost Frame Members: see-through in the plain body colour, whatever its appearance.
         let ghosted = !faded && see_through(app, b);
-        let base = if ghosted { tk.body } else { resolved.component.or(resolved.body).unwrap_or(tk.body) };
+        // Colour-by (`multiphysics.parts.colour`): the part's swatch over its appearance.
+        let swatch = if faded { None } else { part_swatch(app, b) };
+        let base = match swatch {
+            Some(colour) => colour,
+            None if ghosted => tk.body,
+            None => resolved.component.or(resolved.body).unwrap_or(tk.body),
+        };
         let col = if faded { c4(base.gamma_multiply(0.35)) } else { c4(base) };
         set_palette_color(&mut arena, &mut sc.palette, slots.body, col);
         // Appearances: the body's opacity, and faces with looks of their own.
         let opacity = if ghosted { FRAME_GHOST_OPACITY } else { resolved.opacity };
         // PBR finishes (metallic, roughness) for opaque bodies and faces in their own colours
         // (shown when Preferences › Graphics says so, `sky_uniform`).
-        let finishes = !faded;
+        let finishes = !faded && swatch.is_none();
         let body_pbr = resolved.pbr.filter(|_| finishes && resolved.component.is_none() && opacity >= 0.999);
         arena.set_material(slots.body, finish(base, body_pbr));
         arena.set_material(slots.instance, finish(base, body_pbr));
         let no_looks = std::collections::HashMap::new();
-        let face_looks = if ghosted { &no_looks } else { &resolved.face_looks };
+        let face_looks = if ghosted || swatch.is_some() { &no_looks } else { &resolved.face_looks };
         let faces = b.body.face_count();
         // A face falls back to the body's own slot only when its face slots run short (the arena
         // full): only then do the copies' faces differ, each copy having a colour slot of its own.

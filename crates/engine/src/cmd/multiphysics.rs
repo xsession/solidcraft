@@ -86,6 +86,12 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.parts.tag", "Tag Parts", crate::checked!("multiphysics.parts.tag", parts::tag))
         .doc_only().icon("settings").contract(&TypedContract::<PartsTag>::new()).output(output_schema_for::<PartsReply>)
         .params("bodies (names) or selection (a part selection's bodies as they are now); add_tags?, remove_tags? (single words); attributes? {name: number | text | null (remove)}. volume_mm3 and size_mm are measured and cannot be set. One undo step."),
+    CommandSpec::new("multiphysics.parts.check", "Check Study Setup", crate::checked!("multiphysics.parts.check", parts::check))
+        .noundo().icon("inspect").contract(&TypedContract::<PartsCheck>::new()).output(output_schema_for::<solidcraft_multiphysics::setup_check::Checklist>)
+        .params("id (a study of the model). One line per check (built, fluid, thin_parts, overlap, openings, materials, limits, power, goals) with ok|warn|error, a count, a message and the parts it is about; the fluid lines are the fluid volume check of the built case. Changes nothing."),
+    CommandSpec::new("multiphysics.parts.colour", "Colour Parts by Setup", crate::checked!("multiphysics.parts.colour", parts::colour))
+        .noundo().icon("appearance").contract(&TypedContract::<PartsColour>::new()).output(output_schema_for::<solidcraft_multiphysics::setup_check::Colouring>)
+        .params("by: material (unassigned parts stand out) | power (on a colour map) | tag (first tag) | verdict (the run's pass/warn/fail) | none (their own looks again); id (the study; not with none); run_id? (for verdict). Draws the design's parts in swatches the app colours from its theme, with a legend. View state: not saved, not an undo step."),
     CommandSpec::new("multiphysics.parts.ghost", "Ghost Parts", crate::checked!("multiphysics.parts.ghost", parts::ghost))
         .noundo().icon("eye").contract(&TypedContract::<PartsGhost>::new()).output(output_schema_for::<PartsGhostReply>)
         .params("bodies (names) or selection (a part selection's bodies as they are now); ghost?: true (false: solid again); only?: false (true: every other part solid; with no bodies or selection, every part solid). Ghosted parts are drawn see-through and clicks reach what is behind them. View state: not saved, not an undo step."),

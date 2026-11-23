@@ -770,6 +770,26 @@ fn yes() -> bool {
     true
 }
 
+/// `multiphysics.parts.check`: a study of the model checked before it runs.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsCheck {
+    pub id: String,
+}
+
+/// `multiphysics.parts.colour`: colour the design's parts by their setup in a study.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsColour {
+    /// The study; not needed with `by: none`.
+    #[serde(default)]
+    pub id: Option<String>,
+    pub by: solidcraft_multiphysics::setup_check::ColourBy,
+    /// For verdicts: the run (default the latest with a thermal report).
+    #[serde(default)]
+    pub run_id: Option<String>,
+}
+
 #[derive(Serialize, JsonSchema)]
 pub struct PartsGhostReply {
     /// The parts drawn see-through now, in the design's order.

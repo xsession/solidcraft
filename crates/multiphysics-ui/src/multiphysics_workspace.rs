@@ -4787,10 +4787,23 @@ mod tests {
         h.step(&json!({"click":{"handle":"multiphysics:parts_show_all"}})).unwrap();
         h.frames(2);
         assert!(h.app.body_visible("U1"));
-        // Leaving the workspace draws ghosted parts solid again.
+        // Colour by material: neither part has one yet, so both stand out.
+        h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
+        h.frames(2);
+        let swatches = h.app.session.part_swatches.clone();
+        assert_eq!(swatches.len(), 2, "{:?}", ws(&mut h.app).error);
+        assert!(swatches.iter().all(|(_, s)| *s == solidcraft_engine::multiphysics::setup_check::Swatch::Muted), "heat is off: {swatches:?}");
+        // The checklist is listed, and its goals line has no parts to select.
+        assert!(crate::scenario::handles("multiphysics:parts_check:goals").len() == 1);
+        // Close shuts the Parts panel; the colours stay.
+        h.step(&json!({"click":{"handle":"multiphysics:panel_close"}})).unwrap();
+        h.frames(2);
+        assert!(!ws(&mut h.app).dialog_open);
+        assert_eq!(h.app.session.part_swatches.len(), 2);
+        // Leaving the workspace draws ghosted and coloured parts as before.
         h.app.run("multiphysics.parts.ghost", json!({"bodies":["U1"]})).unwrap();
         switch(&mut h.app, "design").unwrap();
-        assert!(h.app.session.ghosted_bodies.is_empty());
+        assert!(h.app.session.ghosted_bodies.is_empty() && h.app.session.part_swatches.is_empty());
     }
 
     /// The Mesh node of a study of the model: the grid drawn on the model, the level of the

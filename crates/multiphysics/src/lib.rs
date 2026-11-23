@@ -27,6 +27,7 @@ mod obstacles;
 pub mod parts;
 pub mod results;
 pub mod setup;
+pub mod setup_check;
 mod templates;
 pub mod vtk;
 pub mod wizard;

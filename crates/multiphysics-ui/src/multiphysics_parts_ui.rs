@@ -10,6 +10,7 @@ use solidcraft_theme::Tokens;
 use super::{State, command, tr};
 use crate::SolveApp;
 use solidcraft_engine::multiphysics::Study;
+use solidcraft_engine::multiphysics::setup_check::{ColourBy, Swatch};
 
 /// What the panel remembers between frames.
 #[derive(Default)]
@@ -18,6 +19,11 @@ pub(super) struct PartsUi {
     table: Option<(usize, String, Result<Value, String>)>,
     /// The part selection Select picks from the list.
     named: String,
+    /// What the parts are coloured by, and the last colouring: for the document, study and mode.
+    colour_by: ColourBy,
+    colouring: Option<(usize, String, ColourBy, Result<Value, String>)>,
+    /// The last checklist: for the document and study.
+    checks: Option<(usize, String, Result<Value, String>)>,
 }
 
 /// Something done to parts from the tree, the table or a menu.
@@ -30,6 +36,10 @@ pub(super) enum PartAction {
     },
     /// The bodies of a named part selection.
     PickNamed(String),
+    /// These bodies (a checklist line's).
+    PickMany(Vec<String>),
+    /// Colour the parts by their setup.
+    ColourBy(ColourBy),
     Hide(Vec<String>),
     Isolate(Vec<String>),
     /// See-through (`true`) or solid again.
@@ -140,6 +150,15 @@ pub(super) fn apply(app: &mut SolveApp, state: &mut State, action: PartAction) {
             ("multiphysics.parts.select", json!({"bodies": bodies}))
         }
         PartAction::PickNamed(name) => ("multiphysics.parts.select", json!({"selection": name})),
+        PartAction::PickMany(bodies) => ("multiphysics.parts.select", json!({"bodies": bodies})),
+        PartAction::ColourBy(by) => {
+            state.parts_ui.colour_by = by;
+            state.parts_ui.colouring = None;
+            if by == ColourBy::None {
+                let _ = command(app, state, "multiphysics.parts.colour", json!({"by": "none"}));
+            }
+            return;
+        }
         PartAction::Hide(bodies) => ("browser.visibility", json!({"items": bodies, "visible": false})),
         PartAction::Isolate(bodies) => ("browser.visibility", json!({"items": bodies, "visible": true, "isolate": true})),
         PartAction::Ghost(bodies, ghost) => ("multiphysics.parts.ghost", json!({"bodies": bodies, "ghost": ghost})),
@@ -218,6 +237,10 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
         }
     });
     ui.separator();
+    colour_section(app, state, study, ui, &mut actions);
+    ui.separator();
+    checklist_section(app, state, study, ui, &mut actions);
+    ui.separator();
     let table = &reply["table"];
     if table["run"].is_null() {
         ui.label(RichText::new(tr("multiphysics.parts_no_run")).small().color(t.text_dim));
@@ -269,5 +292,154 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.parts_total_power", &[("watts", &format!("{total:.2}"))])).small());
     for action in actions {
         apply(app, state, action);
+    }
+}
+
+/// The colour-by modes in the order the panel offers them, with their wire names.
+const COLOUR_BY: &[(ColourBy, &str)] =
+    &[(ColourBy::None, "none"), (ColourBy::Material, "material"), (ColourBy::Power, "power"), (ColourBy::Tag, "tag"), (ColourBy::Verdict, "verdict")];
+
+/// Keep the parts coloured as picked: worked out again when the design or the study changes,
+/// or when leaving the workspace dropped the colours. Called each frame the Parts folder shows.
+pub(super) fn keep_colour(app: &mut SolveApp, state: &mut State, study: &Study) -> Option<Value> {
+    let by = state.parts_ui.colour_by;
+    if by == ColourBy::None {
+        return None;
+    }
+    let key = std::sync::Arc::as_ptr(&app.session.doc) as usize;
+    let dropped = app.session.part_swatches.is_empty();
+    if let Some((k, id, was, reply)) = &state.parts_ui.colouring
+        && *k == key
+        && *id == study.id
+        && *was == by
+        && !(dropped && reply.as_ref().is_ok_and(|r| r["parts"].as_array().is_some_and(|p| !p.is_empty())))
+    {
+        return reply.as_ref().ok().cloned();
+    }
+    let name = COLOUR_BY.iter().find(|(b, _)| *b == by).map_or("none", |(_, n)| *n);
+    let reply = app.run("multiphysics.parts.colour", json!({"id": study.id, "by": name}));
+    state.parts_ui.colouring = Some((key, study.id.clone(), by, reply.clone()));
+    reply.ok()
+}
+
+/// The study's checklist, worked out again when the design or the study changes.
+fn checks(app: &mut SolveApp, state: &mut State, study: &Study) -> Result<Value, String> {
+    let key = std::sync::Arc::as_ptr(&app.session.doc) as usize;
+    if let Some((k, id, reply)) = &state.parts_ui.checks
+        && *k == key
+        && *id == study.id
+    {
+        return reply.clone();
+    }
+    let reply = app.run("multiphysics.parts.check", json!({"id": study.id}));
+    state.parts_ui.checks = Some((key, study.id.clone(), reply.clone()));
+    reply
+}
+
+/// A small square in a swatch's colour, as the 3-D view draws it.
+fn swatch_square(ui: &mut egui::Ui, swatch: Swatch) {
+    let t = Tokens::get();
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(t.space_14, t.space_14), egui::Sense::hover());
+    ui.painter().rect_filled(rect, t.control_radius, crate::viewport::swatch_colour(swatch));
+}
+
+/// What a legend entry's label says: a known id worded, otherwise the label itself (a tag).
+fn legend_label(label: &str) -> String {
+    let key = format!("multiphysics.colour_{label}");
+    let worded = tr(&key);
+    if worded == key { label.to_string() } else { worded.to_string() }
+}
+
+/// Colour-by and its legend.
+pub(super) fn colour_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui, actions: &mut Vec<PartAction>) {
+    let t = Tokens::get();
+    ui.strong(tr("multiphysics.parts_colour_by"));
+    ui.horizontal_wrapped(|ui| {
+        for (by, name) in COLOUR_BY {
+            let on = state.parts_ui.colour_by == *by;
+            let response =
+                crate::ui_kit::choice_chip(ui, &format!("multiphysics_parts_colour_{name}"), tr(&format!("multiphysics.colour_by_{name}")), on);
+            crate::scenario::publish_target(&format!("multiphysics:parts_colour:{name}"), response.rect);
+            if response.clicked() && !on {
+                actions.push(PartAction::ColourBy(*by));
+            }
+        }
+    });
+    let Some(colouring) = keep_colour(app, state, study) else {
+        if let Some((_, _, _, Err(error))) = &state.parts_ui.colouring {
+            ui.colored_label(t.form_error, error);
+        }
+        return;
+    };
+    if let Some(max) = colouring["max"].as_f64() {
+        // The power map, low to high.
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("0 W").small());
+            for step in 0..=8 {
+                swatch_square(ui, Swatch::Scale { t: f64::from(step) / 8.0 });
+            }
+            ui.label(RichText::new(format!("{max:.2} W")).small());
+        });
+    }
+    for entry in colouring["legend"].as_array().into_iter().flatten() {
+        let Ok(swatch) = serde_json::from_value::<Swatch>(entry["swatch"].clone()) else { continue };
+        let label = legend_label(entry["label"].as_str().unwrap_or(""));
+        ui.horizontal(|ui| {
+            swatch_square(ui, swatch);
+            ui.label(format!("{label} ({})", entry["count"].as_u64().unwrap_or(0)));
+        });
+    }
+}
+
+/// The checklist: one line per check, problems first worded, with the parts they are about.
+pub(super) fn checklist_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui, actions: &mut Vec<PartAction>) {
+    let t = Tokens::get();
+    let reply = match checks(app, state, study) {
+        Ok(reply) => reply,
+        Err(error) => {
+            ui.colored_label(t.form_error, error);
+            return;
+        }
+    };
+    let (errors, warnings) = (reply["errors"].as_u64().unwrap_or(0), reply["warnings"].as_u64().unwrap_or(0));
+    ui.horizontal(|ui| {
+        ui.strong(tr("multiphysics.parts_checklist"));
+        let summary = solidcraft_ui_text::format(
+            "multiphysics.parts_checklist_summary",
+            &[("errors", &errors.to_string()), ("warnings", &warnings.to_string())],
+        );
+        let colour = if errors > 0 {
+            t.form_error
+        } else if warnings > 0 {
+            t.warning
+        } else {
+            t.form_success
+        };
+        ui.colored_label(colour, summary);
+    });
+    for check in reply["checks"].as_array().into_iter().flatten() {
+        let (id, status) = (check["check"].as_str().unwrap_or(""), check["status"].as_str().unwrap_or("ok"));
+        let (mark, colour) = match status {
+            "error" => ("✖", t.form_error),
+            "warn" => ("⚠", t.warning),
+            _ => ("✓", t.form_success),
+        };
+        let key = format!("multiphysics.check_{id}_{status}");
+        let count = check["count"].as_u64().unwrap_or(0).to_string();
+        let worded = solidcraft_ui_text::format(&key, &[("count", &count)]);
+        let text = if worded == key { check["message"].as_str().unwrap_or(id).to_string() } else { worded };
+        let bodies: Vec<String> = check["bodies"].as_array().into_iter().flatten().filter_map(|b| b.as_str().map(str::to_string)).collect();
+        ui.horizontal_wrapped(|ui| {
+            ui.colored_label(colour, mark);
+            let response = ui.label(text);
+            crate::scenario::publish_target(&format!("multiphysics:parts_check:{id}"), response.rect);
+            if !bodies.is_empty() {
+                let response = crate::ui_kit::button(ui, tr("multiphysics.parts_select"), crate::ui_kit::Button::Small);
+                crate::scenario::publish_target(&format!("multiphysics:parts_check_select:{id}"), response.rect);
+                if response.clicked() {
+                    actions.push(PartAction::PickMany(bodies));
+                }
+            }
+        });
     }
 }

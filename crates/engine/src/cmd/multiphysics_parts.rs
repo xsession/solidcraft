@@ -207,3 +207,48 @@ pub(super) fn ghost(session: &mut Session, params: &Value) -> Result<Value> {
     let ghosted = state.bodies.iter().filter(|b| session.ghosted_bodies.contains(&b.name)).map(|b| b.name.clone()).collect();
     reply(PartsGhostReply { ghosted })
 }
+
+/// The study's bodies (in the design's order) and the design's.
+fn study_bodies(session: &Session, study: &solidcraft_multiphysics::Study) -> Result<(Vec<String>, Vec<String>)> {
+    let state = session.world_state()?;
+    let parts = &session.doc.multiphysics.parts;
+    let in_study: Vec<String> = match &study.model {
+        Some(link) => super::model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect(),
+        None => vec![],
+    };
+    Ok((state.bodies.iter().map(|b| b.name.clone()).collect(), in_study))
+}
+
+/// The checklist of a study of the model: is it built from the design as it is now, where the
+/// fluid is, openings, materials, limits, power and goals.
+pub(super) fn check(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: PartsCheck = parse(params)?;
+    let study = session.doc.multiphysics.study(&input.id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    if study.model.is_none() {
+        return Err(bad("id", "the study is not a study of the model"));
+    }
+    let (_, in_study) = study_bodies(session, &study)?;
+    let current = super::model::current(session, &study.id)?.1.unwrap_or(false);
+    reply(solidcraft_multiphysics::setup_check::checklist(&study, &in_study, current))
+}
+
+/// Colour the design's parts by their setup in a study, or (`by: none`) by their own looks.
+pub(super) fn colour(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::setup_check::{ColourBy, Colouring};
+    let input: PartsColour = parse(params)?;
+    if input.by == ColourBy::None {
+        session.part_swatches.clear();
+        session.refresh_display();
+        return reply(Colouring { by: ColourBy::None, parts: vec![], legend: vec![], max: None });
+    }
+    let id = input.id.ok_or_else(|| bad("id", "give the study whose setup colours the parts"))?;
+    let study = session.doc.multiphysics.study(&id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    let (bodies, in_study) = study_bodies(session, &study)?;
+    let parts = &session.doc.multiphysics.parts;
+    let table = solidcraft_multiphysics::component_table::build(&study, parts, &bodies, &in_study, input.run_id.as_deref())
+        .map_err(|e| bad("run_id", e.to_string()))?;
+    let colouring = solidcraft_multiphysics::setup_check::colour(input.by, &study, parts, &bodies, &in_study, &table);
+    session.part_swatches = colouring.parts.iter().map(|p| (p.body.clone(), p.swatch)).collect();
+    session.refresh_display();
+    reply(colouring)
+}

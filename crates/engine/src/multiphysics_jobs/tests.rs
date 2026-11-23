@@ -778,6 +778,23 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     assert_eq!(s.undo.len(), undo);
     assert!(!s.doc.to_json().contains("ghost"), "not saved");
     assert_eq!(s.execute("multiphysics.parts.ghost", &json!({"only":true})).unwrap()["ghosted"], json!([]));
+    // The checklist and colour-by: the three power parts have a material, so none stands out;
+    // colours are view state, like ghosting.
+    let list = s.execute("multiphysics.parts.check", &json!({"id":id})).unwrap();
+    let line = |check: &str| list["checks"].as_array().unwrap().iter().find(|c| c["check"] == check).cloned().unwrap();
+    assert_eq!(line("materials")["status"], "ok", "{list}");
+    assert_eq!(line("power")["count"], 6, "{list}");
+    assert_eq!(line("goals")["status"], "warn");
+    assert!(s.execute("multiphysics.parts.check", &json!({"id":"missing"})).is_err());
+    let coloured = s.execute("multiphysics.parts.colour", &json!({"id":id,"by":"material"})).unwrap();
+    assert_eq!(coloured["legend"], json!([{"swatch":{"kind":"good"},"label":"assigned","count":3}]), "{coloured}");
+    assert_eq!(s.part_swatches.len(), 3);
+    let by_power = s.execute("multiphysics.parts.colour", &json!({"id":id,"by":"power"})).unwrap();
+    assert_eq!(by_power["max"], json!(2.0));
+    assert!(s.execute("multiphysics.parts.colour", &json!({"by":"tag"})).is_err(), "a study is needed");
+    s.execute("multiphysics.parts.colour", &json!({"by":"none"})).unwrap();
+    assert!(s.part_swatches.is_empty());
+    assert_eq!(s.undo.len(), undo);
     // Everything survives saving and reopening.
     let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(reopened.multiphysics, s.doc.multiphysics);
