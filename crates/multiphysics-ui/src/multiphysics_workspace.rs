@@ -2289,7 +2289,7 @@ fn settings(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::N
     let Some(draft) = state.drafts.get_mut(&study.id) else { return };
     let parsed = serde_json::from_str::<Value>(&draft.case_text);
     let raw = json_editor || parsed.is_err();
-    egui::ScrollArea::both().id_salt(("multiphysics_settings", &study.id)).max_height(520.0).show(ui, |ui| {
+    egui::ScrollArea::vertical().id_salt(("multiphysics_settings", &study.id)).max_height(520.0).show(ui, |ui| {
         if raw {
             let response = crate::ui_kit::text_area(
                 ui,
@@ -2306,14 +2306,16 @@ fn settings(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::N
         } else if let Ok(mut value) = parsed {
             let changed = match entry {
                 Some(pointer) => match value.pointer_mut(pointer) {
-                    Some(slot) => field_entry_at(ui, &shell::entry_label(pointer), slot, 0, pointer),
+                    Some(slot) => {
+                        crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_value")], &[0.46, 0.54]);
+                        case_row(ui, &entry_title(pointer, slot), slot, 0, pointer, &mut 0)
+                    }
                     None => {
                         ui.label(RichText::new(tr("multiphysics.tree_revert_missing")).small().color(Tokens::get().text_dim));
                         false
                     }
                 },
-                None if node == shell::Node::Input => fields(ui, &mut value, 0),
-                None => fields_group(ui, &mut value, node),
+                None => settings_table(ui, &mut value, node),
             };
             if changed {
                 draft.case_text = pretty(&value);
@@ -2323,41 +2325,42 @@ fn settings(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::N
 }
 
 /// The case entries of one tree folder (top-level entries and the children of mixed blocks
-/// such as `config` filed under it).
-fn fields_group(ui: &mut egui::Ui, value: &mut Value, node: shell::Node) -> bool {
-    let pointers = shell::entries(value, node);
+/// such as `config` filed under it), or the whole case for Input data, as a Parameter | Value
+/// table.
+fn settings_table(ui: &mut egui::Ui, value: &mut Value, node: shell::Node) -> bool {
+    let pointers: Vec<String> = if node == shell::Node::Input {
+        value.as_object().map(|object| object.keys().map(|key| field_pointer("", key)).collect()).unwrap_or_default()
+    } else {
+        shell::entries(value, node)
+    };
     if pointers.is_empty() {
         ui.label(RichText::new(tr("multiphysics.tree_folder_empty")).small().color(Tokens::get().text_dim));
         return false;
     }
+    crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_value")], &[0.46, 0.54]);
+    let mut rows = 0;
     let mut changed = false;
     for pointer in pointers.iter().take(80) {
         if let Some(slot) = value.pointer_mut(pointer) {
-            changed |= field_entry_at(ui, &shell::entry_label(pointer), slot, 0, pointer);
+            changed |= case_row(ui, &entry_title(pointer, slot), slot, 0, pointer, &mut rows);
         }
     }
     changed
 }
 
-/// One named case entry: a folder for objects and arrays, a kit control for a value.
+/// A case entry's title: a list item's own `name`, `id`, `patch` or `type`, as the tree names it,
+/// otherwise the last segment of its pointer.
+fn entry_title(pointer: &str, value: &Value) -> String {
+    let own = ["name", "id", "patch", "type"].iter().find_map(|field| value.get(*field).and_then(Value::as_str));
+    match own {
+        Some(own) if pointer.rsplit('/').next().is_some_and(|last| last.parse::<usize>().is_ok()) => own.to_string(),
+        _ => shell::entry_label(pointer),
+    }
+}
+
+/// The JSON pointer of `key` under `parent`, escaped as RFC 6901 asks.
 fn field_pointer(parent: &str, key: &str) -> String {
     format!("{parent}/{}", key.replace('~', "~0").replace('/', "~1"))
-}
-fn field_entry_at(ui: &mut egui::Ui, name: &str, value: &mut Value, depth: usize, pointer: &str) -> bool {
-    if depth > 5 {
-        ui.monospace(pretty(value));
-        return false;
-    }
-    let mut changed = false;
-    ui.push_id(name, |ui| {
-        if value.is_object() || value.is_array() {
-            let tuple = value.as_array().is_some_and(|v| v.len() <= 4 && v.iter().all(|v| !v.is_object() && !v.is_array()));
-            egui::CollapsingHeader::new(name).default_open(depth == 0 || tuple).show(ui, |ui| changed |= fields_at(ui, value, depth + 1, pointer));
-        } else {
-            crate::ui_kit::row(ui, name, |ui| changed |= field_editor(ui, name, value, pointer));
-        }
-    });
-    changed
 }
 /// The control for one case value, published as `multiphysics:case_field:<pointer>`.
 fn field_editor(ui: &mut egui::Ui, name: &str, value: &mut Value, pointer: &str) -> bool {
@@ -2424,7 +2427,7 @@ fn case_table(ui: &mut egui::Ui, case: &mut Value, node: shell::Node, rows: &mut
     let mut changed = false;
     for pointer in pointers.iter().take(80) {
         if let Some(slot) = case.pointer_mut(pointer) {
-            changed |= case_row(ui, &shell::entry_label(pointer), slot, 0, pointer, rows);
+            changed |= case_row(ui, &entry_title(pointer, slot), slot, 0, pointer, rows);
         }
     }
     changed
@@ -2476,38 +2479,6 @@ fn case_row(ui: &mut egui::Ui, name: &str, value: &mut Value, depth: usize, poin
     });
     changed
 }
-fn fields(ui: &mut egui::Ui, value: &mut Value, depth: usize) -> bool {
-    fields_at(ui, value, depth, "")
-}
-fn fields_at(ui: &mut egui::Ui, value: &mut Value, depth: usize, pointer: &str) -> bool {
-    if depth > 5 {
-        ui.monospace(pretty(value));
-        return false;
-    }
-    let mut changed = false;
-    match value {
-        Value::Object(object) => {
-            for (name, v) in object.iter_mut().take(80) {
-                changed |= field_entry_at(ui, name, v, depth, &field_pointer(pointer, name));
-            }
-        }
-        Value::Array(values) => {
-            if values.len() <= 16 {
-                for (i, v) in values.iter_mut().enumerate() {
-                    let name = i.to_string();
-                    changed |= field_entry_at(ui, &name, v, depth + 1, &field_pointer(pointer, &name));
-                }
-            } else {
-                ui.label(solidcraft_ui_text::format("multiphysics.array_entries", &[("count", &values.len().to_string())]));
-            }
-        }
-        _ => {
-            ui.monospace(pretty(value));
-        }
-    };
-    changed
-}
-
 fn jobs(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
     ui.heading(tr("multiphysics.jobs"));
     ui.add(egui::Label::new(tr("multiphysics.run_identity")).wrap());
@@ -4931,6 +4902,20 @@ mod tests {
         let swatches = h.app.session.part_swatches.clone();
         assert_eq!(swatches.len(), 2, "{:?}", ws(&mut h.app).error);
         assert!(swatches.iter().all(|(_, s)| *s == solidcraft_engine::multiphysics::setup_check::Swatch::Muted), "heat is off: {swatches:?}");
+        // Grade plot: a legend entry shows only its parts. By tag: U1 is an "ic", U2 has none.
+        h.app.run("multiphysics.parts.tag", json!({"bodies":["U1"],"add_tags":["ic"]})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:parts_colour:tag"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:parts_legend:ic"}})).unwrap();
+        h.frames(2);
+        let ghosted = h.app.session.ghosted_bodies.clone();
+        assert_eq!((ghosted, selected(&h)), (vec!["U2".to_string()], vec!["U1".to_string()]), "{:?}", ws(&mut h.app).error);
+        // Again: every part solid.
+        h.step(&json!({"click":{"handle":"multiphysics:parts_legend:ic"}})).unwrap();
+        h.frames(2);
+        assert!(h.app.session.ghosted_bodies.is_empty());
+        h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
+        h.frames(2);
         // The checklist is listed, and its goals line has no parts to select.
         assert!(crate::scenario::handles("multiphysics:parts_check:goals").len() == 1);
         // Close shuts the Parts panel; the colours stay.

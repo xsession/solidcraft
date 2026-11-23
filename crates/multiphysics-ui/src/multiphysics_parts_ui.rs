@@ -40,6 +40,12 @@ pub(super) enum PartAction {
     PickMany(Vec<String>),
     /// Colour the parts by their setup.
     ColourBy(ColourBy),
+    /// A legend entry's parts on their own: `keep` selected and solid, `others` ghosted; or,
+    /// when exactly `others` are ghosted already, every part solid again.
+    Focus {
+        keep: Vec<String>,
+        others: Vec<String>,
+    },
     Hide(Vec<String>),
     Isolate(Vec<String>),
     /// See-through (`true`) or solid again.
@@ -151,6 +157,18 @@ pub(super) fn apply(app: &mut SolveApp, state: &mut State, action: PartAction) {
         }
         PartAction::PickNamed(name) => ("multiphysics.parts.select", json!({"selection": name})),
         PartAction::PickMany(bodies) => ("multiphysics.parts.select", json!({"bodies": bodies})),
+        PartAction::Focus { keep, others } => {
+            let mut ghosted: Vec<&String> = app.session.ghosted_bodies.iter().collect();
+            let mut wanted: Vec<&String> = others.iter().collect();
+            ghosted.sort();
+            wanted.sort();
+            if !others.is_empty() && ghosted == wanted {
+                let _ = command(app, state, "multiphysics.parts.ghost", json!({"only": true}));
+                return;
+            }
+            let _ = command(app, state, "multiphysics.parts.select", json!({"bodies": keep}));
+            ("multiphysics.parts.ghost", json!({"bodies": others, "only": true}))
+        }
         PartAction::ColourBy(by) => {
             state.parts_ui.colour_by = by;
             state.parts_ui.colouring = None;
@@ -381,12 +399,32 @@ pub(super) fn colour_section(app: &mut SolveApp, state: &mut State, study: &Stud
             ui.label(RichText::new(format!("{max:.2} W")).small());
         });
     }
-    for entry in colouring["legend"].as_array().into_iter().flatten() {
+    let parts: Vec<(String, String)> = colouring["parts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|p| Some((p["body"].as_str()?.to_string(), p["label"].as_str()?.to_string())))
+        .collect();
+    let legend = colouring["legend"].as_array().cloned().unwrap_or_default();
+    if legend.len() > 1 {
+        ui.label(RichText::new(tr("multiphysics.colour_focus_hint")).small().color(t.text_dim));
+    }
+    for entry in &legend {
         let Ok(swatch) = serde_json::from_value::<Swatch>(entry["swatch"].clone()) else { continue };
-        let label = legend_label(entry["label"].as_str().unwrap_or(""));
+        let id = entry["label"].as_str().unwrap_or("");
+        let label = legend_label(id);
         ui.horizontal(|ui| {
             swatch_square(ui, swatch);
-            ui.label(format!("{label} ({})", entry["count"].as_u64().unwrap_or(0)));
+            // A click shows only this entry's parts: the grade plot's way to see what fails.
+            let response = crate::ui_kit::button(ui, format!("{label} ({})", entry["count"].as_u64().unwrap_or(0)), crate::ui_kit::Button::Ghost);
+            crate::scenario::publish_target(&format!("multiphysics:parts_legend:{id}"), response.rect);
+            if response.clicked() {
+                let (keep, others): (Vec<_>, Vec<_>) = parts.iter().partition(|(_, l)| l == id);
+                actions.push(PartAction::Focus {
+                    keep: keep.into_iter().map(|(b, _)| b.clone()).collect(),
+                    others: others.into_iter().map(|(b, _)| b.clone()).collect(),
+                });
+            }
         });
     }
 }

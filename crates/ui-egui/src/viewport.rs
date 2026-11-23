@@ -1213,7 +1213,8 @@ pub fn swatch_colour(swatch: solidcraft_engine::multiphysics::setup_check::Swatc
             egui::Color32::from_rgb(r, g, b)
         }
         Swatch::Category { index } => {
-            let palette = [t.accent, t.axis_x, t.axis_y, t.axis_z, t.preview_new, t.construction_geom];
+            // Red last: beside verdicts it reads as a failure.
+            let palette = [t.accent, t.axis_y, t.preview_new, t.construction_geom, t.axis_z, t.axis_x];
             palette[usize::from(index).min(palette.len() - 1)]
         }
     }
