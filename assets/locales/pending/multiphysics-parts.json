@@ -2,6 +2,7 @@
   "en": {
     "cmd.multiphysics.parts.list": "List Parts and Selections",
     "cmd.multiphysics.parts.selection": "Part Selection",
+    "cmd.multiphysics.parts.table": "Component Table",
     "cmd.multiphysics.parts.tag": "Tag Parts"
   }
 }

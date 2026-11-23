@@ -695,3 +695,30 @@ pub struct PartsReply {
     /// Parts the registry records that the design no longer has.
     pub missing: Vec<String>,
 }
+
+/// `multiphysics.parts.table`: the component table of a study.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsTable {
+    /// The study.
+    pub id: String,
+    /// The run the results come from; by default the latest run with a thermal report.
+    #[serde(default)]
+    pub run_id: Option<String>,
+    /// Only the bodies of this part selection.
+    #[serde(default)]
+    pub selection: Option<String>,
+    /// Show the design's bodies the study leaves out too.
+    #[serde(default)]
+    pub all_bodies: bool,
+    /// Add the table as CSV to the reply.
+    #[serde(default)]
+    pub csv: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsTableReply {
+    pub table: solidcraft_multiphysics::component_table::ComponentTable,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csv: Option<String>,
+}

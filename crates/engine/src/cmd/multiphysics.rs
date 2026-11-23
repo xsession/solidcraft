@@ -80,6 +80,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.parts.list", "List Parts and Selections", crate::checked!("multiphysics.parts.list", parts::list))
         .doc_only().noundo().icon("list").contract(&TypedContract::<Empty>::new()).output(output_schema_for::<PartsReply>)
         .params("No parameters. Every body of the design with its tags and attributes, every part selection with the bodies it holds now, and recorded parts the design no longer has."),
+    CommandSpec::new("multiphysics.parts.table", "Component Table", crate::checked!("multiphysics.parts.table", parts::table))
+        .doc_only().noundo().icon("list").contract(&TypedContract::<PartsTable>::new()).output(output_schema_for::<PartsTableReply>)
+        .params("id (a study); run_id? (default: the latest run with a thermal report); selection? (only its bodies); all_bodies? (also the design's bodies the study leaves out); csv? (add the table as CSV). One row per body: tags, attributes, conductivity, power (in the body and on its faces), limit, the run's temperatures, margin and pass/warn/fail, with the study's total power and the part with the least margin."),
     CommandSpec::new("multiphysics.parts.tag", "Tag Parts", crate::checked!("multiphysics.parts.tag", parts::tag))
         .doc_only().icon("settings").contract(&TypedContract::<PartsTag>::new()).output(output_schema_for::<PartsReply>)
         .params("bodies (names) or selection (a part selection's bodies as they are now); add_tags?, remove_tags? (single words); attributes? {name: number | text | null (remove)}. volume_mm3 and size_mm are measured and cannot be set. One undo step."),

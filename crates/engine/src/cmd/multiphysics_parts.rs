@@ -121,3 +121,29 @@ pub(super) fn selection(session: &mut Session, params: &Value) -> Result<Value> 
     parts.set_selection(&input.name, members).map_err(|e| bad("", e.to_string()))?;
     store(session, parts)
 }
+
+pub(super) fn table(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: PartsTable = parse(params)?;
+    let study = session.doc.multiphysics.study(&input.id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    let state = session.world_state()?;
+    let parts = &session.doc.multiphysics.parts;
+    let in_study: Vec<String> = match &study.model {
+        Some(link) => super::model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect(),
+        None => vec![],
+    };
+    let only = match &input.selection {
+        Some(selection) => Some(resolve(&state, parts, selection)?.0),
+        None => None,
+    };
+    let shown: Vec<String> = state
+        .bodies
+        .iter()
+        .map(|b| b.name.clone())
+        .filter(|n| input.all_bodies || in_study.contains(n))
+        .filter(|n| only.as_ref().is_none_or(|o| o.contains(n)))
+        .collect();
+    let table = solidcraft_multiphysics::component_table::build(&study, parts, &shown, &in_study, input.run_id.as_deref())
+        .map_err(|e| bad("run_id", e.to_string()))?;
+    let csv = input.csv.then(|| solidcraft_multiphysics::component_table::to_csv(&table));
+    reply(PartsTableReply { table, csv })
+}

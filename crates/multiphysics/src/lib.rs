@@ -17,6 +17,7 @@ pub mod adapt;
 pub mod airflow;
 pub mod authoring;
 pub mod case_scene;
+pub mod component_table;
 pub mod devices;
 pub mod flowpost;
 pub mod fluid_volume;

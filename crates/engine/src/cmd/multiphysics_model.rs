@@ -15,7 +15,7 @@ const DEFAULT_TEMPLATE: &str = "flow-channel";
 
 /// The bodies of the design a link uses, by name, each one existing and solid: the bodies of
 /// its part selection as the design is now, or those it lists.
-fn bodies<'a>(
+pub(super) fn bodies<'a>(
     state: &'a solidcraft_doc::ModelState,
     parts: &solidcraft_multiphysics::parts::Registry,
     link: &ModelLink,

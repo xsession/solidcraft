@@ -737,6 +737,22 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     assert!(s.execute("multiphysics.parts.selection", &json!({"name":"Power parts","remove":true})).is_err());
     assert!(s.execute("multiphysics.parts.tag", &json!({"bodies":["U1"],"attributes":{"size_mm":1.0}})).is_err());
     assert!(s.execute("multiphysics.parts.tag", &json!({"bodies":["nope"],"add_tags":["x"]})).is_err());
+    // The component table: 2 W in each of the three power parts, before any run.
+    let revision = s.doc.multiphysics.study(&id).unwrap().revision;
+    s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision,"enabled":true})).unwrap();
+    let revision = s.doc.multiphysics.study(&id).unwrap().revision;
+    let material = json!({"id":id,"expected_revision":revision,"selection":"Power parts","conductivity_w_per_m_k":150.0,"power_w":2.0,"max_temperature_k":358.0});
+    s.execute("multiphysics.model.material", &material).unwrap();
+    let table = s.execute("multiphysics.parts.table", &json!({"id":id,"csv":true})).unwrap();
+    assert_eq!(table["table"]["total_power_w"], json!(6.0), "{table}");
+    assert_eq!(table["table"]["run"], Value::Null);
+    let rows = table["table"]["rows"].as_array().unwrap();
+    assert_eq!(rows.iter().map(|r| r["body"].as_str().unwrap()).collect::<Vec<_>>(), ["U1", "U2", "C1"]);
+    assert_eq!((rows[0]["attributes"]["power_w"].clone(), rows[0]["limit_k"].clone()), (json!(2.5), json!(358.0)));
+    assert!(table["csv"].as_str().unwrap().starts_with("body,in_study,tags,"), "{table}");
+    let small = s.execute("multiphysics.parts.table", &json!({"id":id,"selection":"Small"})).unwrap();
+    assert_eq!(small["table"]["rows"].as_array().unwrap().len(), 1);
+    assert!(s.execute("multiphysics.parts.table", &json!({"id":id,"run_id":"missing"})).is_err());
     // Everything survives saving and reopening.
     let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(reopened.multiphysics, s.doc.multiphysics);
