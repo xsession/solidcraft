@@ -71,6 +71,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.export", "Export Multiphysics Results", crate::checked!("multiphysics.result.export", export_result))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ExportResult>::new()).output(output_schema_for::<Exported>)
         .params("id, run_id, directory: new directory. Original VTU/PVD/CSV/JSON/S2P, case and manifest for ParaView; associations unchanged, no invented .pvsm or units."),
+    CommandSpec::new("multiphysics.result.compare", "Compare Two Runs", crate::checked!("multiphysics.result.compare", compare_runs))
+        .doc_only().noundo().icon("inspect").contract(&TypedContract::<CompareRuns>::new()).output(output_schema_for::<CompareReply>)
+        .params("first, second: {id (a study of the model), run_id? (default its latest run with a thermal report)}: two runs of one study (operating points) or of two studies (design variants, such as a clone or a sweep's points); csv? (add the comparison as CSV). Each part of either study, matched by name: its highest temperature in both runs (°C), the change (K), both margins and verdicts, and whether the verdict got worse or better; the largest rise first. Counts of parts warmer, cooler, worse and better (changes under 0.05 K count as none), and the change in total power. Changes nothing."),
     CommandSpec::new("multiphysics.result.report", "Batch Report over Runs", crate::checked!("multiphysics.result.report", report_runs))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ReportRuns>::new()).output(output_schema_for::<ReportReply>)
         .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run, and run-N.png, each run's parts by verdict, when a picture renderer is installed); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
@@ -366,6 +369,30 @@ fn report_runs(session: &mut Session, params: &Value) -> Result<Value> {
     };
     let (csv, html) = if input.inline { (Some(csv), Some(html)) } else { (None, None) };
     reply(ReportReply { runs: report.runs, files, csv, html })
+}
+/// Two runs, of one study or of two studies of the model, part by part.
+fn compare_runs(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: CompareRuns = parse(params)?;
+    let state = session.world_state()?;
+    let parts = &session.doc.multiphysics.parts;
+    let table = |side: &CompareSide, field: &str| -> Result<solidcraft_multiphysics::component_table::ComponentTable> {
+        let study = session.doc.multiphysics.study(&side.id).ok_or_else(|| bad(field, "Multiphysics study not found in this document"))?;
+        let Some(link) = &study.model else { return Err(bad(field, "a study of the model has a component table to compare; this study is not one")) };
+        let run = match &side.run_id {
+            Some(id) => study.runs.iter().find(|r| &r.id == id),
+            None => study.runs.iter().rev().find(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")),
+        };
+        let Some(run) = run.filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")) else {
+            return Err(bad(field, format!("study {} has no such run with a thermal report to compare", study.name)));
+        };
+        let in_study: Vec<String> = model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect();
+        solidcraft_multiphysics::component_table::build(study, parts, &in_study, &in_study, Some(&run.id)).map_err(|e| bad(field, e.to_string()))
+    };
+    let first = table(&input.first, "first")?;
+    let second = table(&input.second, "second")?;
+    let comparison = solidcraft_multiphysics::variants::compare(&first, &second);
+    let csv = input.csv.then(|| solidcraft_multiphysics::variants::to_csv(&comparison));
+    reply(CompareReply { comparison, csv })
 }
 /// One run's parts in their verdict colours (the study's parts; the others see-through), iso and
 /// fitted, as a PNG; none for a design too large to picture or a failed drawing.

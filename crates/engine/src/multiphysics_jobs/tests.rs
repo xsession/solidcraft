@@ -710,6 +710,31 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     assert!(s.execute("multiphysics.result.report", &json!({"id":id,"directory":directory.to_string_lossy()})).is_err(), "a new directory only");
     let _ = std::fs::remove_dir_all(&directory);
     assert!(s.execute("multiphysics.result.report", &json!({"id":id,"inline":true,"run_ids":["first"]})).unwrap()["runs"][0]["hottest"].is_null());
+    // Two runs compared part by part: a hotter run, 10 K warmer, against the first with a report.
+    let study = s.doc.multiphysics.study(&id).unwrap().clone();
+    let mut hotter = study.runs.iter().find(|r| r.id == "hot").unwrap().clone();
+    hotter.id = "hotter".into();
+    for artifact in &mut hotter.artifacts {
+        if artifact.name == "thermal_report.json" {
+            artifact.text = thermal.replace("\"max_temperature_k\":335", "\"max_temperature_k\":345");
+        }
+    }
+    let mut project = s.doc.multiphysics.as_ref().clone();
+    project.attach_evidence(&id, hotter).unwrap();
+    s.doc_mut().multiphysics = Arc::new(project);
+    let compared = s
+        .execute("multiphysics.result.compare", &json!({"first":{"id":id,"run_id":"hot"},"second":{"id":id},"csv":true}))
+        .unwrap();
+    let comparison = &compared["comparison"];
+    assert_eq!((comparison["first"]["run"].clone(), comparison["second"]["run"].clone()), (json!("hot"), json!("hotter")), "{compared}");
+    assert_eq!(comparison["rows"][0]["body"], "Duct");
+    assert!((comparison["rows"][0]["delta_k"].as_f64().unwrap() - 10.0).abs() < 1e-9, "{compared}");
+    assert_eq!((comparison["warmer"].clone(), comparison["worse"].clone()), (json!(1), json!(0)));
+    assert!(compared["csv"].as_str().unwrap().contains("\nDuct,61.85,71.85,10,"), "{compared}");
+    // A run without a thermal report, or none at all, has nothing to compare.
+    let first_run = json!({"first":{"id":id,"run_id":"first"},"second":{"id":id}});
+    assert!(s.execute("multiphysics.result.compare", &first_run).unwrap_err().to_string().contains("thermal report"));
+    assert!(s.execute("multiphysics.result.compare", &json!({"first":{"id":"nope"},"second":{"id":id}})).is_err());
 }
 
 #[test]

@@ -1,0 +1,15 @@
+{
+  "en": {
+    "cmd.multiphysics.result.compare": "Compare Two Runs",
+    "multiphysics.compare_column_delta": "Change",
+    "multiphysics.compare_column_first": "First",
+    "multiphysics.compare_column_second": "Second",
+    "multiphysics.compare_first": "First run",
+    "multiphysics.compare_needs_two": "Two runs with a thermal report, of this study or another study of the model, can be compared part by part.",
+    "multiphysics.compare_run": "Compare",
+    "multiphysics.compare_second": "Second run",
+    "multiphysics.compare_summary": "{warmer} warmer, {cooler} cooler; {worse} verdict(s) worse, {better} better; power {watts} W",
+    "multiphysics.compare_title": "Compare runs",
+    "multiphysics.compare_units": "Each part's highest temperature in °C; the change in K, the largest rise first."
+  }
+}

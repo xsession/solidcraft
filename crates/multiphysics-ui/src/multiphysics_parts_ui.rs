@@ -37,6 +37,9 @@ pub(super) struct PartsUi {
     report_dir: String,
     #[cfg(not(target_arch = "wasm32"))]
     reported: Option<Result<String, String>>,
+    /// Compare runs: the two runs picked (study id, run id), and the last comparison of them.
+    pub(super) compare: [Option<(String, String)>; 2],
+    pub(super) compared: Option<Result<Value, String>>,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -378,6 +381,7 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.parts_total_power", &[("watts", &format!("{total:.2}"))])).small());
     #[cfg(not(target_arch = "wasm32"))]
     report_section(app, state, study, ui);
+    compare_section(app, state, study, ui);
     for action in actions {
         apply(app, state, action);
     }
@@ -715,6 +719,139 @@ fn group_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut 
         }
         None => {}
     }
+}
+
+/// Compare runs: two runs that kept a thermal report, of this study or of any study of the
+/// model (a clone, a sweep's point), part by part, the largest rise first
+/// (`multiphysics.result.compare`).
+fn compare_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let t = Tokens::get();
+    // Every run with a thermal report of a study of the model: (study id, run id, its label).
+    let runs: Vec<(String, String, String)> = app
+        .session
+        .doc
+        .multiphysics
+        .studies
+        .iter()
+        .filter(|s| s.model.is_some())
+        .flat_map(|s| {
+            s.runs
+                .iter()
+                .filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json"))
+                .map(move |r| (s.id.clone(), r.id.clone(), format!("{} · {}", s.name, r.id)))
+        })
+        .collect();
+    ui.separator();
+    ui.strong(tr("multiphysics.compare_title"));
+    if runs.len() < 2 {
+        ui.label(RichText::new(tr("multiphysics.compare_needs_two")).small().color(t.text_dim));
+        return;
+    }
+    // By default this study's last run against the run before it.
+    let mine: Vec<usize> = runs.iter().enumerate().filter(|(_, r)| r.0 == study.id).map(|(i, _)| i).collect();
+    let latest = mine.last().copied().unwrap_or(runs.len() - 1);
+    let defaults = [mine.iter().rev().nth(1).copied().unwrap_or(if latest == 0 { 1 } else { latest - 1 }), latest];
+    let ui_state = &mut state.parts_ui;
+    for (slot, default) in ui_state.compare.iter_mut().zip(defaults) {
+        if slot.as_ref().is_none_or(|(s, r)| !runs.iter().any(|x| &x.0 == s && &x.1 == r)) {
+            *slot = runs.get(default).map(|r| (r.0.clone(), r.1.clone()));
+        }
+    }
+    for (index, key) in ["multiphysics.compare_first", "multiphysics.compare_second"].into_iter().enumerate() {
+        let current = ui_state.compare[index].clone();
+        let shown = runs.iter().find(|r| current.as_ref().is_some_and(|(s, id)| &r.0 == s && &r.1 == id)).map_or("", |r| r.2.as_str());
+        crate::ui_kit::row(ui, tr(key), |ui| {
+            crate::ui_kit::dropdown_menu(ui, format!("multiphysics_compare_{index}"), shown, |ui| {
+                for (study_id, run, label) in &runs {
+                    let on = current.as_ref().is_some_and(|(s, id)| s == study_id && id == run);
+                    let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_compare_{index}_{study_id}_{run}"), label, on);
+                    crate::scenario::publish_target(&format!("multiphysics:compare_{index}:{label}"), response.rect);
+                    if response.clicked() {
+                        ui_state.compare[index] = Some((study_id.clone(), run.clone()));
+                        ui_state.compared = None;
+                        ui.close();
+                    }
+                }
+            });
+        });
+    }
+    let response =
+        crate::ui_kit::button(ui, tr("multiphysics.compare_run"), crate::ui_kit::Button::Enabled(ui_state.compare[0] != ui_state.compare[1]));
+    crate::scenario::publish_target("multiphysics:compare_run", response.rect);
+    if response.clicked()
+        && let [Some((first_id, first_run)), Some((second_id, second_run))] = &ui_state.compare
+    {
+        let params = json!({"first": {"id": first_id, "run_id": first_run}, "second": {"id": second_id, "run_id": second_run}});
+        ui_state.compared = Some(app.run("multiphysics.result.compare", params).map_err(|e| e.to_string()));
+    }
+    let reply = match &state.parts_ui.compared {
+        Some(Ok(reply)) => reply,
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+            return;
+        }
+        None => return,
+    };
+    let comparison = &reply["comparison"];
+    let count = |key: &str| comparison[key].as_u64().unwrap_or(0).to_string();
+    let power = format!("{:+.2}", comparison["power_delta_w"].as_f64().unwrap_or(0.0));
+    let summary = solidcraft_ui_text::format(
+        "multiphysics.compare_summary",
+        &[("warmer", &count("warmer")), ("cooler", &count("cooler")), ("worse", &count("worse")), ("better", &count("better")), ("watts", &power)],
+    );
+    ui.label(RichText::new(summary).small());
+    ui.label(RichText::new(tr("multiphysics.compare_units")).small().color(t.text_dim));
+    let rows = comparison["rows"].as_array().cloned().unwrap_or_default();
+    let celsius = |v: &Value| v.as_f64().map_or_else(|| "–".to_string(), |c| format!("{c:.1}"));
+    let verdict = |v: &Value| match v.as_str() {
+        Some("pass") => tr("multiphysics.post_status_pass"),
+        Some("warn") => tr("multiphysics.post_status_warn"),
+        Some("fail") => tr("multiphysics.post_status_fail"),
+        Some(_) => tr("multiphysics.post_status_no_limit"),
+        None => tr("multiphysics.parts_no_result"),
+    };
+    // In the panel's own scroll (a table scrolling inside it shows a row or two), unwrapped:
+    // the headings stay whole however narrow the panel.
+    ui.scope(|ui| {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+        egui::Grid::new("multiphysics_compare_grid").striped(true).show(ui, |ui| {
+            for key in [
+                "multiphysics.parts_column_part",
+                "multiphysics.compare_column_first",
+                "multiphysics.compare_column_second",
+                "multiphysics.compare_column_delta",
+                "multiphysics.parts_column_status",
+            ] {
+                ui.strong(tr(key));
+            }
+            ui.end_row();
+            for row in rows.iter().take(super::MAX_TABLE_ROWS) {
+                ui.label(row["body"].as_str().unwrap_or_default());
+                ui.monospace(celsius(&row["first_c"]));
+                ui.monospace(celsius(&row["second_c"]));
+                let delta = row["delta_k"].as_f64();
+                let colour = match delta {
+                    Some(d) if d >= solidcraft_engine::multiphysics::variants::SAME_K => t.warning,
+                    Some(d) if d <= -solidcraft_engine::multiphysics::variants::SAME_K => t.form_success,
+                    _ => t.text_dim,
+                };
+                ui.colored_label(colour, RichText::new(delta.map_or_else(|| "–".to_string(), |d| format!("{d:+.1}"))).monospace());
+                let colour = match row["change"].as_str() {
+                    Some("worse") => t.form_error,
+                    Some("better") => t.form_success,
+                    _ => t.text,
+                };
+                // One verdict where it stayed, both where it moved.
+                let text = if row["first_status"] == row["second_status"] {
+                    verdict(&row["second_status"]).to_string()
+                } else {
+                    format!("{} → {}", verdict(&row["first_status"]), verdict(&row["second_status"]))
+                };
+                ui.colored_label(colour, text);
+                ui.end_row();
+            }
+        });
+    });
 }
 
 /// Batch report: the component table of every run that kept a thermal report, side by side, as

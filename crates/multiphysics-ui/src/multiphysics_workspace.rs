@@ -5031,6 +5031,8 @@ mod tests {
         h.frames(2);
         // The batch report waits for a run with a thermal report.
         assert!(crate::scenario::rect_of("multiphysics:report_write").is_some());
+        // Comparing runs waits for two with a thermal report.
+        assert!(crate::scenario::rect_of("multiphysics:compare_run").is_none());
         // The checklist is listed, and its goals line has no parts to select.
         assert!(crate::scenario::handles("multiphysics:parts_check:goals").len() == 1);
         // Close shuts the Parts panel; the colours stay.
@@ -5746,14 +5748,29 @@ mod tests {
         let Some(mut gpu) = solidcraft_ui_egui::gpu::EguiFixture::new(&mut h.app, size) else { return };
         let ctx = crate::fonts::test_context();
         let mut time = 1.0;
-        let mut shot = |h: &mut Harness, name: &str| {
+        // `wheel`: points to scroll the Parts panel down by first (0: as it is).
+        let mut shot = |h: &mut Harness, name: &str, wheel: f32| {
             // Notices of the steps before (the file opened, a command done) are not the picture's.
             h.app.messages.clear();
             h.app.status = None;
             let mut pixels = Vec::new();
-            for _ in 0..20 {
+            for frame in 0..20 {
                 time += 0.25;
-                pixels = gpu.frame_at(&ctx, time, vec![], |ui| {
+                let events = if wheel > 0.0 && frame < 4 {
+                    vec![
+                        egui::Event::PointerMoved(egui::pos2(1400.0, 600.0)),
+                        egui::Event::MouseWheel {
+                            source: egui::MouseWheelSource::Unknown,
+                            unit: egui::MouseWheelUnit::Point,
+                            delta: egui::vec2(0.0, -wheel / 4.0),
+                            modifiers: Default::default(),
+                            phase: egui::TouchPhase::Move,
+                        },
+                    ]
+                } else {
+                    vec![]
+                };
+                pixels = gpu.frame_at(&ctx, time, events, |ui| {
                     h.app.logic(ui.ctx());
                     h.app.ui(ui);
                 });
@@ -5770,14 +5787,14 @@ mod tests {
 
         // The workspace with the study, and its Parts: the component table of the slower run.
         select(&mut h, shell::Node::Project);
-        shot(&mut h, "workspace");
+        shot(&mut h, "workspace", 0.0);
         select(&mut h, shell::Node::Parts);
-        shot(&mut h, "parts-panel");
+        shot(&mut h, "parts-panel", 0.0);
         // Ghost the duct to see the board inside it, then colour the parts by the slower run's
         // verdicts: its warn and fail parts stand out.
         h.app.run("multiphysics.parts.ghost", json!({"bodies":["Duct"]})).unwrap();
         h.frames(3);
-        shot(&mut h, "ghosted-duct");
+        shot(&mut h, "ghosted-duct", 0.0);
         let colour = |h: &mut Harness, by: solidcraft_engine::multiphysics::setup_check::ColourBy| {
             let mut state = take_state(&mut h.app);
             super::parts_ui::apply(&mut h.app, &mut state, super::parts_ui::PartAction::ColourBy(by));
@@ -5785,7 +5802,7 @@ mod tests {
             h.frames(3);
         };
         colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::Verdict);
-        shot(&mut h, "colour-by-verdict");
+        shot(&mut h, "colour-by-verdict", 0.0);
         // Find the parts hotter than 80 °C, and show only them.
         h.step(&json!({"click":{"handle":"multiphysics:find_value:0"},"double":true})).unwrap();
         h.step(&json!({"key":"A","ctrl":true})).unwrap();
@@ -5795,7 +5812,7 @@ mod tests {
         h.frames(2);
         h.step(&json!({"click":{"handle":"multiphysics:find_show_only"}})).unwrap();
         h.frames(3);
-        shot(&mut h, "find-hot-parts");
+        shot(&mut h, "find-hot-parts", 0.0);
         // Zoomed in on the hot end of the board: the inset keeps the whole model in sight, with a
         // frame round what the view shows.
         let camera = h.app.cam;
@@ -5804,8 +5821,27 @@ mod tests {
         h.app.cam.target = solidcore_record::Vec3::new(centre.x + (bounds.max.x - centre.x) * 0.45, centre.y, centre.z);
         h.app.cam.distance *= 0.35;
         h.frames(3);
-        shot(&mut h, "overview-inset");
+        shot(&mut h, "overview-inset", 0.0);
         h.app.cam = camera;
+        // The two runs compared part by part: the slower run against the faster one.
+        let mut state = take_state(&mut h.app);
+        state.parts_ui.compare = [Some((id.clone(), fast.clone())), Some((id.clone(), slow.clone()))];
+        put_state(&mut h.app, state);
+        h.frames(2);
+        // Down the Parts panel, until Compare is near its top and the table shows below it.
+        for _ in 0..40 {
+            if crate::scenario::rect_of("multiphysics:compare_run").is_none_or(|r| r.min.y < 360.0) {
+                break;
+            }
+            h.step(&json!({"call":"ui.scroll","params":{"x": 1400, "y": 600, "delta": -120, "unit": "point"}})).unwrap();
+            h.frames(2);
+        }
+        h.step(&json!({"click":{"handle":"multiphysics:compare_run"}})).unwrap();
+        h.frames(3);
+        let compared = ws(&mut h.app).parts_ui.compared.clone();
+        let reply = compared.expect("compared").expect("the runs compare");
+        assert_eq!(reply["comparison"]["worse"], json!(3), "{reply}");
+        shot(&mut h, "compare-runs", 2000.0);
         h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         h.app.run("multiphysics.parts.select", json!({})).unwrap();
         colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::None);
@@ -5839,14 +5875,14 @@ mod tests {
         state.view.slice_anchor = SliceAnchor::Maximum;
         put_state(&mut h.app, state);
         h.frames(3);
-        shot(&mut h, "cut-plot-hottest");
+        shot(&mut h, "cut-plot-hottest", 0.0);
         state = take_state(&mut h.app);
         state.view.slice_axis = 1;
         put_state(&mut h.app, state);
         h.frames(3);
-        shot(&mut h, "cut-plot-side");
+        shot(&mut h, "cut-plot-side", 0.0);
         select(&mut h, shell::Node::SurfacePlots);
-        shot(&mut h, "surface-plot");
+        shot(&mut h, "surface-plot", 0.0);
         let _ = fast;
 
         // The batch report over both runs, its pictures drawn by the CPU rasterizer.

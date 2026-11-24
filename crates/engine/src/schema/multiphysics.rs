@@ -104,6 +104,34 @@ pub struct ReportReply {
     pub html: Option<String>,
 }
 
+/// One run to compare: a study and one of its runs (default: its latest run with a thermal
+/// report).
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CompareSide {
+    pub id: String,
+    #[serde(default)]
+    pub run_id: Option<String>,
+}
+
+/// `multiphysics.result.compare`: two runs' component tables part by part.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CompareRuns {
+    pub first: CompareSide,
+    pub second: CompareSide,
+    /// Also return the comparison as CSV.
+    #[serde(default)]
+    pub csv: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct CompareReply {
+    pub comparison: solidcraft_multiphysics::variants::Comparison,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csv: Option<String>,
+}
+
 /// One retained original VTU or PVD artifact, addressed by saved study and run identity.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

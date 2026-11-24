@@ -54,6 +54,7 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.run.keep` | Keep a finished run in the design | one step |
 | `multiphysics.result.query` | Probe, min/max, line, integral, difference, goals, components, trajectories, isosurface, surface | none |
 | `multiphysics.result.inspect` | What a kept VTU or PVD file holds | none |
+| `multiphysics.result.compare` | Two runs, of one study or two, part by part: temperatures, change, verdicts | none |
 | `multiphysics.result.report` | Batch report over runs: CSV, HTML, pictures | none |
 | `multiphysics.result.export` | A run's original files and case, for ParaView, into a new folder | none |
 | `multiphysics.case.export` | A study's case as a new JSON file | none |

@@ -45,4 +45,35 @@ limit is 10 K lower.
     `"inline": true` to have the CSV and HTML returned instead of written; `run_ids` to pick
     the runs and their order (at most 64).
 
+## Two runs part by part
+
+The report puts every run side by side; **Compare runs**, under it, takes two and lines them up
+part by part. Pick the **First run** and the **Second run** and press **Compare**. The runs
+can be of this study (two operating points, as here) or of two studies of the model: a study
+and its clone with a part moved, or two points of a sweep. Parts are matched by name.
+
+![The two runs compared part by part](../images/compare-runs.png)
+
+Each part's highest temperature in both runs, the change, and its verdict, the largest rise
+first. A rise is amber and a fall green; a verdict that got worse is red (**Pass → Fail**),
+one that got better green. The line above the table counts the parts warmer, cooler, worse
+and better, and gives the change in total power: none here, as only the airflow changed.
+Changes under 0.05 K count as none.
+
+| Part | First (°C) | Second (°C) | Change (K) | Verdict |
+|---|---|---|---|---|
+| Q1 | 72.1 | 82.0 | +9.9 | Pass → Fail |
+| U2 | 77.1 | 86.7 | +9.6 | Pass → Fail |
+| J1 | 53.3 | 62.5 | +9.3 | Pass |
+| U1 | 74.6 | 83.0 | +8.4 | Pass → Warning |
+
+??? info "The command"
+    `multiphysics.result.compare {"first": {"id": "…", "run_id": "mp-1-1"}, "second":
+    {"id": "…"}}`: a side without `run_id` takes its study's latest run with a thermal report.
+    `"csv": true` adds the comparison as CSV, one line per part.
+
+To see the change *where* it happens rather than per part, lock the colour range of the cut
+plot ([cut and surface plots](plots.md)) and show the same plane in both runs: one scale, so
+the colours mean the same temperature in both.
+
 Next: [imported assemblies](imported-assemblies.md).
