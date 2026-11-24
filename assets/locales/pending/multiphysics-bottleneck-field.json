@@ -1,0 +1,5 @@
+{
+  "en": {
+    "multiphysics.bottleneck_hint": "Heat bottleneck: the heat flux times the temperature gradient it runs down. It is high where much heat has to cross a poor conductor; a better material or a wider path there cools the parts it feeds."
+  }
+}

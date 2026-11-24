@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 pub mod adapt;
 pub mod airflow;
 pub mod authoring;
+pub mod bottleneck;
 pub mod case_scene;
 pub mod component_table;
 pub mod devices;

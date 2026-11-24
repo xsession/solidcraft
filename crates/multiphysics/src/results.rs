@@ -271,6 +271,8 @@ pub fn unit_hint(name: &str) -> Option<&'static str> {
         return Some("m²/s² (kinematic)");
     }
     const SUFFIXES: &[(&str, &str)] = &[
+        // Before `_m3`: the heat bottleneck field (`bottleneck::FIELD`).
+        ("_w_k_per_m3", "W·K/m³"),
         ("_w_m3", "W/m³"),
         ("_w_m2", "W/m²"),
         ("_w_kg", "W/kg"),

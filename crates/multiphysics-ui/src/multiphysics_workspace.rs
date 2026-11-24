@@ -1779,14 +1779,19 @@ fn start_inspection(app: &SolveApp, state: &mut State, study: &str, run: &str, a
             scratch.execute("multiphysics.result.inspect", &params).map_err(|error| error.to_string()).map(|metadata| {
                 let spatial = if source_artifact.ends_with(".vtu") && !worker_cancelled.load(Ordering::Acquire) {
                     Some((|| {
-                        let text = source
-                            .study(&source_study)
-                            .and_then(|study| study.runs.iter().find(|run| run.id == source_run))
+                        let run = source.study(&source_study).and_then(|study| study.runs.iter().find(|run| run.id == source_run));
+                        let text = run
                             .and_then(|run| run.artifacts.iter().find(|artifact| artifact.name == source_artifact))
                             .map(|artifact| artifact.text.as_str())
                             .ok_or_else(|| "Retained field artifact is unavailable".to_string())?;
                         let grid = solidcraft_engine::multiphysics::vtk::parse_vtu(text).map_err(|error| error.to_string())?;
-                        solidcraft_engine::multiphysics::vtk::BoxGrid::from_grid(grid).map_err(|error| error.to_string())
+                        let mut grid = solidcraft_engine::multiphysics::vtk::BoxGrid::from_grid(grid).map_err(|error| error.to_string())?;
+                        // A thermal result also shows where conduction struggles, from the run's
+                        // own conductivities.
+                        if let Some(run) = run {
+                            solidcraft_engine::multiphysics::bottleneck::add(&mut grid, &run.input_case);
+                        }
+                        Ok(grid)
                     })())
                 } else {
                     None
@@ -3034,6 +3039,9 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         .inner;
     crate::scenario::publish_target("multiphysics:slice_field_menu", field_menu.rect);
     field_menu.backing_on_hover_text(tr("multiphysics.slice_scope"));
+    if field.name == solidcraft_engine::multiphysics::bottleneck::FIELD {
+        ui.label(RichText::new(tr("multiphysics.bottleneck_hint")).small().color(Tokens::get().text_dim));
+    }
     // A plot tied to a point goes through the layer nearest it, worked out again each frame so
     // it follows a new run, field or pick.
     let through = match view.slice_anchor {
@@ -5881,6 +5889,19 @@ mod tests {
         put_state(&mut h.app, state);
         h.frames(3);
         shot(&mut h, "cut-plot-side", 0.0);
+        // Where conduction struggles: the heat bottleneck, cut through its own maximum.
+        state = take_state(&mut h.app);
+        let bottleneck = fields.iter().position(|f| f == solidcraft_engine::multiphysics::bottleneck::FIELD);
+        state.view.slice_field = bottleneck.expect("the thermal result has a bottleneck field");
+        // Across the board, on the 2–98 % range: a few extreme cells do not wash the rest out.
+        state.view.slice_axis = 2;
+        state.view.range_mode = solidcraft_engine::multiphysics::results::RangeMode::Percentile;
+        put_state(&mut h.app, state);
+        h.frames(3);
+        shot(&mut h, "bottleneck-field", 0.0);
+        state = take_state(&mut h.app);
+        state.view.range_mode = solidcraft_engine::multiphysics::results::RangeMode::Auto;
+        put_state(&mut h.app, state);
         select(&mut h, shell::Node::SurfacePlots);
         shot(&mut h, "surface-plot", 0.0);
         let _ = fast;

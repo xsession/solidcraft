@@ -64,6 +64,34 @@ typed, or **anchored**: to the cell where the plotted field is largest, or to th
 the picked part's exact bounding box, placed in the case's coordinates (metres from the
 domain's corner). An anchor is worked out again for every run, field, plane and pick.
 
+## The heat bottleneck field
+
+A temperature plot shows *where* it is hot; the bottleneck field shows *why*. Heat flows down
+the temperature gradient, `q = −k ∇T`, and the product of the flux and the gradient it runs
+down,
+
+```text
+B = −q · ∇T = kx (∂T/∂x)² + ky (∂T/∂y)² + kz (∂T/∂z)²     [W·K/m³]
+```
+
+is large where much heat has to cross a short stretch of poor conductor. Through a layer that
+carries a flux `q`, `B = q²/k`: halve the conductivity and `B` doubles. `B/T²` is the local
+rate of entropy generation by conduction, the thermodynamic measure of how much the material
+degrades the heat on its way out.
+
+SolidCraft works it out from the run's own files, without running anything:
+
+- the cell temperatures and region indices of `thermal.vtu`, where region 0 is the fluid and
+  region `i + 1` the case's thermal solid `i`, as the solver numbers them;
+- each region's conductivity along x, y and z, from the run's frozen input case (the fluid's
+  for region 0), so a later change to a material does not change an old run's field;
+- the gradient by central differences between the centres of neighbouring cells, one-sided
+  at the edge of the domain.
+
+It is as coarse as the grid: on a staircase grid the steps of a body's faces show in it, and a
+layer thinner than a cell is averaged with its neighbours. A heat pipe's region takes its
+material's conductivity, not the solver's effective axial one.
+
 ## The batch report
 
 A batch report reads the component table of every kept run with a thermal report (or the runs

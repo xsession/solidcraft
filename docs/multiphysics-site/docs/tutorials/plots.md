@@ -34,6 +34,20 @@ the part's exact bounding box, not from its mesh.
     Lock the range (say 25 to 90 °C) before you switch runs: both runs are then drawn on one
     scale, and the colours compare directly.
 
+## Where conduction struggles
+
+A thermal result has one more field than the solver wrote: **heat_bottleneck_w_k_per_m3**.
+Pick it in **Cell scalar** with **Field maximum** on, and the plane goes through its peak. Use
+the **2–98 %** range: its peaks are sharp, and a few cells would otherwise take the whole
+scale.
+
+![The heat bottleneck across the board, the 2–98 % range](../images/bottleneck-field.png)
+
+The board lights up under each chip. The chips conduct well (150 W/(m·K)); the board under
+them does not (10 W/(m·K)), so the heat they make piles up there before it spreads. That is
+where a change pays: thermal vias or a copper plane under the chip, a thicker board, a heat
+spreader. Changing the chip's own material would barely move it.
+
 ## A surface plot
 
 **Results › Surface plots** colours each face of the model that touches the air by the fluid
