@@ -570,6 +570,57 @@ pub(super) fn build(session: &mut Session, params: &Value) -> Result<Value> {
     commit(session, &input.id, study.revision, link)
 }
 
+/// The two coarser grids of a mesh study: clones of a built study with base cells √2 and 2
+/// times as large, built from the model, in one undo step.
+pub(super) fn mesh_study(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::convergence::{COARSENING, grid_of};
+    let input: StudyId = parse(params)?;
+    let (study, _) = linked(session, &input.id)?;
+    let (base, cells) = grid_of(&study.case).ok_or_else(|| bad("id", "build the study first: its case has no grid"))?;
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    project.next_id = project.next_id.max(session.multiphysics_jobs.next_study);
+    let mut made = Vec::new();
+    for (factor, label) in [(COARSENING, "1.41"), (COARSENING * COARSENING, "2")] {
+        let clone = project.clone_study(&input.id, &format!("{} · mesh ×{label}", study.name)).map_err(|e| bad("id", e.to_string()))?;
+        made.push((clone.id, base * factor));
+    }
+    // All or nothing: a clone that fails to build takes the others with it.
+    let before = session.doc.multiphysics.clone();
+    session.multiphysics_jobs.next_study = project.next_id;
+    session.doc_mut().multiphysics = Arc::new(project);
+    let mut sizes = [base, 0.0, 0.0];
+    let mut counts = [cells, 0.0, 0.0];
+    let built = (|| -> Result<()> {
+        for (slot, (id, cell_mm)) in made.iter().enumerate() {
+            // Whole cells round each grid's size: on a small grid the ratio to the finer one
+            // can fall short. Coarsen 5 % at a time until it is at least `TARGET`.
+            const TARGET: f64 = 1.35;
+            let mut cell = *cell_mm;
+            for _ in 0..40 {
+                let (clone, mut link) = linked(session, id)?;
+                link.cell_mm = Some(cell);
+                link.mesh_level = None;
+                commit(session, id, clone.revision, link)?;
+                let grid =
+                    session.doc.multiphysics.study(id).and_then(|s| grid_of(&s.case)).ok_or_else(|| bad("id", "a coarser grid did not build"))?;
+                sizes[slot + 1] = grid.0;
+                counts[slot + 1] = grid.1;
+                if (counts[slot] / grid.1).cbrt() >= TARGET || grid.1 <= 1.0 {
+                    break;
+                }
+                cell *= 1.05;
+            }
+        }
+        Ok(())
+    })();
+    if let Err(error) = built {
+        session.doc_mut().multiphysics = before;
+        return Err(error);
+    }
+    let ids = [input.id.clone(), made[0].0.clone(), made[1].0.clone()];
+    reply(MeshStudyReply { studies: ids, cell_mm: sizes, cells: counts })
+}
+
 /// Whether the study's case was built from the model as it is now; `Err` text when it cannot
 /// even be read (a body or face is gone).
 pub(super) fn current(session: &Session, id: &str) -> Result<(ModelLink, std::result::Result<bool, String>)> {

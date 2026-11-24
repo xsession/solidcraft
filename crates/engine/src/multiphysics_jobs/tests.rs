@@ -741,6 +741,58 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     let first_run = json!({"first":{"id":id,"run_id":"first"},"second":{"id":id}});
     assert!(s.execute("multiphysics.result.compare", &first_run).unwrap_err().to_string().contains("thermal report"));
     assert!(s.execute("multiphysics.result.compare", &json!({"first":{"id":"nope"},"second":{"id":id}})).is_err());
+    // A mesh study: two clones with base cells √2 and 2 times as large, built, in one undo step.
+    // Heat on, with a 25 °C inflow, so the parts' temperature rises are compared.
+    let revision = s.doc.multiphysics.study(&id).unwrap().revision;
+    s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision,"enabled":true,"inflow_temperature_k":298.15})).unwrap();
+    let made = s.execute("multiphysics.model.mesh_study", &json!({"id":id})).unwrap();
+    let ids: Vec<String> = made["studies"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert_eq!(ids[0], id);
+    let cells: Vec<f64> = made["cells"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+    assert!(cells[0] > cells[1] && cells[1] > cells[2], "{made}");
+    let sizes: Vec<f64> = made["cell_mm"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+    assert!(sizes[1] > 1.3 * sizes[0] && sizes[2] > 1.3 * sizes[1], "{made}");
+    assert!(s.doc.multiphysics.study(&ids[2]).unwrap().name.ends_with(" · mesh ×2"));
+    // Whole cells: each grid's size is still at least 1.35 times the finer one's.
+    assert!((cells[0] / cells[1]).cbrt() >= 1.35 && (cells[1] / cells[2]).cbrt() >= 1.35, "{made}");
+    // The duct's rise above the 25 °C inflow, second order in the grids' size h ∝ N^(-1/3):
+    // 30 K + 5 K (h/h_fine)², which the mesh study extrapolates back to 30 K.
+    let rise = |n: f64| 30.0 + 5.0 * (cells[0] / n).powf(2.0 / 3.0);
+    for (study_id, max_k) in ids.iter().zip(cells.iter().map(|n| 298.15 + rise(*n))) {
+        let study = s.doc.multiphysics.study(study_id).unwrap().clone();
+        let mut run = s.doc.multiphysics.study(&id).unwrap().runs.iter().find(|r| r.id == "hot").unwrap().clone();
+        run.id = "grid".into();
+        run.study_revision = study.revision;
+        run.case_hash = solidcraft_multiphysics::case_hash(&study.case).unwrap();
+        run.input_case = study.case.clone();
+        run.manifest["case"] = study.case.clone();
+        let capabilities: Vec<&str> = solidcraft_multiphysics::airflow::requirements(&study.case).iter().map(|r| r.capability).collect();
+        run.manifest["capabilities"] = json!(capabilities);
+        for artifact in &mut run.artifacts {
+            match artifact.name.as_str() {
+                "thermal_report.json" => artifact.text = thermal.replace("\"max_temperature_k\":335", &format!("\"max_temperature_k\":{max_k}")),
+                "manifest.json" => artifact.text = run.manifest.to_string(),
+                _ => {}
+            }
+        }
+        let mut project = s.doc.multiphysics.as_ref().clone();
+        project.attach_evidence(study_id, run).unwrap();
+        s.doc_mut().multiphysics = Arc::new(project);
+    }
+    let side = |i: usize| json!({"id": ids[i]});
+    let reply = s.execute("multiphysics.result.convergence", &json!({"fine":side(0),"medium":side(1),"coarse":side(2)})).unwrap();
+    let duct = &reply["parts"][0];
+    assert_eq!(duct["body"], "Duct", "{reply}");
+    let estimate = &duct["estimate"];
+    assert_eq!(estimate["behaviour"], "monotonic", "{reply}");
+    assert!((estimate["order"].as_f64().unwrap() - 2.0).abs() < 1e-6, "{reply}");
+    assert!((estimate["extrapolated"].as_f64().unwrap() - 30.0).abs() < 1e-6, "{reply}");
+    // GCI = 1.25 · |(φ1 − φ2)/φ1| / (r21² − 1) %.
+    let r21 = (cells[0] / cells[1]).cbrt();
+    let gci = 1.25 * ((rise(cells[0]) - rise(cells[1])) / rise(cells[0])).abs() / (r21 * r21 - 1.0) * 100.0;
+    assert!((estimate["gci_percent"].as_f64().unwrap() - gci).abs() < 1e-6, "{reply}");
+    assert!(reply["notes"].as_array().unwrap().is_empty(), "{reply}");
+    assert!(s.execute("multiphysics.result.convergence", &json!({"fine":side(2),"medium":side(1),"coarse":side(0)})).is_err(), "finest first");
 }
 
 #[test]

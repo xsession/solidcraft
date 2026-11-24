@@ -25,6 +25,7 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.model.leave_out_small` | Keep only the study's parts of at least a size | one step |
 | `multiphysics.model.build` | Build the case again from the design | one step |
 | `multiphysics.model.status` | Is the case built from the design as it is now; the domain | none |
+| `multiphysics.model.mesh_study` | Two coarser copies of a study, for a mesh study | one step |
 | `multiphysics.model.leak` | The shortest path through the fluid between two faces, if any | none |
 
 ## Parts
@@ -54,6 +55,7 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.run.keep` | Keep a finished run in the design | one step |
 | `multiphysics.result.query` | Probe, min/max, line, integral, difference, goals, components, trajectories, isosurface, surface | none |
 | `multiphysics.result.inspect` | What a kept VTU or PVD file holds | none |
+| `multiphysics.result.convergence` | Grid convergence index of each part over three grids | none |
 | `multiphysics.result.compare` | Two runs, of one study or two, part by part: temperatures, change, verdicts | none |
 | `multiphysics.result.report` | Batch report over runs: CSV, HTML, pictures | none |
 | `multiphysics.result.export` | A run's original files and case, for ParaView, into a new folder | none |

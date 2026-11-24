@@ -132,6 +132,38 @@ pub struct CompareReply {
     pub csv: Option<String>,
 }
 
+/// `multiphysics.model.mesh_study` makes the two coarser grids of a mesh study.
+#[derive(Serialize, JsonSchema)]
+pub struct MeshStudyReply {
+    /// The fine study and its two clones, coarser by √2 and by 2: fine, medium, coarse.
+    pub studies: [String; 3],
+    /// Their base cell sizes (mm) and cell counts.
+    pub cell_mm: [f64; 3],
+    pub cells: [f64; 3],
+}
+
+/// `multiphysics.result.convergence`: the same study on three grids.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Convergence {
+    pub fine: CompareSide,
+    pub medium: CompareSide,
+    pub coarse: CompareSide,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ConvergenceReply {
+    /// Cells of the three runs' grids, fine to coarse.
+    pub cells: [f64; 3],
+    /// Ratios of the grids' representative sizes, fine to medium and medium to coarse.
+    pub ratios: [f64; 2],
+    /// The inflow the temperature rises are measured from, °C.
+    pub inflow_c: f64,
+    pub parts: Vec<solidcraft_multiphysics::convergence::PartEstimate>,
+    /// Notes on the grids (a ratio under 1.3, a run of an earlier revision).
+    pub notes: Vec<String>,
+}
+
 /// One retained original VTU or PVD artifact, addressed by saved study and run identity.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

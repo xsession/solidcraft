@@ -74,6 +74,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.compare", "Compare Two Runs", crate::checked!("multiphysics.result.compare", compare_runs))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<CompareRuns>::new()).output(output_schema_for::<CompareReply>)
         .params("first, second: {id (a study of the model), run_id? (default its latest run with a thermal report)}: two runs of one study (operating points) or of two studies (design variants, such as a clone or a sweep's points); csv? (add the comparison as CSV). Each part of either study, matched by name: its highest temperature in both runs (°C), the change (K), both margins and verdicts, and whether the verdict got worse or better; the largest rise first. Counts of parts warmer, cooler, worse and better (changes under 0.05 K count as none), and the change in total power. Changes nothing."),
+    CommandSpec::new("multiphysics.result.convergence", "Mesh Study Convergence", crate::checked!("multiphysics.result.convergence", convergence))
+        .doc_only().noundo().icon("inspect").contract(&TypedContract::<Convergence>::new()).output(output_schema_for::<ConvergenceReply>)
+        .params("fine, medium, coarse: {id (a study of the model), run_id? (default its latest run with a thermal report)}: the same study on three grids, finest first (multiphysics.model.mesh_study makes the two coarser ones). Per part all three report: its highest temperature's rise above the inflow on each grid, the observed order of accuracy, the extrapolated grid-independent value and the fine grid's convergence index (GCI, % of the fine value; Celik et al. 2008), and whether the grids converge monotonically, oscillate, have converged or are not settling yet. Notes a size ratio under 1.3 between neighbouring grids. Changes nothing."),
     CommandSpec::new("multiphysics.result.report", "Batch Report over Runs", crate::checked!("multiphysics.result.report", report_runs))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ReportRuns>::new()).output(output_schema_for::<ReportReply>)
         .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run, and run-N.png, each run's parts by verdict, when a picture renderer is installed); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
@@ -128,6 +131,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.model.condition", "Condition on a Model Face", crate::checked!("multiphysics.model.condition", model::condition))
         .doc_only().icon("settings").contract(&TypedContract::<ModelCondition>::new()).output(output_schema_for::<ModelReply>)
         .params("id, expected_revision, name; face: {body, face (its name) | point [x,y,z] mm on it}; role: {kind: inlet, speed_m_per_s} | {kind: outlet, pressure_m2_per_s2} | {kind: wall} | {kind: symmetry}; or remove: true. The face must be planar and lie on the computational domain's boundary (a vent's outer face in an internal study). Builds the case again in one undo step."),
+    CommandSpec::new("multiphysics.model.mesh_study", "Make a Mesh Study", crate::checked!("multiphysics.model.mesh_study", model::mesh_study))
+        .doc_only().icon("copy").contract(&TypedContract::<StudyId>::new()).output(output_schema_for::<MeshStudyReply>)
+        .params("id (a built study of the model): makes the two coarser grids of a mesh study, clones of it named \"<name> · mesh ×1.41\" and \"· mesh ×2\" with its base cells √2 and 2 times as large (local refinements kept), and builds them, in one undo step; nothing runs. Run all three, then multiphysics.result.convergence."),
     CommandSpec::new("multiphysics.model.build", "Rebuild Study from the Model", crate::checked!("multiphysics.model.build", model::build))
         .doc_only().icon("refresh").contract(&TypedContract::<StudyId>::new()).output(output_schema_for::<ModelReply>)
         .params("id. Builds the case again from the design as it is now (after a model edit), in one undo step."),
@@ -371,28 +377,74 @@ fn report_runs(session: &mut Session, params: &Value) -> Result<Value> {
     reply(ReportReply { runs: report.runs, files, csv, html })
 }
 /// Two runs, of one study or of two studies of the model, part by part.
-fn compare_runs(session: &mut Session, params: &Value) -> Result<Value> {
-    let input: CompareRuns = parse(params)?;
+/// One run with a thermal report of a study of the model (`side.run_id`, or the study's latest
+/// such run), its study and its component table; errors name `field`.
+fn run_table(
+    session: &Session,
+    side: &CompareSide,
+    field: &str,
+) -> Result<(solidcraft_multiphysics::Study, solidcraft_multiphysics::RunEvidence, solidcraft_multiphysics::component_table::ComponentTable)> {
     let state = session.world_state()?;
     let parts = &session.doc.multiphysics.parts;
-    let table = |side: &CompareSide, field: &str| -> Result<solidcraft_multiphysics::component_table::ComponentTable> {
-        let study = session.doc.multiphysics.study(&side.id).ok_or_else(|| bad(field, "Multiphysics study not found in this document"))?;
-        let Some(link) = &study.model else { return Err(bad(field, "a study of the model has a component table to compare; this study is not one")) };
-        let run = match &side.run_id {
-            Some(id) => study.runs.iter().find(|r| &r.id == id),
-            None => study.runs.iter().rev().find(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")),
-        };
-        let Some(run) = run.filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")) else {
-            return Err(bad(field, format!("study {} has no such run with a thermal report to compare", study.name)));
-        };
-        let in_study: Vec<String> = model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect();
-        solidcraft_multiphysics::component_table::build(study, parts, &in_study, &in_study, Some(&run.id)).map_err(|e| bad(field, e.to_string()))
+    let study = session.doc.multiphysics.study(&side.id).ok_or_else(|| bad(field, "Multiphysics study not found in this document"))?;
+    let Some(link) = &study.model else { return Err(bad(field, "a study of the model has a component table; this study is not one")) };
+    let run = match &side.run_id {
+        Some(id) => study.runs.iter().find(|r| &r.id == id),
+        None => study.runs.iter().rev().find(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")),
     };
-    let first = table(&input.first, "first")?;
-    let second = table(&input.second, "second")?;
+    let Some(run) = run.filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")) else {
+        return Err(bad(field, format!("study {} has no such run with a thermal report", study.name)));
+    };
+    let in_study: Vec<String> = model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect();
+    let table =
+        solidcraft_multiphysics::component_table::build(study, parts, &in_study, &in_study, Some(&run.id)).map_err(|e| bad(field, e.to_string()))?;
+    Ok((study.clone(), run.clone(), table))
+}
+
+/// Two runs, of one study or of two studies of the model, part by part.
+fn compare_runs(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: CompareRuns = parse(params)?;
+    let (_, _, first) = run_table(session, &input.first, "first")?;
+    let (_, _, second) = run_table(session, &input.second, "second")?;
     let comparison = solidcraft_multiphysics::variants::compare(&first, &second);
     let csv = input.csv.then(|| solidcraft_multiphysics::variants::to_csv(&comparison));
     reply(CompareReply { comparison, csv })
+}
+
+/// The same study on three grids: per part, the grid convergence index of its temperature rise.
+fn convergence(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::convergence;
+    let input: Convergence = parse(params)?;
+    let fine = run_table(session, &input.fine, "fine")?;
+    let medium = run_table(session, &input.medium, "medium")?;
+    let coarse = run_table(session, &input.coarse, "coarse")?;
+    let cells_of = |run: &solidcraft_multiphysics::RunEvidence, field: &str| {
+        convergence::grid_of(&run.input_case).map(|(_, cells)| cells).ok_or_else(|| bad(field, "the run's case has no grid to count"))
+    };
+    let cells = [cells_of(&fine.1, "fine")?, cells_of(&medium.1, "medium")?, cells_of(&coarse.1, "coarse")?];
+    if !(cells[0] > cells[1] && cells[1] > cells[2]) {
+        return Err(bad("fine", "give the runs finest grid first: each needs more cells than the next"));
+    }
+    let ratios = convergence::ratios(cells).ok_or_else(|| bad("fine", "the grids' cell counts are not usable"))?;
+    let inflow_k = fine
+        .1
+        .input_case
+        .pointer("/thermal/inflow_temperature_k")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| bad("fine", "the fine run has no heat transfer: the mesh study compares the parts' temperatures"))?;
+    let mut notes = Vec::new();
+    for (pair, ratio) in ["fine to medium", "medium to coarse"].iter().zip(ratios) {
+        if ratio < convergence::MIN_RATIO {
+            notes.push(format!("the {pair} grids differ by {ratio:.2} in cell size, under the {} the method asks for", convergence::MIN_RATIO));
+        }
+    }
+    for (name, (study, run, _)) in [("fine", &fine), ("medium", &medium), ("coarse", &coarse)] {
+        if run.study_revision != study.revision {
+            notes.push(format!("the {name} run was made from an earlier setup of {}", study.name));
+        }
+    }
+    let parts = convergence::parts([&fine.2, &medium.2, &coarse.2], cells, inflow_k);
+    reply(ConvergenceReply { cells, ratios, inflow_c: inflow_k - 273.15, parts, notes })
 }
 /// One run's parts in their verdict colours (the study's parts; the others see-through), iso and
 /// fitted, as a PNG; none for a design too large to picture or a failed drawing.

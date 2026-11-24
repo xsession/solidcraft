@@ -1,0 +1,19 @@
+{
+  "en": {
+    "cmd.multiphysics.model.mesh_study": "Make a Mesh Study",
+    "cmd.multiphysics.result.convergence": "Mesh Study Convergence",
+    "multiphysics.mesh_study_check": "Check convergence",
+    "multiphysics.mesh_study_column_fine": "Fine (°C)",
+    "multiphysics.mesh_study_column_gci": "Grid index",
+    "multiphysics.mesh_study_column_order": "Order",
+    "multiphysics.mesh_study_column_settled": "Settled (°C)",
+    "multiphysics.mesh_study_diverging": "not settling",
+    "multiphysics.mesh_study_hint": "Is the answer the grid's or the design's? Two copies of this study on coarser grids, run with it, show how far each part's temperature still moves with the grid.",
+    "multiphysics.mesh_study_made": "Made: {cells} cells, fine to coarse. Run all three studies.",
+    "multiphysics.mesh_study_make": "Make the mesh study",
+    "multiphysics.mesh_study_ready": "All three grids have run.",
+    "multiphysics.mesh_study_run_all": "Run this study and its two coarser copies (· mesh ×1.41, · mesh ×2), then check.",
+    "multiphysics.mesh_study_title": "Mesh study",
+    "multiphysics.mesh_study_units": "Settled: the grid-independent temperature the three grids point to. Grid index: the band, as a share of the fine grid's rise above the inflow, it is expected in; under 5 % is settled enough for most designs."
+  }
+}

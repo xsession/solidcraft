@@ -32,7 +32,8 @@ Know these before trusting a number.
   convergence, steady convergence and physical validation are separate questions. The
   manifest and the goal histories say what happened; whether it describes your product is
   for you to establish, for example by refining the grid until the numbers you care about
-  stop changing.
+  stop changing: a [mesh study](../tutorials/comparing-runs.md#is-the-grid-fine-enough) does
+  that on three grids and says how far each part's temperature still moves.
 - **Results come from the companion** that ran them. SolidCraft checks their identity and
   bounds, not their physics.
 

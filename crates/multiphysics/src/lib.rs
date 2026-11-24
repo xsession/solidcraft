@@ -18,6 +18,7 @@ pub mod airflow;
 pub mod authoring;
 pub mod bottleneck;
 pub mod case_scene;
+pub mod convergence;
 pub mod component_table;
 pub mod devices;
 pub mod find;

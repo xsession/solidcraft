@@ -76,4 +76,30 @@ To see the change *where* it happens rather than per part, lock the colour range
 plot ([cut and surface plots](plots.md)) and show the same plane in both runs: one scale, so
 the colours mean the same temperature in both.
 
+## Is the grid fine enough?
+
+A temperature from one grid is that grid's answer. **Mesh study**, at the bottom of the Parts
+panel, tells how much of it is the grid's:
+
+1. Press **Make the mesh study**. Two copies of the study appear, *· mesh ×1.41* and
+   *· mesh ×2*: the same setup with base cells √2 and 2 times as large (about 2.8 and 8 times
+   fewer cells; a little larger where whole cells would leave two grids less than 1.35 apart),
+   built and checked; nothing runs.
+2. Run all three studies and keep their results.
+3. Press **Check convergence**.
+
+For each part, the table gives its highest temperature on the fine grid, the **settled**
+temperature the three grids point to, the **grid index** (the band, as a share of the fine
+grid's rise above the inflow, that the grid-independent answer is expected in) and the
+observed **order** of convergence. Under about 5 % is settled enough for most designs; a part
+marked *not settling* changes more on the fine pair of grids than on the coarse one, so the
+grids are still too coarse for it: refine around it and make the study again.
+
+??? info "The commands, and the method"
+    `multiphysics.model.mesh_study {"id": "…"}`, then
+    `multiphysics.result.convergence {"fine": {"id": "…"}, "medium": {"id": "…"}, "coarse": {"id": "…"}}`.
+    The index is the grid convergence index of Celik et al. (2008), on each part's rise above
+    the inflow: Richardson extrapolation with the order the three grids show, and a safety
+    factor of 1.25. Grids whose sizes differ by less than 1.3 are noted.
+
 Next: [imported assemblies](imported-assemblies.md).

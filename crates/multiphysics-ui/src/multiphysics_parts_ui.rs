@@ -40,6 +40,8 @@ pub(super) struct PartsUi {
     /// Compare runs: the two runs picked (study id, run id), and the last comparison of them.
     pub(super) compare: [Option<(String, String)>; 2],
     pub(super) compared: Option<Result<Value, String>>,
+    /// The mesh study's last answer: making its grids, or their convergence.
+    pub(super) mesh_study: Option<Result<Value, String>>,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -382,6 +384,7 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     #[cfg(not(target_arch = "wasm32"))]
     report_section(app, state, study, ui);
     compare_section(app, state, study, ui);
+    mesh_study_section(app, state, study, ui);
     for action in actions {
         apply(app, state, action);
     }
@@ -910,6 +913,100 @@ fn compare_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mu
                     format!("{} → {}", verdict(&row["first_status"]), verdict(&row["second_status"]))
                 };
                 ui.colored_label(colour, text);
+                ui.end_row();
+            }
+        });
+    });
+}
+
+/// Mesh study: the study on two coarser grids, and once all three have run, how far each part's
+/// temperature is from settling (`multiphysics.model.mesh_study`, `multiphysics.result.convergence`).
+fn mesh_study_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let t = Tokens::get();
+    if study.model.is_none() {
+        return;
+    }
+    ui.separator();
+    ui.strong(tr("multiphysics.mesh_study_title"));
+    let studies = &app.session.doc.multiphysics.studies;
+    let clone = |label: &str| studies.iter().find(|s| s.name == format!("{} · mesh ×{label}", study.name)).map(|s| s.id.clone());
+    let thermal = |id: &str| {
+        studies.iter().find(|s| s.id == id).is_some_and(|s| s.runs.iter().any(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")))
+    };
+    match (clone("1.41"), clone("2")) {
+        (Some(medium), Some(coarse)) => {
+            let ready = [study.id.as_str(), &medium, &coarse].iter().all(|id| thermal(id));
+            let key = if ready { "multiphysics.mesh_study_ready" } else { "multiphysics.mesh_study_run_all" };
+            ui.label(RichText::new(tr(key)).small().color(t.text_dim));
+            let response = crate::ui_kit::button(ui, tr("multiphysics.mesh_study_check"), crate::ui_kit::Button::Enabled(ready));
+            crate::scenario::publish_target("multiphysics:mesh_study_check", response.rect);
+            if response.clicked() {
+                let params = json!({"fine": {"id": study.id}, "medium": {"id": medium}, "coarse": {"id": coarse}});
+                state.parts_ui.mesh_study = Some(app.run("multiphysics.result.convergence", params).map_err(|e| e.to_string()));
+            }
+        }
+        _ => {
+            ui.label(RichText::new(tr("multiphysics.mesh_study_hint")).small().color(t.text_dim));
+            let response = crate::ui_kit::button(ui, tr("multiphysics.mesh_study_make"), crate::ui_kit::Button::Small);
+            crate::scenario::publish_target("multiphysics:mesh_study_make", response.rect);
+            if response.clicked() {
+                state.parts_ui.mesh_study = Some(app.run("multiphysics.model.mesh_study", json!({"id": study.id})).map_err(|e| e.to_string()));
+            }
+        }
+    }
+    let reply = match &state.parts_ui.mesh_study {
+        Some(Ok(reply)) => reply,
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+            return;
+        }
+        None => return,
+    };
+    // Grids made: say so; convergence: the table.
+    let Some(parts) = reply["parts"].as_array() else {
+        if let Some(cells) = reply["cells"].as_array() {
+            let cells: Vec<String> = cells.iter().map(|c| format!("{:.0}", c.as_f64().unwrap_or(0.0))).collect();
+            ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.mesh_study_made", &[("cells", &cells.join(" / "))])).small());
+        }
+        return;
+    };
+    for note in reply["notes"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+        ui.colored_label(t.warning, RichText::new(note).small());
+    }
+    ui.label(RichText::new(tr("multiphysics.mesh_study_units")).small().color(t.text_dim));
+    let number = |v: &Value, digits: usize| v.as_f64().map_or_else(|| "–".to_string(), |x| format!("{x:.digits$}"));
+    let inflow = reply["inflow_c"].as_f64().unwrap_or(0.0);
+    ui.scope(|ui| {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+        egui::Grid::new("multiphysics_mesh_study_grid").striped(true).show(ui, |ui| {
+            for key in [
+                "multiphysics.parts_column_part",
+                "multiphysics.mesh_study_column_fine",
+                "multiphysics.mesh_study_column_settled",
+                "multiphysics.mesh_study_column_gci",
+                "multiphysics.mesh_study_column_order",
+            ] {
+                ui.strong(tr(key));
+            }
+            ui.end_row();
+            for part in parts.iter().take(super::MAX_TABLE_ROWS) {
+                let estimate = &part["estimate"];
+                ui.label(part["body"].as_str().unwrap_or_default());
+                ui.monospace(number(&part["fine_c"], 1));
+                ui.monospace(estimate["extrapolated"].as_f64().map_or_else(|| "–".to_string(), |rise| format!("{:.1}", rise + inflow)));
+                let gci = estimate["gci_percent"].as_f64();
+                let colour = match (estimate["behaviour"].as_str(), gci) {
+                    (Some("diverging"), _) => t.form_error,
+                    (Some("oscillatory"), _) => t.warning,
+                    (_, Some(g)) if g > 5.0 => t.warning,
+                    _ => t.text,
+                };
+                let text = match estimate["behaviour"].as_str() {
+                    Some("diverging") => tr("multiphysics.mesh_study_diverging").to_string(),
+                    _ => gci.map_or_else(|| "–".to_string(), |g| format!("{g:.1} %")),
+                };
+                ui.colored_label(colour, RichText::new(text).monospace());
+                ui.monospace(number(&estimate["order"], 2));
                 ui.end_row();
             }
         });
