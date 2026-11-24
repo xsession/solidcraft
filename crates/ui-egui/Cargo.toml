@@ -15,7 +15,8 @@ default = ["usage-stats"]
 usage-stats = ["dep:getrandom", "solidcraft-engine/usage-stats"]
 # Test fixtures for the crates of the app's workspaces (multiphysics-ui): `fonts::test_context`
 # and the kit's raster helpers.
-test-support = ["solidcraft-ui-kit/test-support"]
+# The GPU fixture (`gpu::EguiFixture`) draws whole frames offscreen, for pictures of a workspace.
+test-support = ["solidcraft-ui-kit/test-support", "dep:pollster"]
 
 [dependencies]
 solidcraft-viewport-egui = { workspace = true }
@@ -91,6 +92,8 @@ proc-macro2 = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { version = "3.6", default-features = false, features = ["image-data"] }
 lopdf = { version = "0.45", default-features = false }
+# The test-support GPU fixture opens a device without a window.
+pollster = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 wat = "1"

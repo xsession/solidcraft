@@ -1,0 +1,79 @@
+site_name: SolidCraft Multiphysics
+site_description: Flow and heat studies on the open design in SolidCraft — how they work, and how to use them.
+site_dir: ../../target/multiphysics-site
+docs_dir: docs
+repo_url: https://github.com/tangency-labs/solidcraft
+edit_uri: edit/main/docs/multiphysics-site/docs/
+copyright: SolidCraft contributors — MIT or Apache-2.0
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+  # The site is read offline too: no web fonts fetched.
+  font: false
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Tutorials:
+      - tutorials/index.md
+      - 1. Board in a duct: tutorials/board-in-duct.md
+      - 2. Reading the results: tutorials/reading-results.md
+      - 3. Cut and surface plots: tutorials/plots.md
+      - 4. Comparing runs: tutorials/comparing-runs.md
+      - 5. Imported assemblies: tutorials/imported-assemblies.md
+      - 6. Scripting a study: tutorials/scripting.md
+  - Theory of operation:
+      - theory/index.md
+      - Architecture: theory/architecture.md
+      - From design to case: theory/design-to-case.md
+      - The solver: theory/solver.md
+      - Parts and selections: theory/parts.md
+      - Results and verdicts: theory/results.md
+      - Drawing large assemblies: theory/drawing.md
+      - What it does not do: theory/limits.md
+  - Reference:
+      - Commands: reference/commands.md
+      - Glossary: reference/glossary.md
+      - Making this site: reference/making-this-site.md

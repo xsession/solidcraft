@@ -192,23 +192,26 @@ fn cpu_picture(scene: &solidcraft_viewport::Scene, cam: &solidcraft_viewport::Ca
     solidcraft_engine::capture::Picture { rgba: canvas.rgba, renderer: "cpu" }
 }
 
-#[cfg(test)]
+// Test fixtures, also for the crates of the app's workspaces (`test-support`): a failure here is
+// the test's, so they unwrap and panic as tests do.
+#[cfg(any(test, feature = "test-support"))]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod test_support {
     /// Paint real egui textures and callbacks into a readable window target.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) struct EguiFixture {
+    pub struct EguiFixture {
         device: super::wgpu::Device,
         queue: super::wgpu::Queue,
         renderer: std::sync::Arc<egui::epaint::mutex::RwLock<egui_wgpu::Renderer>>,
         output: super::wgpu::Texture,
         size: [u32; 2],
-        pub(crate) product_highlight_callbacks: usize,
-        pub(crate) viewport_callbacks: usize,
+        pub product_highlight_callbacks: usize,
+        pub viewport_callbacks: usize,
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     impl EguiFixture {
-        pub(crate) fn new(app: &mut crate::SolveApp, size: [u32; 2]) -> Option<Self> {
+        pub fn new(app: &mut crate::SolveApp, size: [u32; 2]) -> Option<Self> {
             use super::*;
             let Some((_, device, queue)) = offscreen_device() else {
                 assert!(std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "GPU adapter required for egui fixture");
@@ -216,7 +219,7 @@ mod test_support {
                 return None;
             };
             let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-            let renderer = Arc::new(egui::epaint::mutex::RwLock::new(egui_wgpu::Renderer::new(&device, format, Default::default())));
+            let renderer = std::sync::Arc::new(egui::epaint::mutex::RwLock::new(egui_wgpu::Renderer::new(&device, format, Default::default())));
             let window = GpuTarget { format, depth: None, samples: 1, tess: false, oit: false, edges: false };
             let scene = GpuTarget { depth: Some(solidcraft_viewport_gpu::depth_format(&device, true)), ..window };
             let view = Renderer::with_window_target(&device, scene, window, None);
@@ -242,10 +245,17 @@ mod test_support {
             Some(Self { device, queue, renderer, output, size, product_highlight_callbacks: 0, viewport_callbacks: 0 })
         }
 
-        pub(crate) fn frame(&mut self, ctx: &egui::Context, events: Vec<egui::Event>, add: impl FnMut(&mut egui::Ui)) -> Vec<u8> {
+        /// One frame of `add` drawn on the GPU, its pixels read back (RGBA, row by row).
+        pub fn frame(&mut self, ctx: &egui::Context, events: Vec<egui::Event>, add: impl FnMut(&mut egui::Ui)) -> Vec<u8> {
+            self.frame_at(ctx, 1.0, events, add)
+        }
+
+        /// [`Self::frame`] at `time` (seconds): frames drawn at later times let fades, notices
+        /// and progress bars run their course.
+        pub fn frame_at(&mut self, ctx: &egui::Context, time: f64, events: Vec<egui::Event>, add: impl FnMut(&mut egui::Ui)) -> Vec<u8> {
             let raw = egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(self.size[0] as f32, self.size[1] as f32))),
-                time: Some(1.0),
+                time: Some(time),
                 focused: true,
                 events,
                 ..Default::default()
@@ -254,7 +264,7 @@ mod test_support {
             self.product_highlight_callbacks = 0;
             self.viewport_callbacks = 0;
             for clipped in &out.shapes {
-                crate::test_support::each_shape(&clipped.shape, &mut |shape| {
+                crate::ui_kit::test_support::each_shape(&clipped.shape, &mut |shape| {
                     if let egui::Shape::Callback(callback) = shape
                         && let Some(callback) = callback.callback.downcast_ref::<egui_wgpu::Callback>()
                     {
@@ -370,7 +380,7 @@ mod test_support {
 
     /// For tests that look at pictures: install the headless GPU renderer (the CLI's). `false`, with
     /// the reason printed, on a machine without a GPU adapter, and the test skips.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(test, not(target_arch = "wasm32")))]
     pub(crate) fn test_picture_renderer() -> bool {
         match solidcraft_viewport_gpu::capture::shared(solidcraft_gpu::env::policy().unwrap_or_else(|e| panic!("{e}"))) {
             Ok(c) => {
@@ -389,8 +399,10 @@ mod test_support {
         }
     }
 }
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
+pub use test_support::EguiFixture;
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(crate) use test_support::{EguiFixture, test_picture_renderer};
+pub(crate) use test_support::test_picture_renderer;
 
 /// The shader's analysis colours and flags for the theme's colours.
 pub fn analysis_colors(c: &solidcraft_color::AnalysisColors) -> [f32; 36] {
@@ -402,7 +414,7 @@ pub fn analysis_colors(c: &solidcraft_color::AnalysisColors) -> [f32; 36] {
 /// backend, the first of D3D12, Vulkan and OpenGL with a hardware adapter (else D3D12); elsewhere
 /// wgpu's default. wgpu's default on Windows starts Vulkan, D3D12 and OpenGL together, and tests
 /// starting them side by side hung or crashed the test process inside the Vulkan driver.
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
 pub(crate) fn offscreen_backends() -> wgpu::Backends {
     static CHOSEN: std::sync::OnceLock<wgpu::Backends> = std::sync::OnceLock::new();
     *CHOSEN.get_or_init(|| {
@@ -424,7 +436,7 @@ pub(crate) fn offscreen_backends() -> wgpu::Backends {
 /// Held while a test starts an instance, adapter or device: starting an instance scans the Vulkan
 /// drivers, and tests doing that side by side crashed the test process inside the Vulkan loader
 /// (`loader_icd_scan`). Rendering on the devices still runs side by side.
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
 fn offscreen_starting() -> std::sync::MutexGuard<'static, ()> {
     static STARTING: std::sync::Mutex<()> = std::sync::Mutex::new(());
     STARTING.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -435,7 +447,7 @@ fn offscreen_starting() -> std::sync::MutexGuard<'static, ()> {
 /// unset) wgpu's default adapter, as before; under `hardware` or `software` the one
 /// `solidcraft_viewport_gpu::select` picks for headless pictures of that tier, so `software` keeps the
 /// tests off the hardware GPU; under `cpu`, as for pictures, none. `None` when none qualifies.
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
 fn offscreen_adapter(policy: solidcraft_viewport_gpu::select::Policy) -> Option<wgpu::Adapter> {
     use solidcraft_viewport_gpu::select::Policy;
     let mut desc = solidcraft_viewport_gpu::instance_descriptor_from_env();
@@ -458,7 +470,7 @@ fn offscreen_adapter(policy: solidcraft_viewport_gpu::select::Policy) -> Option<
 /// briefly out of memory) the next test tries again rather than every later one skipping. A test
 /// that loses its device, or changes how the device reports errors or its loss, takes
 /// [`offscreen_own_device`] instead.
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
 pub(crate) fn offscreen_device() -> Option<(wgpu::Adapter, wgpu::Device, wgpu::Queue)> {
     static SHARED: std::sync::Mutex<Option<(wgpu::Adapter, wgpu::Device, wgpu::Queue)>> = std::sync::Mutex::new(None);
     let mut shared = SHARED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -471,7 +483,7 @@ pub(crate) fn offscreen_device() -> Option<(wgpu::Adapter, wgpu::Device, wgpu::Q
 /// A device of its own for an offscreen test (`None` without a GPU adapter the `SOLIDCRAFT_GPU`
 /// policy admits, or when the variable names no policy: [`solidcraft_gpu::env`]), on [`offscreen_backends`]. One test at a
 /// time starts its instance, adapter and device ([`offscreen_starting`]).
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_arch = "wasm32")))]
 pub(crate) fn offscreen_own_device() -> Option<(wgpu::Adapter, wgpu::Device, wgpu::Queue)> {
     let policy = solidcraft_gpu::env::policy().map_err(|e| eprintln!("no offscreen device: {e}")).ok()?;
     let _one_at_a_time = offscreen_starting();

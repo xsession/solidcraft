@@ -5711,4 +5711,138 @@ mod tests {
         switch(&mut h.app, "multiphysics").unwrap();
         assert_eq!(h.app.session.doc.multiphysics.studies.len(), 1);
     }
+
+    /// The pictures of the Multiphysics documentation (`docs/multiphysics-site`), made from its
+    /// example design, two real runs of a board in a duct (`docs/multiphysics-site/tools`), on
+    /// the GPU: `cargo test -p solidcraft-multiphysics-ui --lib documentation_pictures --
+    /// --ignored`. Skipped without a GPU adapter.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[ignore = "writes the documentation's pictures"]
+    fn documentation_pictures() {
+        let site = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/multiphysics-site/docs");
+        let images = site.join("images");
+        std::fs::create_dir_all(&images).unwrap();
+        let mut h = harness();
+        let size = [1600u32, 1000u32];
+        // The harness lays the window out as the pictures are drawn, so its clicks land.
+        h.step(&json!({"call":"ui.resize","params":{"width": size[0], "height": size[1]}})).unwrap();
+        let design = site.join("examples/board-in-duct.sc");
+        h.step(&json!({"call":"ui.file","params":{"path": design.to_string_lossy()}})).unwrap();
+        for _ in 0..600 {
+            if !h.app.session.doc.multiphysics.studies.is_empty() && !h.app.file_load.busy() {
+                break;
+            }
+            h.frames(1);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let study = h.app.session.doc.multiphysics.studies.first().cloned().expect("the example's study");
+        let id = study.id.clone();
+        let (fast, slow) = (study.runs[0].id.clone(), study.runs[1].id.clone());
+        switch(&mut h.app, "multiphysics").unwrap();
+        h.app.run("view.isometric", json!({})).unwrap();
+        h.app.fit_view();
+        h.frames(120);
+        let Some(mut gpu) = solidcraft_ui_egui::gpu::EguiFixture::new(&mut h.app, size) else { return };
+        let ctx = crate::fonts::test_context();
+        let mut time = 1.0;
+        let mut shot = |h: &mut Harness, name: &str| {
+            // Notices of the steps before (the file opened, a command done) are not the picture's.
+            h.app.messages.clear();
+            h.app.status = None;
+            let mut pixels = Vec::new();
+            for _ in 0..20 {
+                time += 0.25;
+                pixels = gpu.frame_at(&ctx, time, vec![], |ui| {
+                    h.app.logic(ui.ctx());
+                    h.app.ui(ui);
+                });
+            }
+            let png = solidcraft_viewport::png(size[0] as usize, size[1] as usize, pixels).unwrap();
+            std::fs::write(images.join(format!("{name}.png")), png).unwrap();
+        };
+        let select = |h: &mut Harness, node: shell::Node| {
+            let state = ws(&mut h.app);
+            state.selected = Some(id.clone());
+            shell::select(state, node);
+            h.frames(3);
+        };
+
+        // The workspace with the study, and its Parts: the component table of the slower run.
+        select(&mut h, shell::Node::Project);
+        shot(&mut h, "workspace");
+        select(&mut h, shell::Node::Parts);
+        shot(&mut h, "parts-panel");
+        // Ghost the duct to see the board inside it, then colour the parts by the slower run's
+        // verdicts: its warn and fail parts stand out.
+        h.app.run("multiphysics.parts.ghost", json!({"bodies":["Duct"]})).unwrap();
+        h.frames(3);
+        shot(&mut h, "ghosted-duct");
+        let colour = |h: &mut Harness, by: solidcraft_engine::multiphysics::setup_check::ColourBy| {
+            let mut state = take_state(&mut h.app);
+            super::parts_ui::apply(&mut h.app, &mut state, super::parts_ui::PartAction::ColourBy(by));
+            put_state(&mut h.app, state);
+            h.frames(3);
+        };
+        colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::Verdict);
+        shot(&mut h, "colour-by-verdict");
+        // Find the parts hotter than 80 °C, and show only them.
+        h.step(&json!({"click":{"handle":"multiphysics:find_value:0"},"double":true})).unwrap();
+        h.step(&json!({"key":"A","ctrl":true})).unwrap();
+        h.step(&json!({"text":"80"})).unwrap();
+        h.step(&json!({"key":"Enter"})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:find_run"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:find_show_only"}})).unwrap();
+        h.frames(3);
+        shot(&mut h, "find-hot-parts");
+        h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
+        h.app.run("multiphysics.parts.select", json!({})).unwrap();
+        colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::None);
+
+        // The slower run's temperature, cut through its hottest point, on the model.
+        let mut state = take_state(&mut h.app);
+        state.selected = Some(id.clone());
+        state.selected_run = Some(slow.clone());
+        state.shown_run = Some(slow.clone());
+        state.selected_artifact = study.runs[1].artifacts.iter().position(|a| a.name == "thermal.vtu").unwrap();
+        // Shown before: the panel keeps the field file chosen instead of opening the final flow field.
+        state.view.defaulted_run = Some(slow.clone());
+        shell::select(&mut state, shell::Node::CutPlots);
+        start_inspection(&h.app, &mut state, &id, &slow, "thermal.vtu");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while state.inspection.is_some() {
+            poll_inspection(&h.app, &mut state);
+            assert!(std::time::Instant::now() < deadline, "inspection worker did not finish");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let fields: Vec<String> = state
+            .inspected
+            .as_ref()
+            .and_then(|i| i.outcome.as_ref().ok())
+            .and_then(|o| o.spatial.as_ref())
+            .and_then(|g| g.as_ref().ok())
+            .map(|g| g.fields.iter().map(|f| f.name.clone()).collect())
+            .unwrap_or_default();
+        state.view.slice_field = fields.iter().position(|f| f.contains("temperature")).unwrap_or(0);
+        state.view.on_model = true;
+        state.view.slice_anchor = SliceAnchor::Maximum;
+        put_state(&mut h.app, state);
+        h.frames(3);
+        shot(&mut h, "cut-plot-hottest");
+        state = take_state(&mut h.app);
+        state.view.slice_axis = 1;
+        put_state(&mut h.app, state);
+        h.frames(3);
+        shot(&mut h, "cut-plot-side");
+        select(&mut h, shell::Node::SurfacePlots);
+        shot(&mut h, "surface-plot");
+        let _ = fast;
+
+        // The batch report over both runs, its pictures drawn by the CPU rasterizer.
+        solidcraft_ui_egui::gpu::install_cpu_picture_renderer();
+        let report = site.join("examples/report");
+        let _ = std::fs::remove_dir_all(&report);
+        h.app.run("multiphysics.result.report", json!({"id": id, "directory": report.to_string_lossy()})).unwrap();
+    }
 }
