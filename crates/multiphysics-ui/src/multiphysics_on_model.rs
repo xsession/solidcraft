@@ -205,7 +205,7 @@ fn surface(app: &SolveApp, id: &str, grid: &BoxGrid, origin: [f64; 3], key: (usi
 }
 
 /// Where the study's domain starts in the design (mm), read once per document and study.
-fn origin(app: &mut SolveApp, view: &mut ViewState, id: &str) -> Option<[f64; 3]> {
+pub(super) fn origin(app: &mut SolveApp, view: &mut ViewState, id: &str) -> Option<[f64; 3]> {
     let key = std::sync::Arc::as_ptr(&app.session.doc) as usize;
     if view.model_origin.as_ref().is_none_or(|(k, study, _)| *k != key || study != id) {
         let origin = app

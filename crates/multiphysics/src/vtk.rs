@@ -163,6 +163,29 @@ impl BoxGrid {
         }
     }
 
+    /// The layer of `axis` (an index into [`Self::planes`]) nearest `coordinate`: where a plot
+    /// tied to a point (a part's centre, a field's maximum) is drawn.
+    pub fn nearest_layer(&self, axis: usize, coordinate: f64) -> Option<usize> {
+        if !coordinate.is_finite() {
+            return None;
+        }
+        self.planes.get(axis)?.iter().enumerate().min_by(|a, b| (a.1 - coordinate).abs().total_cmp(&(b.1 - coordinate).abs())).map(|(i, _)| i)
+    }
+
+    /// The centre of the cell where `field` is largest (a vector's magnitude), the first such
+    /// cell on a tie: where a plot tied to the maximum, say the hottest point, is drawn.
+    pub fn maximum_at(&self, field: usize) -> Option<[f64; 3]> {
+        let mut best: Option<(usize, f64)> = None;
+        for cell in 0..self.cells.len() {
+            let Some(value) = self.value(field, cell).filter(|v| v.is_finite()) else { continue };
+            if best.is_none_or(|(_, top)| value > top) {
+                best = Some((cell, value));
+            }
+        }
+        let cell = self.cells.get(best?.0)?;
+        Some([0, 1, 2].map(|a| (cell[a][0] + cell[a][1]) * 0.5))
+    }
+
     /// Half-open intervals avoid drawing two layers when the plane lies on a face.
     pub fn intersects(&self, cell: usize, normal: usize, coordinate: f64) -> bool {
         let Some(range) = self.cells.get(cell).and_then(|cell| cell.get(normal)) else { return false };
@@ -593,6 +616,13 @@ mod tests {
         assert!(!preview.intersects(0, 0, 1.));
         assert!(!preview.intersects(0, 3, 0.5));
         assert_eq!(preview.value(0, 2), None);
+        // Plots tied to a point: the nearest layer, and the cell of the largest magnitude.
+        assert_eq!(preview.nearest_layer(0, 2.2), Some(1));
+        assert_eq!(preview.nearest_layer(0, -7.0), Some(0));
+        assert_eq!(preview.nearest_layer(0, f64::NAN), None);
+        assert_eq!(preview.nearest_layer(3, 0.5), None);
+        assert_eq!(preview.maximum_at(0), Some([0.5, 0.5, 0.5]), "|(3, 4, 0)| = 5 beats 2");
+        assert_eq!(preview.maximum_at(1), None);
     }
     #[test]
     fn box_slice_refuses_sheared_twisted_and_point_only_fields() {

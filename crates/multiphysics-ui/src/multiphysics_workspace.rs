@@ -101,6 +101,13 @@ pub struct ViewState {
     slice_axis: usize,
     slice_layer: usize,
     slice_field: usize,
+    /// What the cut plot's plane goes through: the typed layer, the picked part or the field's
+    /// maximum, worked out again for every run, field and pick.
+    #[cfg(not(target_arch = "wasm32"))]
+    slice_anchor: SliceAnchor,
+    /// The picked part's centre in the design (mm), by document and body, for a plot through it.
+    #[cfg(not(target_arch = "wasm32"))]
+    anchor_part: Option<(usize, String, Option<[f64; 3]>)>,
     /// The colour map as plots use it: reversed, banded, out-of-range marking.
     color_scale: post::ColorScale,
     /// How the plots' colour range is chosen; `locked_range` holds the Locked values.
@@ -155,6 +162,19 @@ pub struct ViewState {
     error: Option<String>,
     notice: Option<String>,
 }
+/// What a cut plot's plane goes through.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum SliceAnchor {
+    /// The layer typed in.
+    #[default]
+    Layer,
+    /// The centre of the part picked in the design (a study of the model).
+    Part,
+    /// The cell where the plotted field is largest (the hottest point, the fastest flow).
+    Maximum,
+}
+
 impl Default for ViewState {
     fn default() -> Self {
         Self {
@@ -172,6 +192,10 @@ impl Default for ViewState {
             slice_axis: 2,
             slice_layer: 0,
             slice_field: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            slice_anchor: SliceAnchor::Layer,
+            #[cfg(not(target_arch = "wasm32"))]
+            anchor_part: None,
             color_scale: post::ColorScale::default(),
             range_mode: post::RangeMode::default(),
             locked_range: None,
@@ -2860,6 +2884,29 @@ fn results_artifacts(
     }
 }
 
+/// The centre of the part picked in the design, in the shown study's result coordinates (m from
+/// its domain's corner), from the part's exact bounding box; none without one picked part.
+#[cfg(not(target_arch = "wasm32"))]
+fn part_centre(app: &mut SolveApp, view: &mut ViewState) -> Option<[f64; 3]> {
+    let id = view.selected.clone()?;
+    let body = app.session.selection.iter().find_map(|sel| match sel {
+        solidcraft_engine::Sel::Body { name } => Some(name.clone()),
+        _ => None,
+    })?;
+    let key = std::sync::Arc::as_ptr(&app.session.doc) as usize;
+    if view.anchor_part.as_ref().is_none_or(|(k, b, _)| *k != key || *b != body) {
+        let centre = app.session.world_state().ok().and_then(|state| {
+            let part = state.bodies.iter().find(|b| b.name == body)?;
+            let b = part.body.exact_bounds().ok()?;
+            Some([(b.min.x + b.max.x) * 0.5, (b.min.y + b.max.y) * 0.5, (b.min.z + b.max.z) * 0.5])
+        });
+        view.anchor_part = Some((key, body, centre));
+    }
+    let centre = view.anchor_part.as_ref().and_then(|(_, _, c)| *c)?;
+    let origin = on_model::origin(app, view, &id)?;
+    Some([0, 1, 2].map(|a| (centre[a] - origin[a]) / 1000.0))
+}
+
 /// A fixed orthographic data chart; it does not install another geometry camera.
 #[cfg(not(target_arch = "wasm32"))]
 fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid: &solidcraft_engine::multiphysics::vtk::BoxGrid) {
@@ -2946,8 +2993,25 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         }
         let layer_count = grid.planes.get(view.slice_axis).map_or(0, Vec::len);
         view.slice_layer = view.slice_layer.min(layer_count.saturating_sub(1));
+        ui.label(tr("multiphysics.slice_through"));
+        for (anchor, key, handle, enabled) in [
+            (SliceAnchor::Layer, "multiphysics.slice_through_layer", "multiphysics:slice_through:layer", true),
+            (SliceAnchor::Part, "multiphysics.slice_through_part", "multiphysics:slice_through:part", model_study),
+            (SliceAnchor::Maximum, "multiphysics.slice_through_maximum", "multiphysics:slice_through:maximum", true),
+        ] {
+            let response = ui.add_enabled_ui(enabled, |ui| crate::ui_kit::choice_chip(ui, key, tr(key), view.slice_anchor == anchor)).inner;
+            crate::scenario::publish_target(handle, response.rect);
+            if response.clicked() {
+                view.slice_anchor = anchor;
+            }
+        }
+        if !model_study && view.slice_anchor == SliceAnchor::Part {
+            view.slice_anchor = SliceAnchor::Layer;
+        }
         ui.label(tr("multiphysics.slice_layer"));
-        let response = crate::ui_kit::number_field(ui, &mut view.slice_layer, 0..=layer_count.saturating_sub(1), 1.0, "");
+        let typed = view.slice_anchor == SliceAnchor::Layer;
+        let response =
+            ui.add_enabled_ui(typed, |ui| crate::ui_kit::number_field(ui, &mut view.slice_layer, 0..=layer_count.saturating_sub(1), 1.0, "")).inner;
         crate::scenario::publish_target("multiphysics:slice_layer", response.rect);
     });
     let Some(planes) = grid.planes.get(view.slice_axis) else { return };
@@ -2970,6 +3034,20 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         .inner;
     crate::scenario::publish_target("multiphysics:slice_field_menu", field_menu.rect);
     field_menu.backing_on_hover_text(tr("multiphysics.slice_scope"));
+    // A plot tied to a point goes through the layer nearest it, worked out again each frame so
+    // it follows a new run, field or pick.
+    let through = match view.slice_anchor {
+        SliceAnchor::Layer => None,
+        SliceAnchor::Maximum => grid.maximum_at(view.slice_field),
+        SliceAnchor::Part => part_centre(app, view),
+    };
+    match through.and_then(|p| grid.nearest_layer(view.slice_axis, p[view.slice_axis])) {
+        Some(layer) => view.slice_layer = layer,
+        None if view.slice_anchor == SliceAnchor::Part => {
+            ui.label(RichText::new(tr("multiphysics.slice_through_part_hint")).small().color(Tokens::get().text_dim));
+        }
+        None => {}
+    }
     let Some(&coordinate) = planes.get(view.slice_layer) else { return };
     let (horizontal, vertical) = match view.slice_axis {
         0 => (1, 2),
@@ -5104,6 +5182,34 @@ mod tests {
         h.frames(2);
         assert!(ws(&mut h.app).view.model_vectors);
         assert_eq!(crate::scenario::count_of("multiphysics:model_vectors_drawn"), Some(2.0));
+
+        // Through the picked part: the plane goes through the duct's centre, taken from its
+        // exact box and placed in the case's metres; with nothing picked it says how.
+        h.app.run("multiphysics.parts.select", json!({})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:slice_through:part"}})).unwrap();
+        h.frames(2);
+        assert_eq!(ws(&mut h.app).view.slice_anchor, SliceAnchor::Part);
+        let mut state = take_state(&mut h.app);
+        assert_eq!(part_centre(&mut h.app, &mut state.view), None, "nothing picked");
+        put_state(&mut h.app, state);
+        h.app.run("multiphysics.parts.select", json!({"bodies":["Duct"]})).unwrap();
+        h.frames(2);
+        let mut state = take_state(&mut h.app);
+        let centre = part_centre(&mut h.app, &mut state.view).expect("the duct's centre");
+        put_state(&mut h.app, state);
+        for (got, want) in centre.iter().zip([0.05, 0.02, 0.02]) {
+            assert!((got - want).abs() < 1e-9, "{centre:?}");
+        }
+        // Through the field's maximum: the faster of the two cells along X is the second, and the
+        // plot moves there; it stays tied to it as the plane changes back.
+        h.step(&json!({"click":{"handle":"multiphysics:slice_plane:0"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:slice_through:maximum"}})).unwrap();
+        h.frames(2);
+        assert_eq!((ws(&mut h.app).view.slice_anchor, ws(&mut h.app).view.slice_layer), (SliceAnchor::Maximum, 1));
+        h.step(&json!({"click":{"handle":"multiphysics:slice_through:layer"}})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:slice_plane:2"}})).unwrap();
+        h.frames(2);
+        assert_eq!(ws(&mut h.app).view.slice_anchor, SliceAnchor::Layer);
 
         // A click on the slice probes the cell under it.
         h.step(&json!({"click":{"handle":"multiphysics:slice_probe_target"}})).unwrap();

@@ -1,0 +1,9 @@
+{
+  "en": {
+    "multiphysics.slice_through": "Through",
+    "multiphysics.slice_through_layer": "Layer",
+    "multiphysics.slice_through_maximum": "Field maximum",
+    "multiphysics.slice_through_part": "Picked part",
+    "multiphysics.slice_through_part_hint": "Pick a part in the tree, the table or the 3-D view; the plot goes through its centre"
+  }
+}
