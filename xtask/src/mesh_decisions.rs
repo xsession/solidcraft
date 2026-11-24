@@ -97,6 +97,7 @@ pub const SKIPPED_FUNCTIONS: &[(&str, &str)] = &[
     ("crates/engine/src/cmd/component_link.rs:session_bodies", "mesh bodies: copies a linked mesh body's data"),
     ("crates/engine/src/cmd/file.rs:mesh_data", "mesh bodies: copies a linked mesh body's data"),
     ("crates/engine/src/cmd/file.rs:saved_preview", "the preview picture saved in a design"),
+    ("crates/engine/src/cmd/multiphysics.rs:verdict_picture", "the batch report's picture of a run's parts by verdict, from display meshes"),
     ("crates/engine/src/cmd/plugin.rs:mesh", "a plugin's model.mesh export: a bounded copy of a body's display tessellation"),
     ("crates/kernel/src/body.rs:Body::classify_point", "mesh bodies: its mesh-body branch (a B-rep is classified by SMLib)"),
     ("crates/kernel/src/body.rs:Body::mesh_untimed", "the mesher: a body's tessellation"),
