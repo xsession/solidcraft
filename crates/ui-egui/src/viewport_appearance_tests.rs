@@ -358,6 +358,28 @@ fn colour_by_and_ghosting_upload_palette_rows_only() {
     assert_eq!(own.geometry, 0, "back to the parts' own looks uploads no geometry: {own:?}");
 }
 
+/// A ghosted part's edges are drawn faint (its palette entry), so the solid parts seen through
+/// it stand out; drawn solid again, its edges are as strong as any other part's.
+#[test]
+fn a_ghosted_parts_edges_are_faint() {
+    let mut app = SolveApp::new(Session::default(), Services::default());
+    app.run("solid.box", json!({"length": 20, "width": 15, "height": 10, "body_name": "Lid"})).unwrap();
+    app.run("solid.box", json!({"length": 5, "width": 5, "height": 5, "corner": [40, 0, 0], "body_name": "Chip", "operation": "new"})).unwrap();
+    let edge = |app: &SolveApp, name: &str| {
+        let scene = build_scene(app);
+        let slot = app.viewport.palette.lock().unwrap().slots(name).unwrap().edge;
+        scene.palette.get(slot).unwrap()
+    };
+    let solid = edge(&app, "Lid");
+    assert_eq!(edge(&app, "Chip"), solid);
+    app.run("multiphysics.parts.ghost", json!({"bodies": ["Lid"]})).unwrap();
+    let ghost = edge(&app, "Lid");
+    assert!(ghost[3] <= solid[3] / 2 + 1, "faint: {ghost:?} against {solid:?}");
+    assert_eq!(edge(&app, "Chip"), solid, "the solid part's edges keep their strength");
+    app.run("multiphysics.parts.ghost", json!({"only": true})).unwrap();
+    assert_eq!(edge(&app, "Lid"), solid);
+}
+
 /// A part placed many times goes to the GPU once: drawn indirectly, its triangles are uploaded
 /// to the indirect draws' buffer alone, not to buffers of their own as well, and its shared
 /// edges (where the device draws them) to the edges' buffer; a scene adding a part that fits

@@ -1164,6 +1164,8 @@ pub(crate) fn active_body_names(app: &SolveApp) -> Option<ActiveBodyNames> {
 /// How see-through Ghost Frame Members draws the bodies it ghosts (the preview's new members
 /// too, at [`frame_ghost_alpha`]).
 const FRAME_GHOST_OPACITY: f64 = 0.3;
+/// How strongly a see-through body's edges are drawn, of a solid body's.
+const GHOST_EDGE_OPACITY: f32 = 0.5;
 
 /// [`FRAME_GHOST_OPACITY`] as a colour's alpha, as see-through faces are drawn.
 pub(crate) fn frame_ghost_alpha() -> u8 {
@@ -2832,6 +2834,8 @@ fn body_scene(
     // Vertex markers are an option (#7834), off by default.
     let markers = app.preferences.vertex_markers;
     let hidden_col = c4(tk.text.gamma_multiply(0.35));
+    // A see-through part's edges are faint, so the solid parts it shows stand out against it.
+    let ghost_edge_col = c4(if shaded { tk.body_edge } else { tk.text }.gamma_multiply(GHOST_EDGE_OPACITY));
     // Every shown body, and the ones this scene takes. The arena and the appearance cache
     // keep every shown body, so a scene of some of them (a drag drawn as a layer) leaves the
     // others' slots and looks as they were.
@@ -2916,7 +2920,10 @@ fn body_scene(
                 resolved
             }
         };
-        set_palette_color(&mut arena, &mut sc.palette, slots.edge, edge_col);
+        // Ghost Frame Members and ghosted parts: see-through in the plain body colour, whatever
+        // their appearance, with faint edges.
+        let ghosted = !faded && see_through(app, b);
+        set_palette_color(&mut arena, &mut sc.palette, slots.edge, if ghosted { ghost_edge_col } else { edge_col });
         set_palette_color(&mut arena, &mut sc.palette, slots.hidden_edge, hidden_col);
         if app.preferences.cosmetic_threads
             && thread_budget.available()
@@ -2931,8 +2938,6 @@ fn body_scene(
                 sc.line(a.to_f32(), c.to_f32(), slots.edge, 0.85, false);
             }
         }
-        // Ghost Frame Members: see-through in the plain body colour, whatever its appearance.
-        let ghosted = !faded && see_through(app, b);
         // Colour-by (`multiphysics.parts.colour`): the part's swatch over its appearance.
         let swatch = if faded { None } else { part_swatch(app, b) };
         let base = match swatch {
