@@ -116,7 +116,8 @@ pub fn build(study: &Study, registry: &Registry, bodies: &[String], in_study: &[
 
 /// One CSV cell: quoted where it must be, and a text that a spreadsheet would read as a formula
 /// starts with an apostrophe.
-fn cell(text: &str) -> String {
+/// A CSV cell: quoted where it must be, and never read as a formula.
+pub(crate) fn cell(text: &str) -> String {
     let mut t = text.to_string();
     if t.starts_with(['=', '+', '-', '@', '\t', '\r']) && t.parse::<f64>().is_err() {
         t.insert(0, '\'');
@@ -124,8 +125,18 @@ fn cell(text: &str) -> String {
     if t.contains([',', '"', '\n', '\r']) { format!("\"{}\"", t.replace('"', "\"\"")) } else { t }
 }
 
-fn number(v: Option<f64>) -> String {
+pub(crate) fn number(v: Option<f64>) -> String {
     v.filter(|v| v.is_finite()).map(|v| format!("{v}")).unwrap_or_default()
+}
+
+/// A verdict as CSV and reports write it.
+pub(crate) fn status_name(status: ComponentStatus) -> &'static str {
+    match status {
+        ComponentStatus::Pass => "pass",
+        ComponentStatus::Warn => "warn",
+        ComponentStatus::Fail => "fail",
+        ComponentStatus::NoLimit => "no_limit",
+    }
 }
 
 /// The table as CSV: a header, one line per row, and a total line; attributes as `key=value` pairs.
@@ -141,12 +152,7 @@ pub fn to_csv(table: &ComponentTable) -> String {
                 AttrValue::Text(t) => format!("{k}={t}"),
             })
             .collect();
-        let status = match r.status {
-            ComponentStatus::Pass => "pass",
-            ComponentStatus::Warn => "warn",
-            ComponentStatus::Fail => "fail",
-            ComponentStatus::NoLimit => "no_limit",
-        };
+        let status = status_name(r.status);
         let line = [
             cell(&r.body),
             r.in_study.to_string(),

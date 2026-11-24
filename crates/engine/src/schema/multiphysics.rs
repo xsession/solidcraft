@@ -77,6 +77,33 @@ pub struct ExportResult {
     pub run_id: String,
     pub directory: String,
 }
+/// `multiphysics.result.report`: one study's component table over several runs.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReportRuns {
+    pub id: String,
+    /// The runs, in this order (default: every run with a thermal report, oldest first).
+    #[serde(default)]
+    pub run_ids: Vec<String>,
+    /// A new directory to write report.csv and report.html into.
+    #[serde(default)]
+    pub directory: Option<String>,
+    /// Also return the CSV and HTML texts in the reply.
+    #[serde(default)]
+    pub inline: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ReportReply {
+    pub runs: Vec<solidcraft_multiphysics::report::RunSummary>,
+    /// The files written into `directory`.
+    pub files: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csv: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub html: Option<String>,
+}
+
 /// One retained original VTU or PVD artifact, addressed by saved study and run identity.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

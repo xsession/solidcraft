@@ -5029,6 +5029,8 @@ mod tests {
         assert_eq!(link.selection.as_deref(), Some("Board without small parts"), "{:?}", ws(&mut h.app).error);
         h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
         h.frames(2);
+        // The batch report waits for a run with a thermal report.
+        assert!(crate::scenario::rect_of("multiphysics:report_write").is_some());
         // The checklist is listed, and its goals line has no parts to select.
         assert!(crate::scenario::handles("multiphysics:parts_check:goals").len() == 1);
         // Close shuts the Parts panel; the colours stay.

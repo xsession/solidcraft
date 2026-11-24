@@ -71,6 +71,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.export", "Export Multiphysics Results", crate::checked!("multiphysics.result.export", export_result))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ExportResult>::new()).output(output_schema_for::<Exported>)
         .params("id, run_id, directory: new directory. Original VTU/PVD/CSV/JSON/S2P, case and manifest for ParaView; associations unchanged, no invented .pvsm or units."),
+    CommandSpec::new("multiphysics.result.report", "Batch Report over Runs", crate::checked!("multiphysics.result.report", report_runs))
+        .doc_only().noundo().icon("export").contract(&TypedContract::<ReportRuns>::new()).output(output_schema_for::<ReportReply>)
+        .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
     CommandSpec::new("multiphysics.result.inspect", "Inspect Multiphysics Result", crate::checked!("multiphysics.result.inspect", inspect_result))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<InspectResult>::new()).output(output_schema_for::<ResultInspection>)
         .params("id, run_id, artifact: one retained ASCII VTU/PVD file. Returns bounded geometry, field or collection metadata, without dataset bytes or inferred units."),
@@ -327,6 +330,29 @@ fn export_result(session: &mut Session, params: &Value) -> Result<Value> {
     let files =
         solidcraft_io::multiphysics::write_results(std::path::Path::new(&input.directory), &study, run).map_err(|e| bad("", e.to_string()))?;
     reply(Exported { files })
+}
+fn report_runs(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ReportRuns = parse(params)?;
+    if input.directory.is_none() && !input.inline {
+        return Err(bad("directory", "give a new directory to write the report into, or inline: true"));
+    }
+    let study = selected(session, &input.id)?;
+    let state = session.world_state()?;
+    let parts = &session.doc.multiphysics.parts;
+    let in_study: Vec<String> = match &study.model {
+        Some(link) => model::bodies(&state, parts, link)?.iter().map(|b| b.name.clone()).collect(),
+        None => vec![],
+    };
+    let report = solidcraft_multiphysics::report::build(&study, parts, &in_study, &input.run_ids).map_err(|e| bad("run_ids", e.to_string()))?;
+    let (csv, html) = (solidcraft_multiphysics::report::to_csv(&report), solidcraft_multiphysics::report::to_html(&report));
+    let files = match &input.directory {
+        Some(directory) => {
+            solidcraft_io::multiphysics::write_report(std::path::Path::new(directory), &csv, &html).map_err(|e| bad("directory", e.to_string()))?
+        }
+        None => Vec::new(),
+    };
+    let (csv, html) = if input.inline { (Some(csv), Some(html)) } else { (None, None) };
+    reply(ReportReply { runs: report.runs, files, csv, html })
 }
 fn query_result(session: &mut Session, params: &Value) -> Result<Value> {
     let input: solidcraft_multiphysics::results::QueryRequest = parse(params)?;

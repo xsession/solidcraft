@@ -673,6 +673,39 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     let removed = s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"first","remove":true})).unwrap();
     assert_eq!(dimensions(&removed), json!([25, 10, 10]));
     assert!(s.execute("multiphysics.model.adapt", &json!({"id":id,"expected_revision":revision(&s),"run_id":"nope"})).is_err());
+    // A batch report reads the runs that kept a thermal report: one here, the duct at 61.85 °C.
+    let thermal = r#"{"components":[{"name":"Duct","power_w":2,"min_temperature_k":300,"mean_temperature_k":320,"max_temperature_k":335,"limit_k":null,"margin_k":null,"status":"no_limit"}]}"#;
+    let study = s.doc.multiphysics.study(&id).unwrap().clone();
+    let mut manifest = study.runs[0].manifest.clone();
+    manifest["files"] = json!(["flow_000010.vtu", "manifest.json", "thermal_report.json"]);
+    manifest["case"] = study.case.clone();
+    let mut hot = study.runs[0].clone();
+    hot.id = "hot".into();
+    hot.study_revision = study.revision;
+    hot.case_hash = solidcraft_multiphysics::case_hash(&study.case).unwrap();
+    hot.input_case = study.case.clone();
+    hot.artifacts.retain(|a| a.name != "manifest.json");
+    hot.artifacts.push(Artifact { name: "manifest.json".into(), text: manifest.to_string() });
+    hot.artifacts.push(Artifact { name: "thermal_report.json".into(), text: thermal.into() });
+    hot.manifest = manifest;
+    let mut project = s.doc.multiphysics.as_ref().clone();
+    project.attach_evidence(&id, hot).unwrap();
+    s.doc_mut().multiphysics = Arc::new(project);
+    assert!(s.execute("multiphysics.result.report", &json!({"id":id})).is_err(), "a directory or inline");
+    let inline = s.execute("multiphysics.result.report", &json!({"id":id,"inline":true})).unwrap();
+    assert_eq!(inline["runs"].as_array().unwrap().len(), 1, "{inline}");
+    assert_eq!((inline["runs"][0]["run"].clone(), inline["runs"][0]["hottest"].clone()), (json!("hot"), json!("Duct")));
+    assert!(inline["csv"].as_str().unwrap().contains("\nhot,Duct,"), "{inline}");
+    assert!(inline["html"].as_str().unwrap().starts_with("<!DOCTYPE html>"));
+    let directory = std::env::temp_dir().join(format!("solidcraft-report-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    let written = s.execute("multiphysics.result.report", &json!({"id":id,"directory":directory.to_string_lossy()})).unwrap();
+    assert_eq!(written["files"], json!(["report.csv", "report.html"]));
+    assert!(written.get("csv").is_none(), "not inline: the reply stays small");
+    assert!(std::fs::read_to_string(directory.join("report.csv")).unwrap().starts_with("run,body,"));
+    assert!(s.execute("multiphysics.result.report", &json!({"id":id,"directory":directory.to_string_lossy()})).is_err(), "a new directory only");
+    let _ = std::fs::remove_dir_all(&directory);
+    assert!(s.execute("multiphysics.result.report", &json!({"id":id,"inline":true,"run_ids":["first"]})).unwrap()["runs"][0]["hottest"].is_null());
 }
 
 #[test]

@@ -1,0 +1,10 @@
+{
+  "en": {
+    "cmd.multiphysics.result.report": "Batch Report over Runs",
+    "multiphysics.report_directory": "New folder",
+    "multiphysics.report_runs": "{count} run(s) with a thermal report",
+    "multiphysics.report_title": "Batch report",
+    "multiphysics.report_write": "Write report",
+    "multiphysics.report_written": "Report on {count} run(s) written to {directory} (report.html, report.csv)"
+  }
+}

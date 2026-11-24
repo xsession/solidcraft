@@ -32,6 +32,11 @@ pub(super) struct PartsUi {
     /// The Group section: its last answer, and the size under which parts are left out, as typed.
     grouped: Option<Result<String, String>>,
     small_mm: String,
+    /// The batch report's new directory, as typed, and its last answer (native only).
+    #[cfg(not(target_arch = "wasm32"))]
+    report_dir: String,
+    #[cfg(not(target_arch = "wasm32"))]
+    reported: Option<Result<String, String>>,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -371,6 +376,8 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     });
     let total = table["total_power_w"].as_f64().unwrap_or(0.0);
     ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.parts_total_power", &[("watts", &format!("{total:.2}"))])).small());
+    #[cfg(not(target_arch = "wasm32"))]
+    report_section(app, state, study, ui);
     for action in actions {
         apply(app, state, action);
     }
@@ -700,6 +707,47 @@ fn group_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut 
         }
     });
     match &state.parts_ui.grouped {
+        Some(Ok(done)) => {
+            ui.label(RichText::new(done).small());
+        }
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+        }
+        None => {}
+    }
+}
+
+/// Batch report: the component table of every run that kept a thermal report, side by side, as
+/// CSV and a self-contained HTML page in a new directory.
+#[cfg(not(target_arch = "wasm32"))]
+fn report_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let t = Tokens::get();
+    let runs = study.runs.iter().filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")).count();
+    ui.separator();
+    ui.strong(tr("multiphysics.report_title"));
+    ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.report_runs", &[("count", &runs.to_string())])).small().color(t.text_dim));
+    ui.horizontal(|ui| {
+        ui.label(tr("multiphysics.report_directory"));
+        let width = 220.0_f32.min(ui.available_width());
+        let response = ui
+            .allocate_ui(egui::vec2(width, crate::ui_kit::row_height()), |ui| {
+                crate::ui_kit::text_field_reserving(ui, &mut state.parts_ui.report_dir, "", 0.0).1
+            })
+            .inner;
+        crate::scenario::publish_target("multiphysics:report_dir", response.rect);
+        let ready = runs > 0 && !state.parts_ui.report_dir.trim().is_empty();
+        let response = crate::ui_kit::button(ui, tr("multiphysics.report_write"), crate::ui_kit::Button::Enabled(ready));
+        crate::scenario::publish_target("multiphysics:report_write", response.rect);
+        if response.clicked() {
+            let directory = state.parts_ui.report_dir.trim().to_string();
+            let params = json!({"id": study.id, "directory": directory});
+            state.parts_ui.reported = Some(app.run("multiphysics.result.report", params).map(|reply| {
+                let count = reply["runs"].as_array().map_or(0, Vec::len).to_string();
+                solidcraft_ui_text::format("multiphysics.report_written", &[("count", &count), ("directory", &directory)])
+            }));
+        }
+    });
+    match &state.parts_ui.reported {
         Some(Ok(done)) => {
             ui.label(RichText::new(done).small());
         }

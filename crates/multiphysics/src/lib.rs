@@ -27,6 +27,7 @@ pub mod mesh_diagnostics;
 pub mod model;
 mod obstacles;
 pub mod parts;
+pub mod report;
 pub mod results;
 pub mod setup;
 pub mod setup_check;
