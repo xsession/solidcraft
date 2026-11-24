@@ -918,7 +918,7 @@ pub fn goals(csv: &str, json: Option<&str>) -> Result<GoalReport, Error> {
 
 // ---------------------------------------------------------------- components
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ComponentStatus {
     Pass,

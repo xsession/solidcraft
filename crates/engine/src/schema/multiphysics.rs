@@ -770,6 +770,30 @@ fn yes() -> bool {
     true
 }
 
+/// `multiphysics.parts.find`: the study's parts that meet every rule, on setup and results.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsFind {
+    pub id: String,
+    pub rules: Vec<solidcraft_multiphysics::find::FindRule>,
+    /// The run results come from (default: the latest with a thermal report).
+    #[serde(default)]
+    pub run_id: Option<String>,
+    /// Also look at the design's bodies the study leaves out.
+    #[serde(default)]
+    pub all_bodies: bool,
+    /// Put what is found in the design's selection.
+    #[serde(default)]
+    pub select: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsFindReply {
+    pub found: Vec<String>,
+    /// The run the result rules read; none before a run with a thermal report.
+    pub run: Option<String>,
+}
+
 /// `multiphysics.parts.check`: a study of the model checked before it runs.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

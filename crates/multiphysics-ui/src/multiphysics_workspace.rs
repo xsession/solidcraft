@@ -4914,6 +4914,25 @@ mod tests {
         h.step(&json!({"click":{"handle":"multiphysics:parts_legend:ic"}})).unwrap();
         h.frames(2);
         assert!(h.app.session.ghosted_bodies.is_empty());
+        // Find: the example rule reads results, which this study has none of; a tag rule finds U1,
+        // and Show only these ghosts the rest.
+        h.step(&json!({"click":{"handle":"multiphysics:find_run"}})).unwrap();
+        h.frames(2);
+        assert!(crate::scenario::handles("multiphysics:find_show_only").is_empty(), "no run: nothing found");
+        h.step(&json!({"click":{"handle":"multiphysics:find_remove:0"}})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:find_add"}})).unwrap();
+        h.frames(2);
+        material_library_text(&mut h, "multiphysics:find_value:0", "ic");
+        assert!(crate::scenario::handles("multiphysics:find_value:1").is_empty(), "the example rule does not come back");
+        h.app.run("multiphysics.parts.select", json!({})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:find_run"}})).unwrap();
+        h.frames(2);
+        assert_eq!(selected(&h), ["U1"], "{:?}", ws(&mut h.app).error);
+        h.step(&json!({"click":{"handle":"multiphysics:find_show_only"}})).unwrap();
+        h.frames(2);
+        assert_eq!(h.app.session.ghosted_bodies, ["U2"]);
+        h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
         h.frames(2);
         // The checklist is listed, and its goals line has no parts to select.

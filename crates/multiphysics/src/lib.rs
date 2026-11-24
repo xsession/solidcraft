@@ -20,6 +20,7 @@ pub mod case_scene;
 pub mod component_table;
 pub mod devices;
 pub mod flowpost;
+pub mod find;
 pub mod fluid_volume;
 pub mod mesh_diagnostics;
 pub mod model;

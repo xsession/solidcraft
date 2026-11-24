@@ -376,6 +376,24 @@ impl Registry {
         Ok(held)
     }
 
+    /// Whether `body` meets `rule` on its own, outside a saved selection (the Find panel's setup
+    /// rules); `bodies` are the design's, for a rule on another selection.
+    pub fn meets_rule(&self, rule: &Rule, body: &PartFacts, bodies: &[PartFacts]) -> Result<bool> {
+        match rule {
+            Rule::InSelection { name } => Ok(self.resolve(name, bodies)?.0.contains(&body.name)),
+            _ => Ok(self.meets(rule, body)),
+        }
+    }
+
+    /// Whether `rule` reads the built-in measured attributes.
+    pub fn rule_needs_measure(&self, rule: &Rule) -> bool {
+        match rule {
+            Rule::Attribute { key, .. } => key == VOLUME || key == SIZE,
+            Rule::InSelection { name } => self.needs_measure(name),
+            Rule::Tag { .. } | Rule::NotTag { .. } | Rule::Name { .. } => false,
+        }
+    }
+
     fn meets(&self, rule: &Rule, body: &PartFacts) -> bool {
         let info = self.parts.get(&body.name);
         match rule {

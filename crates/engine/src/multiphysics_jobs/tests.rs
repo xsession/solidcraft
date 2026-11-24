@@ -794,6 +794,22 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     assert!(s.execute("multiphysics.parts.colour", &json!({"by":"tag"})).is_err(), "a study is needed");
     s.execute("multiphysics.parts.colour", &json!({"by":"none"})).unwrap();
     assert!(s.part_swatches.is_empty());
+    // Find stacks rules on setup and results: the power parts of at least 2 W that are tagged.
+    let found = s
+        .execute(
+            "multiphysics.parts.find",
+            &json!({"id":id,"rules":[{"rule":"tag","tag":"power"},{"rule":"result","quantity":"power_w","compare":"ge","value":2.0}],"select":true}),
+        )
+        .unwrap();
+    assert_eq!((found["found"].clone(), found["run"].clone()), (json!(["U1", "U2", "C1"]), Value::Null), "{found}");
+    assert_eq!(s.selection.len(), 3);
+    let small =
+        s.execute("multiphysics.parts.find", &json!({"id":id,"rules":[{"rule":"attribute","key":"size_mm","compare":"lt","value":5.0}]})).unwrap();
+    assert_eq!(small["found"], json!(["C1"]), "measured from exact geometry: {small}");
+    // A rule on results needs a run; hostile rules are refused.
+    assert!(s.execute("multiphysics.parts.find", &json!({"id":id,"rules":[{"rule":"verdict","status":"fail"}]})).is_err());
+    assert!(s.execute("multiphysics.parts.find", &json!({"id":id,"rules":[]})).is_err());
+    assert!(s.execute("multiphysics.parts.find", &json!({"id":id,"rules":[{"rule":"bogus"}]})).is_err());
     assert_eq!(s.undo.len(), undo);
     // Everything survives saving and reopening.
     let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();

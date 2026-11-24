@@ -252,3 +252,25 @@ pub(super) fn colour(session: &mut Session, params: &Value) -> Result<Value> {
     session.refresh_display();
     reply(colouring)
 }
+
+/// The study's parts that meet every rule of a find, on their setup and on a run's results.
+pub(super) fn find(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: PartsFind = parse(params)?;
+    let study = session.doc.multiphysics.study(&input.id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    let (bodies, in_study) = study_bodies(session, &study)?;
+    let shown: Vec<String> = bodies.iter().filter(|b| input.all_bodies || in_study.contains(b)).cloned().collect();
+    let parts = &session.doc.multiphysics.parts;
+    let table = solidcraft_multiphysics::component_table::build(&study, parts, &shown, &in_study, input.run_id.as_deref())
+        .map_err(|e| bad("run_id", e.to_string()))?;
+    if table.run.is_none() && solidcraft_multiphysics::find::needs_run(&input.rules) {
+        return Err(bad("rules", "a rule reads results, but the study has no run with a thermal report"));
+    }
+    let state = session.world_state()?;
+    let measured = facts(&state, solidcraft_multiphysics::find::needs_measure(&input.rules, parts))?;
+    let found = solidcraft_multiphysics::find::find(&input.rules, parts, &table, &measured).map_err(|e| bad("rules", e.to_string()))?;
+    if input.select {
+        session.selection = found.iter().map(|name| crate::Sel::Body { name: name.clone() }).collect();
+        session.refresh_display();
+    }
+    reply(PartsFindReply { found, run: table.run })
+}

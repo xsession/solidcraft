@@ -24,6 +24,62 @@ pub(super) struct PartsUi {
     colouring: Option<(usize, String, ColourBy, Result<Value, String>)>,
     /// The last checklist: for the document and study.
     checks: Option<(usize, String, Result<Value, String>)>,
+    /// The Find section's stacked rules, and its last answer.
+    find: Vec<FindRow>,
+    found: Option<Result<Value, String>>,
+    /// The example rule was put in once; removing every rule leaves none.
+    find_seeded: bool,
+}
+
+/// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
+/// numbers, and the value as typed (for a verdict, its index in `VERDICTS`).
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct FindRow {
+    field: usize,
+    compare: usize,
+    value: String,
+}
+
+impl Default for FindRow {
+    /// The Find panel's own example: hotter than 75 °C.
+    fn default() -> Self {
+        Self { field: 5, compare: 2, value: "75".into() }
+    }
+}
+
+/// The fields a Find rule reads: `(wire name, label key, takes a number)`.
+const FIND_FIELDS: &[(&str, &str, bool)] = &[
+    ("tag", "multiphysics.find_tag", false),
+    ("not_tag", "multiphysics.find_not_tag", false),
+    ("name", "multiphysics.find_name", false),
+    ("power_w", "multiphysics.find_power", true),
+    ("limit_c", "multiphysics.find_limit", true),
+    ("max_temperature_c", "multiphysics.find_max", true),
+    ("mean_temperature_c", "multiphysics.find_mean", true),
+    ("margin_k", "multiphysics.find_margin", true),
+    ("verdict", "multiphysics.find_verdict", false),
+];
+/// Comparisons for numbers: `(wire name, shown as)`.
+const COMPARES: &[(&str, &str)] = &[("lt", "<"), ("le", "≤"), ("gt", ">"), ("ge", "≥"), ("eq", "=")];
+/// Verdicts a rule can ask for: `(wire name, label key)`.
+const VERDICTS: &[(&str, &str)] = &[("fail", "multiphysics.colour_fail"), ("warn", "multiphysics.colour_warn"), ("pass", "multiphysics.colour_pass")];
+
+impl FindRow {
+    /// The rule as `multiphysics.parts.find` takes it; `None` while it is incomplete.
+    fn rule(&self) -> Option<Value> {
+        let (field, _, numeric) = FIND_FIELDS.get(self.field)?;
+        let text = self.value.trim();
+        Some(match *field {
+            "tag" | "not_tag" if !text.is_empty() => json!({"rule": field, "tag": text}),
+            "name" if !text.is_empty() => json!({"rule": "name", "pattern": text}),
+            "verdict" => json!({"rule": "verdict", "status": VERDICTS.get(text.parse::<usize>().unwrap_or(0))?.0}),
+            quantity if *numeric => {
+                let value = text.replace(',', ".").parse::<f64>().ok().filter(|v| v.is_finite())?;
+                json!({"rule": "result", "quantity": quantity, "compare": COMPARES.get(self.compare)?.0, "value": value})
+            }
+            _ => return None,
+        })
+    }
 }
 
 /// Something done to parts from the tree, the table or a menu.
@@ -255,6 +311,8 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
         }
     });
     ui.separator();
+    find_section(app, state, study, ui, &mut actions);
+    ui.separator();
     colour_section(app, state, study, ui, &mut actions);
     ui.separator();
     checklist_section(app, state, study, ui, &mut actions);
@@ -479,5 +537,109 @@ pub(super) fn checklist_section(app: &mut SolveApp, state: &mut State, study: &S
                 }
             }
         });
+    }
+}
+
+/// Find: stacked rules on the parts' setup and the run's results; Find selects what meets them.
+pub(super) fn find_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui, actions: &mut Vec<PartAction>) {
+    let t = Tokens::get();
+    ui.strong(tr("multiphysics.find_title"));
+    if !state.parts_ui.find_seeded {
+        state.parts_ui.find_seeded = true;
+        state.parts_ui.find.push(FindRow::default());
+    }
+    let mut remove = None;
+    for (index, row) in state.parts_ui.find.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            let (_, label, numeric) = FIND_FIELDS.get(row.field).copied().unwrap_or(FIND_FIELDS[0]);
+            let field_menu = crate::ui_kit::bounded_dropdown_menu(ui, format!("multiphysics_find_field_{index}"), tr(label), 170.0, |ui| {
+                for (i, (name, label, _)) in FIND_FIELDS.iter().enumerate() {
+                    let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_find_field_{index}_{name}"), tr(label), i == row.field);
+                    crate::scenario::publish_target(&format!("multiphysics:find_field:{index}:{name}"), response.rect);
+                    if response.clicked() {
+                        if row.field != i {
+                            row.value = if *name == "verdict" { "0".into() } else { String::new() };
+                        }
+                        row.field = i;
+                        ui.close();
+                    }
+                }
+            });
+            crate::scenario::publish_target(&format!("multiphysics:find_field:{index}"), field_menu.rect);
+            if numeric {
+                let shown = COMPARES.get(row.compare).map_or("<", |c| c.1);
+                crate::ui_kit::bounded_dropdown_menu(ui, format!("multiphysics_find_compare_{index}"), shown, 44.0, |ui| {
+                    for (i, (name, shown)) in COMPARES.iter().enumerate() {
+                        let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_find_compare_{index}_{name}"), shown, i == row.compare);
+                        if response.clicked() {
+                            row.compare = i;
+                            ui.close();
+                        }
+                    }
+                });
+            }
+            if FIND_FIELDS.get(row.field).is_some_and(|f| f.0 == "verdict") {
+                let current = row.value.parse::<usize>().unwrap_or(0);
+                let shown = VERDICTS.get(current).map_or("", |v| tr(v.1));
+                crate::ui_kit::bounded_dropdown_menu(ui, format!("multiphysics_find_verdict_{index}"), shown, 120.0, |ui| {
+                    for (i, (_, label)) in VERDICTS.iter().enumerate() {
+                        if crate::ui_kit::list_picker(ui, &format!("multiphysics_find_verdict_{index}_{i}"), tr(label), i == current).clicked() {
+                            row.value = i.to_string();
+                            ui.close();
+                        }
+                    }
+                });
+            } else {
+                let width = 110.0_f32.min(ui.available_width());
+                let response = ui
+                    .allocate_ui(egui::vec2(width, crate::ui_kit::row_height()), |ui| {
+                        crate::ui_kit::text_field_reserving(ui, &mut row.value, "", 0.0).1
+                    })
+                    .inner;
+                crate::scenario::publish_target(&format!("multiphysics:find_value:{index}"), response.rect);
+            }
+            let response = crate::ui_kit::button(ui, "×", crate::ui_kit::Button::Small);
+            crate::scenario::publish_target(&format!("multiphysics:find_remove:{index}"), response.rect);
+            if response.clicked() {
+                remove = Some(index);
+            }
+        });
+    }
+    if let Some(index) = remove {
+        state.parts_ui.find.remove(index);
+    }
+    let rules: Option<Vec<Value>> = state.parts_ui.find.iter().map(FindRow::rule).collect();
+    ui.horizontal_wrapped(|ui| {
+        let more = state.parts_ui.find.len() < solidcraft_engine::multiphysics::find::MAX_FIND_RULES;
+        let response = crate::ui_kit::button(ui, tr("multiphysics.find_add"), crate::ui_kit::Button::Enabled(more));
+        crate::scenario::publish_target("multiphysics:find_add", response.rect);
+        if response.clicked() {
+            state.parts_ui.find.push(FindRow { field: 0, compare: 2, value: String::new() });
+        }
+        let ready = rules.as_ref().is_some_and(|r| !r.is_empty());
+        let response = crate::ui_kit::button(ui, tr("multiphysics.find_run"), crate::ui_kit::Button::Enabled(ready));
+        crate::scenario::publish_target("multiphysics:find_run", response.rect);
+        if response.clicked()
+            && let Some(rules) = &rules
+        {
+            state.parts_ui.found = Some(app.run("multiphysics.parts.find", json!({"id": study.id, "rules": rules, "select": true})));
+        }
+        // What the last Find found, beside it, and a way to see only those parts.
+        if let Some(Ok(reply)) = &state.parts_ui.found {
+            let found: Vec<String> = reply["found"].as_array().into_iter().flatten().filter_map(|b| b.as_str().map(str::to_string)).collect();
+            let count = found.len().to_string();
+            ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.find_found", &[("count", &count)])).small());
+            if !found.is_empty() {
+                let response = crate::ui_kit::button(ui, tr("multiphysics.find_show_only"), crate::ui_kit::Button::Small);
+                crate::scenario::publish_target("multiphysics:find_show_only", response.rect);
+                if response.clicked() {
+                    let others = bodies(app, state, study).into_iter().filter(|b| !found.contains(b)).collect();
+                    actions.push(PartAction::Focus { keep: found, others });
+                }
+            }
+        }
+    });
+    if let Some(Err(error)) = &state.parts_ui.found {
+        ui.colored_label(t.form_error, error);
     }
 }

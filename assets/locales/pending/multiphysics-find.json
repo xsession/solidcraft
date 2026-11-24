@@ -1,0 +1,19 @@
+{
+  "en": {
+    "cmd.multiphysics.parts.find": "Find Parts",
+    "multiphysics.find_add": "Add rule",
+    "multiphysics.find_found": "{count} part(s) found and selected",
+    "multiphysics.find_limit": "Limit (°C)",
+    "multiphysics.find_margin": "Margin (K)",
+    "multiphysics.find_max": "Max temperature (°C)",
+    "multiphysics.find_mean": "Mean temperature (°C)",
+    "multiphysics.find_name": "Name is",
+    "multiphysics.find_not_tag": "Not tagged",
+    "multiphysics.find_power": "Power (W)",
+    "multiphysics.find_run": "Find",
+    "multiphysics.find_show_only": "Show only these",
+    "multiphysics.find_tag": "Tagged",
+    "multiphysics.find_title": "Find",
+    "multiphysics.find_verdict": "Verdict"
+  }
+}
