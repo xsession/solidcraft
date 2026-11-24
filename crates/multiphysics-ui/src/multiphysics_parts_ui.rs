@@ -554,6 +554,68 @@ pub(super) fn checklist_section(app: &mut SolveApp, state: &mut State, study: &S
             }
         });
     }
+    capture_table(ui, &reply["capture"], actions);
+}
+
+/// How the grid holds each part: its cells, how many thick it is, and its cells' volume as a
+/// share of its exact volume; the worst held first.
+fn capture_table(ui: &mut egui::Ui, capture: &Value, actions: &mut Vec<PartAction>) {
+    let t = Tokens::get();
+    let mut rows: Vec<&Value> = capture.as_array().into_iter().flatten().collect();
+    if rows.is_empty() {
+        return;
+    }
+    // Lost first, then the thinnest, then the farthest from their own volume.
+    let off = |r: &Value| r["captured"].as_f64().map_or(0.0, |c| (c - 1.0).abs());
+    rows.sort_by(|a, b| {
+        let key = |r: &Value| (r["cells"].as_u64() != Some(0), r["cells_across"].as_u64().unwrap_or(0));
+        key(a).cmp(&key(b)).then(off(b).total_cmp(&off(a)))
+    });
+    let min_across = solidcraft_engine::multiphysics::setup_check::MIN_CELLS_ACROSS as u64;
+    let tolerance = solidcraft_engine::multiphysics::setup_check::CAPTURE_TOLERANCE;
+    egui::CollapsingHeader::new(tr("multiphysics.capture_title")).id_salt("multiphysics_capture").show(ui, |ui| {
+        ui.label(RichText::new(tr("multiphysics.capture_hint")).small().color(t.text_dim));
+        ui.scope(|ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+            egui::Grid::new("multiphysics_capture_grid").striped(true).show(ui, |ui| {
+                for key in
+                    ["multiphysics.parts_column_part", "multiphysics.capture_cells", "multiphysics.capture_across", "multiphysics.capture_held"]
+                {
+                    ui.strong(tr(key));
+                }
+                ui.end_row();
+                for row in rows.iter().take(super::MAX_TABLE_ROWS) {
+                    let body = row["body"].as_str().unwrap_or_default();
+                    let response = ui.add(egui::Label::new(body).sense(egui::Sense::click()));
+                    crate::scenario::publish_target(&format!("multiphysics:capture_row:{body}"), response.rect);
+                    if response.clicked() {
+                        actions.push(PartAction::PickMany(vec![body.to_string()]));
+                    }
+                    let cells = row["cells"].as_u64().unwrap_or(0);
+                    let across = row["cells_across"].as_u64().unwrap_or(0);
+                    ui.monospace(cells.to_string());
+                    let colour = if cells == 0 {
+                        t.form_error
+                    } else if across < min_across {
+                        t.warning
+                    } else {
+                        t.text
+                    };
+                    ui.colored_label(colour, RichText::new(across.to_string()).monospace());
+                    match row["captured"].as_f64() {
+                        Some(held) => {
+                            let colour = if (held - 1.0).abs() > tolerance { t.warning } else { t.text };
+                            ui.colored_label(colour, RichText::new(format!("{:.0} %", held * 100.0)).monospace());
+                        }
+                        None => {
+                            ui.monospace("–");
+                        }
+                    }
+                    ui.end_row();
+                }
+            });
+        });
+    });
 }
 
 /// Find: stacked rules on the parts' setup and the run's results; Find selects what meets them.

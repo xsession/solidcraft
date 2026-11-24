@@ -40,6 +40,23 @@ centres: a cell whose centre is inside a body is that body's (a *staircase*). Co
   checklist lists overlaps.
 - A slanted or curved face becomes steps of cells.
 
+### How well the grid holds each part
+
+The checklist measures each part of the study against the grid. Under **How the grid holds
+each part** it lists:
+
+| Column | What it is |
+|---|---|
+| Cells | The cells the part takes |
+| Cells thick | Its fewest layers of cells along x, y or z: 0 is lost, 1 a single step |
+| Volume held | Its cells' volume as a share of its exact volume, measured on the B-rep |
+
+A part under **2 cells thick**, or whose cells hold more than **25 %** more or less than its
+own volume, makes the *capture* line warn: its temperatures are those of a coarse block, so
+refine around it. A part with power that takes **no cell** is an error (*lost power*): the run
+has nowhere to put that power. And a fluid region the flow **enters but cannot leave**, an
+inlet or fan with no outlet beyond it, is an error (*flow path*): parts close the way.
+
 With **Cut cells** on (a flow study without heat), cells the surface crosses keep the fluid
 part of their volume instead: each connected piece of fluid in a cut cell is a cell of its
 own, with the open part of its faces and a wall face, measured on a lattice up to eight times

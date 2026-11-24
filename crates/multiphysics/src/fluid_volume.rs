@@ -32,6 +32,9 @@ pub struct FluidRegion {
     pub max: [f64; 3],
     /// The inlet, outlet and fan patches it touches (patch names).
     pub openings: Vec<String>,
+    /// Flow comes in (an inlet or a fan touches it) but has no outlet to leave by: the flow is
+    /// blocked between them, and the run cannot balance its mass.
+    pub blocked: bool,
 }
 
 impl FluidRegion {
@@ -49,6 +52,9 @@ pub struct SolidPart {
     pub volume_m3: f64,
     /// Cells it shares with an earlier part (counted once, under the earlier part).
     pub overlapping_cells: usize,
+    /// How many layers of cells it takes along x, y and z: its thickness in cells, where a part
+    /// one cell thick has a staircase of a single step.
+    pub layers: [usize; 3],
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
@@ -189,17 +195,22 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>, Vec<u32>)> {
     let mut empty_bodies = Vec::new();
     let claim = |owner: &mut [u32], name: &str, cells: &mut dyn Iterator<Item = (usize, usize, usize)>, solids: &mut Vec<SolidPart>| {
         let id = solids.len() as u32 + 1;
-        let mut part = SolidPart { name: name.into(), cells: 0, volume_m3: 0.0, overlapping_cells: 0 };
+        let mut part = SolidPart { name: name.into(), cells: 0, volume_m3: 0.0, overlapping_cells: 0, layers: [0; 3] };
+        let mut layers: [std::collections::BTreeSet<usize>; 3] = Default::default();
         for (i, j, k) in cells {
             let slot = &mut owner[index(i, j, k)];
             if *slot == 0 {
                 *slot = id;
                 part.cells += 1;
                 part.volume_m3 += volume(i, j, k);
+                for (axis, at) in [i, j, k].into_iter().enumerate() {
+                    layers[axis].insert(at);
+                }
             } else {
                 part.overlapping_cells += 1;
             }
         }
+        part.layers = layers.map(|l| l.len());
         solids.push(part);
     };
     for row in case.get("obstacles").and_then(Value::as_array).into_iter().flatten() {
@@ -240,7 +251,8 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>, Vec<u32>)> {
             continue;
         }
         let id = regions.len() as u32;
-        let mut region = FluidRegion { cells: 0, volume_m3: 0.0, min: [f64::INFINITY; 3], max: [f64::NEG_INFINITY; 3], openings: Vec::new() };
+        let mut region =
+            FluidRegion { cells: 0, volume_m3: 0.0, min: [f64::INFINITY; 3], max: [f64::NEG_INFINITY; 3], openings: Vec::new(), blocked: false };
         let mut touched = [false; 6];
         label[start] = id;
         stack.push(start);
@@ -284,6 +296,8 @@ fn analyse(case: &Value) -> Result<(FluidVolume, Vec<u32>, Vec<u32>)> {
             }
         }
         region.openings = (0..6).filter(|p| touched[*p]).map(|p| PATCHES[p].to_string()).collect();
+        let touches = |want: &[PatchRole]| (0..6).any(|p| touched[p] && want.contains(&roles[p]));
+        region.blocked = touches(&[PatchRole::Inlet, PatchRole::Fan]) && !touches(&[PatchRole::Outlet]);
         fluid_cells += region.cells;
         fluid_volume_m3 += region.volume_m3;
         regions.push(region);
@@ -525,6 +539,14 @@ mod tests {
         assert!((pocket.min[0] - 0.04).abs() < 1e-12 && (pocket.max[0] - 0.06).abs() < 1e-12);
         assert!((pocket.min[1] - 0.02).abs() < 1e-12 && (pocket.max[1] - 0.04).abs() < 1e-12);
         assert_eq!(report.sealed().count(), 1);
+        assert!(!report.regions[0].blocked, "the flow goes from the inlet to the outlet");
+        // A wall across the channel: the flow comes in on the left and has nowhere to go.
+        let mut walled = case.clone();
+        walled["obstacles"].as_array_mut().unwrap().push(json!({"name": "wall", "min": [8, 0, 0], "max": [9, 6, 1]}));
+        let walled = fluid_volume(&walled).expect("walled");
+        let blocked: Vec<(bool, Vec<String>)> = walled.regions.iter().map(|r| (r.blocked, r.openings.clone())).collect();
+        assert!(blocked.contains(&(true, vec!["left".to_string()])), "{blocked:?}");
+        assert!(blocked.contains(&(false, vec!["right".to_string()])), "an outlet alone fills, it is not blocked: {blocked:?}");
         // Filling turns the pocket into one block, and the check then finds one open region.
         let filled = fill_sealed_pockets(&case).expect("fill");
         assert_eq!(filled.case["obstacles"][4], json!({"name": "pocket_1_1", "min": [4, 2, 0], "max": [6, 4, 1]}));

@@ -297,7 +297,16 @@ pub(super) fn check(session: &mut Session, params: &Value) -> Result<Value> {
     }
     let (_, in_study) = study_bodies(session, &study)?;
     let current = super::model::current(session, &study.id)?.1.unwrap_or(false);
-    reply(solidcraft_multiphysics::setup_check::checklist(&study, &in_study, current))
+    // The study's parts' exact volumes, for how much of each the grid holds. A mesh body has
+    // no exact volume; a part that fails to measure is left without one.
+    let state = session.world_state()?;
+    let exact: std::collections::BTreeMap<String, f64> = state
+        .bodies
+        .iter()
+        .filter(|b| in_study.contains(&b.name) && !b.body.is_mesh())
+        .filter_map(|b| b.measure().ok().map(|m| (b.name.clone(), m.volume)))
+        .collect();
+    reply(solidcraft_multiphysics::setup_check::checklist_measured(&study, &in_study, current, &exact))
 }
 
 /// Colour the design's parts by their setup in a study, or (`by: none`) by their own looks.

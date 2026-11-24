@@ -1,0 +1,13 @@
+{
+  "en": {
+    "multiphysics.capture_across": "Cells thick",
+    "multiphysics.capture_cells": "Cells",
+    "multiphysics.capture_held": "Volume held",
+    "multiphysics.capture_hint": "How the grid holds each part: a part under 2 cells thick, or whose cells hold more than 25 % more or less than its own volume, is coarse; refine around it. Click a part to select it.",
+    "multiphysics.capture_title": "How the grid holds each part",
+    "multiphysics.check_capture_ok": "Every part is at least 2 cells thick and held within 25 %",
+    "multiphysics.check_capture_warn": "{count} part(s) the grid holds coarsely",
+    "multiphysics.check_flow_path_error": "{count} fluid region(s) the flow enters but cannot leave: parts close the way from inlet to outlet",
+    "multiphysics.check_lost_power_error": "{count} part(s) with power take no grid cell: the run cannot place their power"
+  }
+}
