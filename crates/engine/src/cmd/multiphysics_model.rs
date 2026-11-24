@@ -194,6 +194,53 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     commit(session, &input.id, input.expected_revision, link)
 }
 
+/// Leave the parts smaller than a size out of a study of the model: a live query of the
+/// study's parts at least that size (measured from exact geometry), which the study then uses.
+/// The query is the study's own selection, so a second call with another size replaces it.
+pub(super) fn leave_out_small(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::parts::{AttrValue, Compare, Members, Rule, SIZE};
+    let input: ModelLeaveOutSmall = parse(params)?;
+    if !input.below_mm.is_finite() || input.below_mm <= 0.0 || input.below_mm > 1.0e6 {
+        return Err(bad("below_mm", "give a size above 0 mm"));
+    }
+    let (study, link) = linked(session, &input.id)?;
+    if study.revision != input.expected_revision {
+        return Err(bad("expected_revision", format!("the study changed (revision {}); read it again", study.revision)));
+    }
+    let own = format!("{} without small parts", study.name);
+    let mut parts = session.doc.multiphysics.parts.clone();
+    // What the study held before: its own query's other rules, another selection, or a list.
+    let mut rules: Vec<Rule> = match (&link.selection, link.bodies.is_empty()) {
+        (Some(name), _) if *name == own => match parts.selection(name).map(|s| &s.members) {
+            Some(Members::Query { rules }) => rules.iter().filter(|r| !matches!(r, Rule::Attribute { key, .. } if key == SIZE)).cloned().collect(),
+            _ => Vec::new(),
+        },
+        (Some(name), _) => vec![Rule::InSelection { name: name.clone() }],
+        (None, false) => {
+            let listed = format!("{} parts", study.name);
+            parts.set_selection(&listed, Some(Members::Saved { bodies: link.bodies.clone() })).map_err(|e| bad("id", e.to_string()))?;
+            vec![Rule::InSelection { name: listed }]
+        }
+        (None, true) => Vec::new(),
+    };
+    rules.push(Rule::Attribute { key: SIZE.into(), compare: Compare::Ge, value: Some(AttrValue::Number(input.below_mm)) });
+    parts.set_selection(&own, Some(Members::Query { rules })).map_err(|e| bad("below_mm", e.to_string()))?;
+    let before = session.doc.multiphysics.clone();
+    let mut project = before.as_ref().clone();
+    project.parts = parts;
+    project.validate().map_err(|e| bad("", e.to_string()))?;
+    session.doc_mut().multiphysics = Arc::new(project);
+    let mut link = link;
+    link.selection = Some(own);
+    link.bodies.clear();
+    let done = commit(session, &input.id, input.expected_revision, link);
+    if done.is_err() {
+        // Nothing changes when the study cannot be built this way (no part is that large).
+        session.doc_mut().multiphysics = before;
+    }
+    done
+}
+
 pub(super) fn fan(session: &mut Session, params: &Value) -> Result<Value> {
     let input: ModelFanInput = parse(params)?;
     let (_, mut link) = linked(session, &input.id)?;

@@ -814,4 +814,51 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     // Everything survives saving and reopening.
     let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(reopened.multiphysics, s.doc.multiphysics);
+    // Grouping by designator: U1 and U2 are ICs and C1 a capacitor, each keeping its designator.
+    let before = s.undo.len();
+    let grouped = s.execute("multiphysics.parts.group", &json!({})).unwrap();
+    let kinds: Vec<(&str, &str)> =
+        grouped["grouped"].as_array().unwrap().iter().map(|g| (g["body"].as_str().unwrap(), g["class"].as_str().unwrap())).collect();
+    assert_eq!(kinds, [("U1", "ic"), ("U2", "ic"), ("C1", "capacitor")], "{grouped}");
+    assert_eq!(s.undo.len(), before + 1, "one undo step");
+    let listed = s.execute("multiphysics.parts.list", &json!({})).unwrap();
+    let c1 = listed["parts"].as_array().unwrap().iter().find(|p| p["body"] == "C1").unwrap().clone();
+    assert_eq!((c1["tags"].clone(), c1["attributes"]["designator"].clone()), (json!(["capacitor", "power"]), json!("C1")), "{c1}");
+    assert!(s.execute("multiphysics.parts.group", &json!({"bodies":["Nope"]})).is_err());
+    // Similar parts, from exact volumes and boxes: the two 10 mm cubes, not the 4 mm one.
+    let alike = s.execute("multiphysics.parts.similar", &json!({"body":"U2","select":true})).unwrap();
+    assert_eq!(alike["similar"], json!(["U1", "U2"]), "{alike}");
+    assert_eq!(s.selection.len(), 2);
+    assert_eq!(s.execute("multiphysics.parts.similar", &json!({"body":"C1"})).unwrap()["similar"], json!(["C1"]));
+    for bad in [json!({"body":"Nope"}), json!({"body":"U1","tolerance_pct":-1.0}), json!({"body":"U1","tolerance_pct":51.0})] {
+        assert!(s.execute("multiphysics.parts.similar", &bad).is_err(), "{bad}");
+    }
+    // Leaving out small parts: the study keeps its parts of at least 5 mm, by a query of its own
+    // that a second size replaces (not stacks on); a size no part reaches changes nothing.
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let in_study = |s: &mut Session| {
+        let table = s.execute("multiphysics.parts.table", &json!({"id":id})).unwrap();
+        table["table"]["rows"].as_array().unwrap().iter().map(|r| r["body"].as_str().unwrap().to_string()).collect::<Vec<_>>()
+    };
+    let before = s.undo.len();
+    let r = revision(&s);
+    s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r,"below_mm":5.0})).unwrap();
+    assert_eq!(s.undo.len(), before + 1, "one undo step");
+    assert_eq!(in_study(&mut s), ["U1", "U2"]);
+    let own = s.doc.multiphysics.parts.selection("Power without small parts").unwrap().members.clone();
+    let rules = json!([{"rule":"in_selection","name":"Power parts"},{"rule":"attribute","key":"size_mm","compare":"ge","value":5.0}]);
+    assert_eq!(serde_json::to_value(&own).unwrap()["rules"], rules);
+    let r = revision(&s);
+    s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r,"below_mm":3.0})).unwrap();
+    assert_eq!(in_study(&mut s), ["U1", "U2", "C1"]);
+    let own = serde_json::to_value(&s.doc.multiphysics.parts.selection("Power without small parts").unwrap().members).unwrap();
+    assert_eq!(own["rules"].as_array().unwrap().len(), 2, "the size replaced, not stacked: {own}");
+    let kept = s.doc.multiphysics.clone();
+    let r = revision(&s);
+    assert!(s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r,"below_mm":50.0})).is_err());
+    assert_eq!(s.doc.multiphysics, kept, "no part is 50 mm: nothing changes");
+    for bad in [json!(0.0), json!(-1.0), json!(2.0e6)] {
+        assert!(s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r,"below_mm":bad})).is_err(), "{bad}");
+    }
+    assert!(s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r + 1,"below_mm":1.0})).is_err());
 }

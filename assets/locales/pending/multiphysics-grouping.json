@@ -1,0 +1,16 @@
+{
+  "en": {
+    "cmd.multiphysics.model.leave_out_small": "Leave Out Small Parts",
+    "cmd.multiphysics.parts.group": "Group Parts by Designator",
+    "cmd.multiphysics.parts.similar": "Find Similar Parts",
+    "multiphysics.group_designators": "Tag by designator",
+    "multiphysics.group_similar": "Select similar",
+    "multiphysics.group_similar_found": "{count} part(s) of the same shape selected",
+    "multiphysics.group_similar_hint": "Pick one part, then select every part of the same shape (volume and size within 1 %)",
+    "multiphysics.group_small": "Leave out parts under (mm)",
+    "multiphysics.group_small_apply": "Leave out",
+    "multiphysics.group_small_done": "Parts under {size} mm are left out of the study",
+    "multiphysics.group_tagged": "{count} part(s) tagged by their designators (U: ic, C: capacitor, R: resistor…)",
+    "multiphysics.group_title": "Group"
+  }
+}

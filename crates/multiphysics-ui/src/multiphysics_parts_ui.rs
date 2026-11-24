@@ -29,6 +29,9 @@ pub(super) struct PartsUi {
     found: Option<Result<Value, String>>,
     /// The example rule was put in once; removing every rule leaves none.
     find_seeded: bool,
+    /// The Group section: its last answer, and the size under which parts are left out, as typed.
+    grouped: Option<Result<String, String>>,
+    small_mm: String,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -310,6 +313,8 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
             }
         }
     });
+    ui.separator();
+    group_section(app, state, study, ui);
     ui.separator();
     find_section(app, state, study, ui, &mut actions);
     ui.separator();
@@ -641,5 +646,66 @@ pub(super) fn find_section(app: &mut SolveApp, state: &mut State, study: &Study,
     });
     if let Some(Err(error)) = &state.parts_ui.found {
         ui.colored_label(t.form_error, error);
+    }
+}
+
+/// Group: making sense of an imported assembly. Tag its parts by their reference designators,
+/// select every part shaped like the one picked, and leave the small parts out of the study.
+fn group_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let t = Tokens::get();
+    ui.strong(tr("multiphysics.group_title"));
+    let chosen = selected(app);
+    ui.horizontal_wrapped(|ui| {
+        let response = crate::ui_kit::button(ui, tr("multiphysics.group_designators"), crate::ui_kit::Button::Small);
+        crate::scenario::publish_target("multiphysics:group_designators", response.rect);
+        if response.clicked() {
+            state.parts_ui.grouped = Some(app.run("multiphysics.parts.group", json!({})).map(|reply| {
+                let count = reply["grouped"].as_array().map_or(0, Vec::len).to_string();
+                solidcraft_ui_text::format("multiphysics.group_tagged", &[("count", &count)])
+            }));
+        }
+        let one = chosen.len() == 1;
+        let response = crate::ui_kit::button(ui, tr("multiphysics.group_similar"), crate::ui_kit::Button::Enabled(one))
+            .on_hover_text(tr("multiphysics.group_similar_hint"));
+        crate::scenario::publish_target("multiphysics:group_similar", response.rect);
+        if response.clicked()
+            && let Some(body) = chosen.first()
+        {
+            state.parts_ui.grouped = Some(app.run("multiphysics.parts.similar", json!({"body": body, "select": true})).map(|reply| {
+                let count = reply["similar"].as_array().map_or(0, Vec::len).to_string();
+                solidcraft_ui_text::format("multiphysics.group_similar_found", &[("count", &count)])
+            }));
+        }
+    });
+    ui.horizontal(|ui| {
+        ui.label(tr("multiphysics.group_small"));
+        let width = 80.0_f32.min(ui.available_width());
+        let response = ui
+            .allocate_ui(egui::vec2(width, crate::ui_kit::row_height()), |ui| {
+                crate::ui_kit::text_field_reserving(ui, &mut state.parts_ui.small_mm, "", 0.0).1
+            })
+            .inner;
+        crate::scenario::publish_target("multiphysics:group_small_mm", response.rect);
+        let size = state.parts_ui.small_mm.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v > 0.0);
+        let response = crate::ui_kit::button(ui, tr("multiphysics.group_small_apply"), crate::ui_kit::Button::Enabled(size.is_some()));
+        crate::scenario::publish_target("multiphysics:group_small_apply", response.rect);
+        if response.clicked()
+            && let Some(size) = size
+        {
+            let params = json!({"id": study.id, "expected_revision": study.revision, "below_mm": size});
+            state.parts_ui.grouped = Some(
+                app.run("multiphysics.model.leave_out_small", params)
+                    .map(|_| solidcraft_ui_text::format("multiphysics.group_small_done", &[("size", &format!("{size}"))])),
+            );
+        }
+    });
+    match &state.parts_ui.grouped {
+        Some(Ok(done)) => {
+            ui.label(RichText::new(done).small());
+        }
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+        }
+        None => {}
     }
 }

@@ -108,6 +108,76 @@ pub(super) fn tag(session: &mut Session, params: &Value) -> Result<Value> {
     store(session, parts)
 }
 
+/// Tag parts named by reference designators with the kind of part their letters name.
+pub(super) fn group(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::parts::AttrValue;
+    let input: PartsGroup = parse(params)?;
+    let mut parts = session.doc.multiphysics.parts.clone();
+    let state = session.world_state()?;
+    let bodies = if input.bodies.is_empty() && input.selection.is_none() {
+        state.bodies.iter().map(|b| b.name.clone()).collect()
+    } else {
+        named(&state, &parts, input.bodies, input.selection.as_deref())?.0
+    };
+    let (grouped, other) = solidcraft_multiphysics::grouping::group(&bodies);
+    for part in &grouped {
+        let designator = Some(AttrValue::Text(part.designator.clone()));
+        let change = Retag {
+            add_tags: vec![part.class.clone()],
+            attributes: [(solidcraft_multiphysics::grouping::DESIGNATOR.to_string(), designator)].into_iter().collect(),
+            ..Retag::default()
+        };
+        parts.retag(std::slice::from_ref(&part.body), &change).map_err(|e| bad("bodies", e.to_string()))?;
+    }
+    store(session, parts)?;
+    reply(PartsGroupReply { grouped, other })
+}
+
+/// A body's shape from its exact geometry, or none for a mesh body (it has none).
+fn shape(body: &solidcraft_doc::ModelBody) -> Result<Option<solidcraft_multiphysics::grouping::Shape>> {
+    if body.body.is_mesh() {
+        return Ok(None);
+    }
+    let b = body.body.exact_bounds()?;
+    let sides = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
+    let shape = solidcraft_multiphysics::grouping::Shape::new(body.measure()?.volume, sides).map_err(|e| bad("body", e.to_string()))?;
+    Ok(Some(shape))
+}
+
+/// The parts shaped like one part, from their exact volumes and bounding boxes.
+pub(super) fn similar(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::grouping::{DEFAULT_TOLERANCE, MAX_TOLERANCE, Shape};
+    let input: PartsSimilar = parse(params)?;
+    let tolerance = match input.tolerance_pct {
+        Some(pct) if pct.is_finite() && (0.0..=MAX_TOLERANCE * 100.0).contains(&pct) => pct / 100.0,
+        Some(_) => return Err(bad("tolerance_pct", format!("give 0 to {} per cent", MAX_TOLERANCE * 100.0))),
+        None => DEFAULT_TOLERANCE,
+    };
+    let state = session.world_state()?;
+    let target =
+        state.bodies.iter().find(|b| b.name == input.body).ok_or_else(|| bad("body", format!("the design has no body called {}", input.body)))?;
+    let like = shape(target)?.ok_or_else(|| bad("body", "a mesh body has no exact geometry to compare"))?;
+    // The bounding box first: only parts whose sides already match are measured for volume.
+    let near = |a: f64, b: f64| (a - b).abs() <= tolerance * a.abs().max(b.abs()) + 1e-9;
+    let mut shapes: Vec<(String, Shape)> = Vec::new();
+    for body in state.bodies.iter().filter(|b| !b.body.is_mesh()) {
+        let b = body.body.exact_bounds()?;
+        let mut sides = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
+        sides.sort_by(f64::total_cmp);
+        if sides.iter().zip(like.sides_mm).all(|(a, b)| near(*a, b))
+            && let Some(shape) = shape(body)?
+        {
+            shapes.push((body.name.clone(), shape));
+        }
+    }
+    let similar = solidcraft_multiphysics::grouping::similar(&like, &shapes, tolerance).map_err(|e| bad("tolerance_pct", e.to_string()))?;
+    if input.select {
+        session.selection = similar.iter().map(|name| crate::Sel::Body { name: name.clone() }).collect();
+        session.refresh_display();
+    }
+    reply(PartsSimilarReply { similar })
+}
+
 pub(super) fn selection(session: &mut Session, params: &Value) -> Result<Value> {
     let input: PartsSelection = parse(params)?;
     let members = match (input.remove, input.members) {

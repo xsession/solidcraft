@@ -4933,6 +4933,22 @@ mod tests {
         h.frames(2);
         assert_eq!(h.app.session.ghosted_bodies.iter().collect::<Vec<_>>(), ["U2"]);
         h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
+        // Group: U1 and U2 are tagged ic by their designators; Select similar picks both cubes
+        // from one; a size limit leaves out what is smaller (nothing here) by the study's own query.
+        h.step(&json!({"click":{"handle":"multiphysics:group_designators"}})).unwrap();
+        h.frames(2);
+        let tags = |h: &Harness, body: &str| h.app.session.doc.multiphysics.parts.parts.get(body).map(|p| p.tags.iter().cloned().collect::<Vec<_>>());
+        assert_eq!((tags(&h, "U1"), tags(&h, "U2")), (Some(vec!["ic".to_string()]), Some(vec!["ic".to_string()])), "{:?}", ws(&mut h.app).error);
+        h.app.run("multiphysics.parts.select", json!({"bodies":["U2"]})).unwrap();
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:group_similar"}})).unwrap();
+        h.frames(2);
+        assert_eq!(selected(&h), ["U1", "U2"]);
+        material_library_text(&mut h, "multiphysics:group_small_mm", "5");
+        h.step(&json!({"click":{"handle":"multiphysics:group_small_apply"}})).unwrap();
+        h.frames(2);
+        let link = h.app.session.doc.multiphysics.studies.iter().find_map(|s| s.model.clone()).unwrap();
+        assert_eq!(link.selection.as_deref(), Some("Board without small parts"), "{:?}", ws(&mut h.app).error);
         h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
         h.frames(2);
         // The checklist is listed, and its goals line has no parts to select.

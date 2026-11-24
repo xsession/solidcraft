@@ -342,6 +342,16 @@ pub struct ModelCreate {
     pub cell_mm: Option<f64>,
 }
 
+/// `multiphysics.model.leave_out_small`: leave the parts smaller than a size out of a study.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelLeaveOutSmall {
+    pub id: String,
+    pub expected_revision: u64,
+    /// Parts whose largest bounding-box side is under this many millimetres are left out.
+    pub below_mm: f64,
+}
+
 /// `multiphysics.model.set`: replace a model study's settings and build its case again.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -792,6 +802,46 @@ pub struct PartsFindReply {
     pub found: Vec<String>,
     /// The run the result rules read; none before a run with a thermal report.
     pub run: Option<String>,
+}
+
+/// `multiphysics.parts.group`: tag parts by the kind of part their reference designators name.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsGroup {
+    /// The bodies, by name; or `selection`; neither: every body of the design.
+    #[serde(default)]
+    pub bodies: Vec<String>,
+    /// A part selection whose bodies, as the design is now, are grouped.
+    #[serde(default)]
+    pub selection: Option<String>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsGroupReply {
+    /// The parts tagged, each with its designator and the kind of part (its new tag).
+    pub grouped: Vec<solidcraft_multiphysics::grouping::Grouped>,
+    /// The parts whose names carry no designator of a known kind, left as they were.
+    pub other: Vec<String>,
+}
+
+/// `multiphysics.parts.similar`: the parts shaped like one part.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartsSimilar {
+    /// The part the others are compared with.
+    pub body: String,
+    /// How far, in per cent of the larger, a volume or a side may differ (default 1, at most 50).
+    #[serde(default)]
+    pub tolerance_pct: Option<f64>,
+    /// Put the similar parts in the design's selection.
+    #[serde(default)]
+    pub select: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct PartsSimilarReply {
+    /// The parts alike in volume and bounding box, `body` among them, in the design's order.
+    pub similar: Vec<String>,
 }
 
 /// `multiphysics.parts.check`: a study of the model checked before it runs.

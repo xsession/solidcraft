@@ -895,10 +895,11 @@ fn thermal_block(case: &Value, heat: &ModelHeat, notes: &mut Vec<String>) -> Res
         .chain(case.get("obstacles").and_then(Value::as_array).into_iter().flatten())
         .filter_map(|b| b["name"].as_str().map(str::to_string))
         .collect();
-    for m in &heat.materials {
-        if !parts.contains(&case_scene::part_name(&m.body)) {
-            return Err(bad(format!("{} has a material but is not a body of the study", m.body)));
-        }
+    // A part the study leaves out keeps its material for when it is back: a live part selection
+    // or a size limit takes parts in and out of a study as the design changes.
+    let left_out: Vec<&str> = heat.materials.iter().filter(|m| !parts.contains(&case_scene::part_name(&m.body))).map(|m| m.body.as_str()).collect();
+    if !left_out.is_empty() {
+        notes.push(format!("{} have a material but the study leaves them out; it is kept for when they are back", left_out.join(", ")));
     }
     let mut starter = Vec::new();
     let solids: Vec<Value> = parts
@@ -1420,8 +1421,9 @@ mod tests {
         let starter = build(&channel(), &bare, &input).expect("starter");
         assert_eq!(starter.case["thermal"]["solids"][0]["conductivity_w_per_m_k"], serde_json::json!([1.0, 1.0, 1.0]));
         assert!(starter.notes.iter().any(|n| n.contains("starter material")), "{:?}", starter.notes);
-        // A thermal condition on a face inside the domain, or a material on a body the study
-        // does not hold, is refused with the reason.
+        // A thermal condition on a face inside the domain is refused with the reason; a material
+        // on a body the study does not hold (a part a selection or a size limit left out) is kept
+        // and noted.
         let mut inside = input.clone();
         inside.faces[4] = ResolvedFace { name: "hot inlet".into(), ..inner.clone() };
         let why = build(&channel(), &heated, &inside).expect_err("inside").to_string();
@@ -1430,8 +1432,9 @@ mod tests {
         if let Some(heat) = stranger.heat.as_mut() {
             heat.materials[0].body = "Lid".into();
         }
-        let why = build(&channel(), &stranger, &input).expect_err("stranger").to_string();
-        assert!(why.contains("not a body of the study"), "{why}");
+        let left = build(&channel(), &stranger, &input).expect("a left-out part's material is kept");
+        assert!(left.notes.iter().any(|n| n.starts_with("Lid have a material but the study leaves them out")), "{:?}", left.notes);
+        assert_eq!(left.case["thermal"]["solids"][0]["conductivity_w_per_m_k"], serde_json::json!([1.0, 1.0, 1.0]), "the duct itself has none now");
         // Temperature goals need heat on.
         let mut cold = heated.clone();
         cold.heat = None;
