@@ -1166,6 +1166,8 @@ pub(crate) fn active_body_names(app: &SolveApp) -> Option<ActiveBodyNames> {
 const FRAME_GHOST_OPACITY: f64 = 0.3;
 /// How strongly a see-through body's edges are drawn, of a solid body's.
 const GHOST_EDGE_OPACITY: f32 = 0.5;
+/// How strongly a see-through body's outline (its silhouette from the view) is drawn.
+const GHOST_OUTLINE_OPACITY: f32 = 0.55;
 
 /// [`FRAME_GHOST_OPACITY`] as a colour's alpha, as see-through faces are drawn.
 pub(crate) fn frame_ghost_alpha() -> u8 {
@@ -3190,9 +3192,12 @@ pub(crate) fn refresh_sketch_scene(app: &mut SolveApp, proj: &Proj) {
 }
 
 /// The camera changes only silhouette classification, never the body's mesh or GPU blocks.
+/// Wireframe outlines every body; the other styles outline the see-through ones (ghosted parts,
+/// ghosted frame members), whose faint edges alone leave a curved part without a shape.
 fn refresh_wireframe(app: &mut SolveApp, proj: &Proj) {
     let mut outlines = std::mem::take(&mut app.viewport.wireframe);
-    if app.ui.visual_style != 2 {
+    let wireframe = app.ui.visual_style == 2;
+    if !wireframe && app.session.ghosted_bodies.is_empty() && !frame_ghosting(app) {
         if outlines.model().is_some() {
             outlines.set_model(None, 0);
         }
@@ -3207,7 +3212,7 @@ fn refresh_wireframe(app: &mut SolveApp, proj: &Proj) {
         }
         outlines.advance(&proj.cam, crate::wireframe_silhouettes::WORK_PER_FRAME, |index| {
             let body = st.bodies.get(index)?;
-            if !app.body_visible(&body.name) || app.preview.effective_replaced().contains(&body.name) {
+            if !app.body_visible(&body.name) || app.preview.effective_replaced().contains(&body.name) || (!wireframe && !see_through(app, body)) {
                 return None;
             }
             // The model scene already requested these display meshes. Reuse placements'
@@ -3236,6 +3241,14 @@ pub(crate) fn build_sketch_scene(app: &SolveApp, proj: &Proj) -> GpuScene {
     }
     if app.ui.visual_style == 2 {
         let color = sc.color(c4(tk.text));
+        for [a, b] in app.viewport.wireframe.segments() {
+            sc.line(a.to_f32(), b.to_f32(), color, 1.3, false);
+        }
+    } else if !app.viewport.wireframe.segments().is_empty() {
+        // The see-through parts' outlines, in the colour the wireframe draws against the view's
+        // background (light on dark): clearer than their faint edges, so a ghost keeps its
+        // shape, and hidden behind the solid parts in front of it.
+        let color = sc.color(c4(tk.text.gamma_multiply(GHOST_OUTLINE_OPACITY)));
         for [a, b] in app.viewport.wireframe.segments() {
             sc.line(a.to_f32(), b.to_f32(), color, 1.3, false);
         }

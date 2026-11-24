@@ -380,6 +380,35 @@ fn a_ghosted_parts_edges_are_faint() {
     assert_eq!(edge(&app, "Lid"), solid);
 }
 
+/// A ghosted part is outlined from the view (its silhouette), so a curved ghost keeps its shape
+/// beside its faint edges; only see-through parts are outlined outside the wireframe style, and
+/// solid again, nothing is.
+#[test]
+fn a_ghosted_curved_part_is_outlined() {
+    let mut app = SolveApp::new(Session::default(), Services::default());
+    app.run("solid.cylinder", json!({"radius": 20, "height": 30, "base": [0, 0, 0], "body_name": "Can"})).unwrap();
+    app.run("solid.box", json!({"length": 5, "width": 5, "height": 5, "corner": [40, 0, 0], "body_name": "Chip", "operation": "new"})).unwrap();
+    app.fit_view();
+    let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
+    let outline = |app: &mut SolveApp| {
+        let projection = super::projection(app, rect);
+        for _ in 0..4 {
+            super::refresh_sketch_scene(app, &projection);
+        }
+        app.viewport.wireframe.segments().to_vec()
+    };
+    assert!(outline(&mut app).is_empty(), "nothing see-through: no outlines");
+    app.run("multiphysics.parts.ghost", json!({"bodies": ["Can"]})).unwrap();
+    let can = outline(&mut app);
+    assert!(!can.is_empty(), "the ghosted cylinder is outlined");
+    // Its sides: pieces running straight up the cylinder, the full 30 mm between them.
+    let up: f64 = can.iter().filter(|[a, b]| (a.x - b.x).abs() < 1e-6 && (a.y - b.y).abs() < 1e-6).map(|[a, b]| (a.z - b.z).abs()).sum();
+    assert!(up >= 2.0 * 30.0 - 1e-6, "both sides outlined: {up} mm of {} segments", can.len());
+    assert!(can.iter().all(|[a, b]| a.x.max(b.x) < 21.0), "the chip is not outlined");
+    app.run("multiphysics.parts.ghost", json!({"only": true})).unwrap();
+    assert!(outline(&mut app).is_empty(), "solid again");
+}
+
 /// A part placed many times goes to the GPU once: drawn indirectly, its triangles are uploaded
 /// to the indirect draws' buffer alone, not to buffers of their own as well, and its shared
 /// edges (where the device draws them) to the edges' buffer; a scene adding a part that fits
