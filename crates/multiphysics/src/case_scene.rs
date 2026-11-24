@@ -994,16 +994,25 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
         }
         let budget = dimensions.iter().product::<usize>().clamp(1, crate::MAX_CELLS as usize) as f64;
         let thinnest = thinnest_extent(&objects) / 1000.0;
+        // What the bodies ask of the grid: cells across their narrowest gap and their thinnest
+        // wall (`sizing`), measured along the axes.
+        let features = if options.cell_mm.is_none() { crate::sizing::features(&objects) } else { Default::default() };
         let mut h = match options.cell_mm {
             Some(cell) if cell.is_finite() && cell > 0.0 => cell / 1000.0,
             Some(_) => return Err(bad("the cell size must be positive")),
-            // The case's cell count alone can leave a body thinner than one cell, or the
-            // margin without a fluid cell. Resolve the thinnest body with two cells and the
-            // margin with one; the cell limit below coarsens again when that is too many.
+            // The case's cell count alone can leave a body thinner than one cell, a gap without
+            // fluid cells, or the margin without a fluid cell. Resolve the gaps and walls with
+            // two cells (the thinnest body's box when no wall is measured) and the margin with
+            // one; the cell limit below coarsens again when that is too many.
             None => {
                 let mut h = (size[0] * size[1] * size[2] / budget).cbrt();
-                if thinnest.is_finite() && thinnest > 0.0 {
-                    h = h.min(thinnest / 2.0);
+                match &features.wall {
+                    Some(wall) => h = h.min(wall.mm / 1000.0 / crate::sizing::WALL_CELLS),
+                    None if thinnest.is_finite() && thinnest > 0.0 => h = h.min(thinnest / 2.0),
+                    None => {}
+                }
+                if let Some(gap) = &features.gap {
+                    h = h.min(gap.mm / 1000.0 / crate::sizing::GAP_CELLS);
                 }
                 if options.margin_mm > 0.0 {
                     h = h.min(options.margin_mm / 1000.0);
@@ -1024,13 +1033,32 @@ pub fn import_components(case: &Value, obj_text: &str, options: &ImportOptions) 
             guard += 1;
         }
         if guard > 0 {
+            notes.push(format!("the cell limit ({} cells, {MAX_AXIS_CELLS} along an axis) made the cells {:.3} mm", crate::MAX_CELLS, h * 1000.0));
+        }
+        // What the cell limit left of the gap and wall asked for, so the user knows where the
+        // grid is coarse: refine there, or accept it.
+        const AXES: [&str; 3] = ["x", "y", "z"];
+        let short = |width: &crate::sizing::Width, cells: f64| (width.mm / 1000.0 / h) < cells - 1e-6;
+        if let Some(gap) = features.gap.as_ref().filter(|g| short(g, crate::sizing::GAP_CELLS)) {
+            let between = if gap.from == gap.to { gap.from.clone() } else { format!("{} and {}", gap.from, gap.to) };
             notes.push(format!(
-                "the cell limit ({} cells, {MAX_AXIS_CELLS} along an axis) made the cells {:.3} mm",
-                crate::MAX_CELLS,
-                h * 1000.0
+                "the narrowest gap ({:.3} mm along {}, by {between}) gets {:.1} cells across, not {}: refine around it",
+                gap.mm,
+                AXES.get(gap.axis).copied().unwrap_or("?"),
+                gap.mm / 1000.0 / h,
+                crate::sizing::GAP_CELLS
             ));
         }
-        if thinnest.is_finite() && thinnest < 2.0 * h {
+        if let Some(wall) = features.wall.as_ref().filter(|w| short(w, crate::sizing::WALL_CELLS)) {
+            notes.push(format!(
+                "the thinnest wall ({:.3} mm along {}, of {}) gets {:.1} cells, not {}: refine around it",
+                wall.mm,
+                AXES.get(wall.axis).copied().unwrap_or("?"),
+                wall.from,
+                wall.mm / 1000.0 / h,
+                crate::sizing::WALL_CELLS
+            ));
+        } else if features.wall.is_none() && thinnest.is_finite() && thinnest < 2.0 * h {
             notes.push(format!(
                 "the thinnest body ({:.3} mm) spans fewer than two {:.3} mm cells; set a smaller cell size to resolve it",
                 thinnest * 1000.0,
@@ -1221,7 +1249,7 @@ fn regrid(case: &Value, new_nodes: [Vec<f64>; 3], maps: [Vec<usize>; 3], uniform
     }
     let total = dimensions.iter().map(|&n| n as u64).product::<u64>();
     if total > crate::MAX_CELLS {
-        return Err(bad(format!("the local mesh would need {total} cells; the limit is {}", crate::MAX_CELLS)));
+        return Err(Error::Limit(format!("the local mesh would need {total} cells; the limit is {}", crate::MAX_CELLS)));
     }
     let mut proposed = case.clone();
     for key in ["obstacles", "porous_blocks"] {

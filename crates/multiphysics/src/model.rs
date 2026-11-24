@@ -1044,47 +1044,75 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
             }
         }
     }
-    let imported = case_scene::import_components(&base, &input.obj, &options)?;
-    let mut case = imported.edit.case;
-    let mut notes = imported.notes;
-    // Local refinements, then a time step that fits the smallest cells.
-    let mut refine_face = refine_faces.iter();
-    for r in &link.refinements {
-        let edit = match &r.target {
-            RefineTarget::Body { body } => case_scene::refine_around(&case, &[case_scene::part_name(body)], r.factor, r.margin_cells),
-            RefineTarget::Region { low_mm, high_mm } => {
-                let (dimensions, lengths) = case_scene::grid(&case)?;
-                let pad = [0, 1, 2].map(|a| r.margin_cells * lengths[a] / dimensions[a] as f64);
-                let origin = imported.origin_mm;
-                // A box edge on a grid node (an adaptive box is whole cells) must not reach
-                // into the next cell through rounding: a nanometre inside.
-                const INSIDE_M: f64 = 1e-9;
-                case_scene::refine_region(
-                    &case,
-                    [0, 1, 2].map(|a| (low_mm[a] - origin[a]) / 1000.0 - pad[a] + INSIDE_M),
-                    [0, 1, 2].map(|a| (high_mm[a] - origin[a]) / 1000.0 + pad[a] - INSIDE_M),
-                    r.factor,
-                )
+    // Local refinements on the imported grid.
+    let refine = |imported: &case_scene::Imported| -> Result<Value> {
+        let mut case = imported.edit.case.clone();
+        let mut refine_face = refine_faces.iter();
+        for r in &link.refinements {
+            let edit = match &r.target {
+                RefineTarget::Body { body } => case_scene::refine_around(&case, &[case_scene::part_name(body)], r.factor, r.margin_cells),
+                RefineTarget::Region { low_mm, high_mm } => {
+                    let (dimensions, lengths) = case_scene::grid(&case)?;
+                    let pad = [0, 1, 2].map(|a| r.margin_cells * lengths[a] / dimensions[a] as f64);
+                    let origin = imported.origin_mm;
+                    // A box edge on a grid node (an adaptive box is whole cells) must not reach
+                    // into the next cell through rounding: a nanometre inside.
+                    const INSIDE_M: f64 = 1e-9;
+                    case_scene::refine_region(
+                        &case,
+                        [0, 1, 2].map(|a| (low_mm[a] - origin[a]) / 1000.0 - pad[a] + INSIDE_M),
+                        [0, 1, 2].map(|a| (high_mm[a] - origin[a]) / 1000.0 + pad[a] - INSIDE_M),
+                        r.factor,
+                    )
+                }
+                RefineTarget::Face { .. } => {
+                    let face = refine_face.next().ok_or_else(|| bad("a refinement's face is missing"))?;
+                    let (low, high) =
+                        face_box(&case, face).ok_or_else(|| bad(format!("{}: the face has no triangles in the model's tessellation", r.name)))?;
+                    let (dimensions, lengths) = case_scene::grid(&case)?;
+                    let pad = [0, 1, 2].map(|a| r.margin_cells * lengths[a] / dimensions[a] as f64);
+                    // A flat face has no thickness along its normal: give the box a sliver there
+                    // so the cells on both sides of it count, and only there.
+                    let sliver = [0, 1, 2].map(|a| if high[a] - low[a] <= 1e-9 * lengths[a] { 1e-9 * lengths[a] } else { 0.0 });
+                    case_scene::refine_region(
+                        &case,
+                        [0, 1, 2].map(|a| low[a] - pad[a] - sliver[a]),
+                        [0, 1, 2].map(|a| high[a] + pad[a] + sliver[a]),
+                        r.factor,
+                    )
+                }
             }
-            RefineTarget::Face { .. } => {
-                let face = refine_face.next().ok_or_else(|| bad("a refinement's face is missing"))?;
-                let (low, high) =
-                    face_box(&case, face).ok_or_else(|| bad(format!("{}: the face has no triangles in the model's tessellation", r.name)))?;
-                let (dimensions, lengths) = case_scene::grid(&case)?;
-                let pad = [0, 1, 2].map(|a| r.margin_cells * lengths[a] / dimensions[a] as f64);
-                // A flat face has no thickness along its normal: give the box a sliver there
-                // so the cells on both sides of it count, and only there.
-                let sliver = [0, 1, 2].map(|a| if high[a] - low[a] <= 1e-9 * lengths[a] { 1e-9 * lengths[a] } else { 0.0 });
-                case_scene::refine_region(
-                    &case,
-                    [0, 1, 2].map(|a| low[a] - pad[a] - sliver[a]),
-                    [0, 1, 2].map(|a| high[a] + pad[a] + sliver[a]),
-                    r.factor,
-                )
-            }
+            .map_err(|e| match e {
+                // Kept apart: an automatic grid makes room for it below.
+                Error::Limit(m) => Error::Limit(format!("{}: {m}", r.name)),
+                e => bad(format!("{}: {e}", r.name)),
+            })?;
+            case = edit.case;
         }
-        .map_err(|e| bad(format!("{}: {e}", r.name)))?;
-        case = edit.case;
+        Ok(case)
+    };
+    // An automatic grid is the finest that fits: when the refinements would take it past the
+    // cell limit, its base cells grow (15 % a time, to at most 8 times the size) until they fit.
+    // A typed cell size is the user's: the refinement is refused instead.
+    let automatic = link.cell_mm.is_none();
+    let mut grow = 1.0f64;
+    let (imported, mut case) = loop {
+        let mut options = options.clone();
+        if automatic {
+            options.cell_scale = Some(options.cell_scale.unwrap_or(1.0) * grow);
+        }
+        let imported = case_scene::import_components(&base, &input.obj, &options)?;
+        match refine(&imported) {
+            Ok(case) => break (imported, case),
+            Err(Error::Limit(_)) if automatic && grow * 1.15 <= 8.0 => grow *= 1.15,
+            Err(e) => return Err(e),
+        }
+    };
+    let mut notes = imported.notes.clone();
+    if grow > 1.0 {
+        notes.push(format!(
+            "the local refinements needed room under the cell limit: the automatic cells are {grow:.2} times the size the bodies ask for"
+        ));
     }
     if !link.refinements.is_empty() {
         case_scene::fit_time_step(&mut case, &mut notes);
@@ -1459,8 +1487,12 @@ mod tests {
         let finer = cells(&level);
         level.mesh_level = Some(1);
         let coarser = cells(&level);
-        // Two levels halve the cell size: about eight times the cells (whole cells per axis).
-        assert!(finer > 5 * automatic && coarser * 5 < automatic, "{coarser} {automatic} {finer}");
+        // The automatic cells make the duct's 4 mm walls two cells thick: 2 mm, 50 × 20 × 20.
+        assert_eq!(automatic, 50 * 20 * 20);
+        // Two levels double the cell size: about an eighth of the cells (whole cells per axis).
+        // Two levels finer would be eight times as many, past the cell limit, which caps them.
+        assert!(coarser * 5 < automatic, "{coarser} {automatic}");
+        assert!(finer > automatic && finer as u64 <= crate::MAX_CELLS, "{automatic} {finer}");
         level.cell_mm = Some(4.0);
         assert_eq!(cells(&level), 25 * 10 * 10, "a typed cell size wins");
         level.mesh_level = Some(9);
@@ -1634,6 +1666,24 @@ mod tests {
         let dims = built.case["mesh"]["dimensions"].clone();
         assert_eq!(dims[1], serde_json::json!(12), "{dims}");
         assert_eq!((dims[0].clone(), dims[2].clone()), (serde_json::json!(50), serde_json::json!(18)), "{dims}");
+    }
+
+    /// The automatic grid (2 mm, the duct's walls two cells thick: 20 000 cells) split in two
+    /// everywhere would be 160 000 cells: its base cells grow until the refinement fits. A
+    /// typed cell size is refused instead.
+    #[test]
+    fn an_automatic_grid_makes_room_for_its_refinements() {
+        let mut auto = link(&[]);
+        auto.cell_mm = None;
+        auto.refinements = vec![Refinement { name: "all".into(), target: RefineTarget::Body { body: "Duct".into() }, factor: 2, margin_cells: 0.0 }];
+        let built = build(&channel(), &auto, &duct()).expect("room made");
+        let cells: u64 = built.case["mesh"]["dimensions"].as_array().into_iter().flatten().filter_map(Value::as_u64).product();
+        assert!(cells <= crate::MAX_CELLS && cells > crate::MAX_CELLS / 4, "{cells}");
+        assert!(built.notes.iter().any(|n| n.contains("needed room under the cell limit")), "{:?}", built.notes);
+        let mut typed = auto.clone();
+        typed.cell_mm = Some(2.0);
+        let refused = build(&channel(), &typed, &duct()).expect_err("over the limit");
+        assert!(refused.to_string().contains("the local mesh would need"), "{refused}");
     }
 
     #[test]

@@ -627,12 +627,18 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     let id = s.execute("multiphysics.model.create", &json!({"name":"Adapt","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
     let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
     let dimensions = |reply: &Value| reply["study"]["case"]["mesh"]["dimensions"].clone();
-    // A level clears the typed 4 mm cells: level 5 is finer than the automatic level 3.
+    // A level clears the typed 4 mm cells: level 1 is coarser than the automatic level 3, which
+    // makes the duct's 4 mm walls two cells thick (50 × 20 × 20); level 5 is finer, up to the
+    // cell limit.
     let level3 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":3})).unwrap();
     assert_eq!(level3["link"].get("cell_mm"), None);
-    let level5 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":5})).unwrap();
+    assert_eq!(dimensions(&level3), json!([50, 20, 20]));
     let count = |d: Value| d.as_array().unwrap().iter().map(|n| n.as_u64().unwrap()).product::<u64>();
-    assert!(count(dimensions(&level5)) > 5 * count(dimensions(&level3)), "{} {}", dimensions(&level3), dimensions(&level5));
+    let level1 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":1})).unwrap();
+    assert!(count(dimensions(&level3)) > 5 * count(dimensions(&level1)), "{} {}", dimensions(&level1), dimensions(&level3));
+    let level5 = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"mesh_level":5})).unwrap();
+    let fine = count(dimensions(&level5));
+    assert!(fine > count(dimensions(&level3)) && fine <= 32_768, "{}", dimensions(&level5));
     // Back to 4 mm cells, then keep a run whose velocity steps up at x = 48 mm.
     let reply = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"cell_mm":4.0})).unwrap();
     assert_eq!(dimensions(&reply), json!([25, 10, 10]));

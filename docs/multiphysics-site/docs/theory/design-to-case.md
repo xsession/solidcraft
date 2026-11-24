@@ -25,8 +25,27 @@ domain: uniform, or with finer rows where refinements ask. Refining around a par
 cell row crossing the part's box, so a refinement runs through the whole domain on the other
 two axes. The solver accepts at most 32 768 cells.
 
-The automatic cell size is at most half the thinnest body. In the example (160 × 60 × 40 mm,
-4 mm cells) the grid is 40 × 15 × 10 = 6 000 cells.
+Without a typed cell size, the cells are sized from what the bodies ask of the grid. On the
+bodies' triangle surfaces, from each face that looks along an axis, one ray goes out into the
+fluid and one into the part, along that axis, as the grid sees widths:
+
+- the **narrowest gap**, the shortest way out to another surface, should be **2 cells** across;
+- the **thinnest wall**, the shortest way in to the part's own far side, should be **2 cells**.
+
+Both are robust minima: the smallest width under which at least 1 % of the sampled face area
+lies, so a chamfer or a thread's end does not set the size of the whole study. A face resting
+on another part (a chip on a board) has no gap there. The margin of an external study gets at
+least one cell. When that is more than the 32 768 cells allow, the cells grow until it fits,
+and the build says which gap or wall is left with fewer cells than it asked for, and how many
+it got: refine around it, or [leave out](../tutorials/imported-assemblies.md#leave-out-small-parts)
+the parts that cause it. The mesh level then scales the size up or down by √2 a level.
+
+Local refinements come on top of that grid. Refining across a whole section splits every row
+crossing it, so on an automatic grid the cells could pass the limit: the base cells then grow,
+15 % at a time, until the refinements fit, and the build says by how much. With a typed cell
+size the build refuses instead: that size is yours.
+
+In the example the cell size is typed (4 mm): the grid is 40 × 15 × 10 = 6 000 cells.
 
 ## Bodies in the grid
 

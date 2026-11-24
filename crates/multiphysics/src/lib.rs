@@ -32,6 +32,7 @@ pub mod report;
 pub mod results;
 pub mod setup;
 pub mod setup_check;
+pub mod sizing;
 mod templates;
 pub mod variants;
 pub mod vtk;
