@@ -15,9 +15,9 @@ pub fn write_case(path: &Path, study: &Study) -> Result<()> {
     }
     safe_write::create_atomic(path, &serde_json::to_vec_pretty(&study.case).map_err(invalid)?).map_err(invalid)
 }
-/// A batch report into a new directory: `report.csv` and `report.html`, written atomically;
-/// the directory is removed again if any file fails.
-pub fn write_report(directory: &Path, csv: &str, html: &str) -> Result<Vec<String>> {
+/// A batch report into a new directory: `report.csv`, `report.html` and its pictures (plain
+/// file names), written atomically; the directory is removed again if any file fails.
+pub fn write_report(directory: &Path, csv: &str, html: &str, pictures: &[(String, Vec<u8>)]) -> Result<Vec<String>> {
     crate::vfs::check(&directory.to_string_lossy()).map_err(invalid)?;
     if cfg!(target_arch = "wasm32") {
         return Err(invalid("Report directories require a native host"));
@@ -25,12 +25,19 @@ pub fn write_report(directory: &Path, csv: &str, html: &str) -> Result<Vec<Strin
     if directory.as_os_str().is_empty() {
         return Err(invalid("Choose a new output directory"));
     }
+    if pictures.iter().any(|(name, _)| !name.ends_with(".png") || name.contains(['/', '\\']) || name.starts_with('.') || name.len() > 64) {
+        return Err(invalid("A report picture needs a plain .png file name"));
+    }
     std::fs::create_dir(directory).map_err(invalid)?;
     let write = || -> Result<Vec<String>> {
         let mut files = Vec::new();
-        for (name, text) in [("report.csv", csv), ("report.html", html)] {
-            safe_write::create_atomic(&directory.join(name), text.as_bytes()).map_err(invalid)?;
+        for (name, bytes) in [("report.csv", csv.as_bytes()), ("report.html", html.as_bytes())] {
+            safe_write::create_atomic(&directory.join(name), bytes).map_err(invalid)?;
             files.push(name.to_string());
+        }
+        for (name, bytes) in pictures {
+            safe_write::create_atomic(&directory.join(name), bytes).map_err(invalid)?;
+            files.push(name.clone());
         }
         Ok(files)
     };

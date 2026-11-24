@@ -15,6 +15,22 @@ use crate::{Error, Result, Study};
 /// Most runs one report reads.
 pub const MAX_REPORT_RUNS: usize = 64;
 
+/// The colours a report draws verdicts in, in its pictures and its page: green, amber, red, and
+/// grey for a part the run reports nothing on.
+pub fn verdict_rgb(status: Option<ComponentStatus>) -> [u8; 3] {
+    match status {
+        Some(ComponentStatus::Pass) => [67, 160, 71],
+        Some(ComponentStatus::Warn) => [230, 160, 40],
+        Some(ComponentStatus::Fail) => [211, 67, 54],
+        Some(ComponentStatus::NoLimit) | None => [150, 150, 150],
+    }
+}
+
+/// Each part's verdict in one run of the report (none where the run reports nothing on it).
+pub fn verdicts(table: &ComponentTable) -> Vec<(String, Option<ComponentStatus>)> {
+    table.rows.iter().map(|r| (r.body.clone(), r.result.as_ref().map(|_| r.status))).collect()
+}
+
 /// One run's line of the report.
 #[derive(Clone, Debug, PartialEq, Serialize, JsonSchema)]
 pub struct RunSummary {
@@ -131,8 +147,9 @@ fn fixed(v: Option<f64>, places: usize) -> String {
 }
 
 /// A self-contained page: the runs' summary, then each part's highest temperature per run,
-/// marked by its verdict. No scripts and nothing fetched; every text is escaped.
-pub fn to_html(report: &BatchReport) -> String {
+/// marked by its verdict, and each run's picture where `pictures` names one (a file beside the
+/// page). No scripts and nothing fetched from elsewhere; every text is escaped.
+pub fn to_html(report: &BatchReport, pictures: &[Option<String>]) -> String {
     let title = format!("{} — batch report", report.study);
     let mut out = String::new();
     out.push_str("<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">");
@@ -177,7 +194,21 @@ pub fn to_html(report: &BatchReport) -> String {
         }
         out.push_str("</tr>");
     }
-    out.push_str("</table></body></html>\n");
+    out.push_str("</table>");
+    if pictures.iter().any(Option::is_some) {
+        out.push_str("<h2>Parts by verdict</h2><p>Green: pass, amber: warn, red: fail, grey: no result.</p>");
+        for (s, picture) in report.runs.iter().zip(pictures) {
+            if let Some(file) = picture {
+                out.push_str(&format!(
+                    "<figure><img src=\"{}\" alt=\"{}\" width=\"640\"><figcaption>{}</figcaption></figure>",
+                    escape(file),
+                    escape(&s.run),
+                    escape(&s.run)
+                ));
+            }
+        }
+    }
+    out.push_str("</body></html>\n");
     out
 }
 
@@ -241,10 +272,17 @@ mod tests {
         assert_eq!(csv.lines().count(), 5, "a header and two parts for each of two runs: {csv}");
         assert!(csv.contains("\nslow fan,R 2,0.5,"), "{csv}");
         assert!(csv.lines().nth(2).is_some_and(|l| l.ends_with(",-5,fail")), "{csv}");
-        let html = to_html(&report);
+        let html = to_html(&report, &[]);
         assert!(html.contains("<title>Board &lt;A&amp;B&gt; — batch report</title>"), "escaped: {html}");
         assert!(!html.contains("<A&B>") && !html.contains("<script"));
         assert!(html.contains("<td class=\"fail\">71.9</td>"), "{html}");
+        assert!(!html.contains("<img"), "no pictures");
+        let pictured = to_html(&report, &[Some("run-1.png".into()), None]);
+        assert!(pictured.contains("<img src=\"run-1.png\" alt=\"slow fan\""), "{pictured}");
+        assert_eq!(pictured.matches("<img").count(), 1);
+        let shown: Vec<_> = verdicts(&report.tables[0]).into_iter().map(|(_, v)| v).collect();
+        assert_eq!(shown, [Some(ComponentStatus::Pass), Some(ComponentStatus::Fail)]);
+        assert_ne!(verdict_rgb(Some(ComponentStatus::Fail)), verdict_rgb(Some(ComponentStatus::Pass)));
         // One run by name, and refusals.
         let one = build(&study, &Registry::default(), &parts, &["fast fan".to_string()]).unwrap();
         assert_eq!(one.runs.len(), 1);

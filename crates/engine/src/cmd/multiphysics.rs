@@ -73,7 +73,7 @@ pub static COMMANDS: &[CommandSpec] = &[
         .params("id, run_id, directory: new directory. Original VTU/PVD/CSV/JSON/S2P, case and manifest for ParaView; associations unchanged, no invented .pvsm or units."),
     CommandSpec::new("multiphysics.result.report", "Batch Report over Runs", crate::checked!("multiphysics.result.report", report_runs))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ReportRuns>::new()).output(output_schema_for::<ReportReply>)
-        .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
+        .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run, and run-N.png, each run's parts by verdict, when a picture renderer is installed); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
     CommandSpec::new("multiphysics.result.inspect", "Inspect Multiphysics Result", crate::checked!("multiphysics.result.inspect", inspect_result))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<InspectResult>::new()).output(output_schema_for::<ResultInspection>)
         .params("id, run_id, artifact: one retained ASCII VTU/PVD file. Returns bounded geometry, field or collection metadata, without dataset bytes or inferred units."),
@@ -344,15 +344,77 @@ fn report_runs(session: &mut Session, params: &Value) -> Result<Value> {
         None => vec![],
     };
     let report = solidcraft_multiphysics::report::build(&study, parts, &in_study, &input.run_ids).map_err(|e| bad("run_ids", e.to_string()))?;
-    let (csv, html) = (solidcraft_multiphysics::report::to_csv(&report), solidcraft_multiphysics::report::to_html(&report));
+    // A picture of each run's parts by verdict, beside a written report, where a renderer is installed.
+    let pictures: Vec<Option<(String, Vec<u8>)>> = match (&input.directory, crate::capture::installed()) {
+        (Some(_), Some(renderer)) => report
+            .tables
+            .iter()
+            .enumerate()
+            .map(|(i, table)| verdict_picture(session, table, &*renderer).map(|png| (format!("run-{}.png", i + 1), png)))
+            .collect(),
+        _ => vec![None; report.tables.len()],
+    };
+    let names: Vec<Option<String>> = pictures.iter().map(|p| p.as_ref().map(|(name, _)| name.clone())).collect();
+    let (csv, html) = (solidcraft_multiphysics::report::to_csv(&report), solidcraft_multiphysics::report::to_html(&report, &names));
     let files = match &input.directory {
         Some(directory) => {
-            solidcraft_io::multiphysics::write_report(std::path::Path::new(directory), &csv, &html).map_err(|e| bad("directory", e.to_string()))?
+            let pictures: Vec<(String, Vec<u8>)> = pictures.into_iter().flatten().collect();
+            solidcraft_io::multiphysics::write_report(std::path::Path::new(directory), &csv, &html, &pictures)
+                .map_err(|e| bad("directory", e.to_string()))?
         }
         None => Vec::new(),
     };
     let (csv, html) = if input.inline { (Some(csv), Some(html)) } else { (None, None) };
     reply(ReportReply { runs: report.runs, files, csv, html })
+}
+/// One run's parts in their verdict colours (the study's parts; the others see-through), iso and
+/// fitted, as a PNG; none for a design too large to picture or a failed drawing.
+fn verdict_picture(
+    session: &Session,
+    table: &solidcraft_multiphysics::component_table::ComponentTable,
+    renderer: &crate::capture::Renderer,
+) -> Option<Vec<u8>> {
+    use solidcraft_geom::{Aabb3, MeshGeom};
+    use solidcraft_viewport::{Camera, Rgb, Scene, SceneMesh, StandardView};
+    let world = session.world_state().ok()?;
+    let verdicts: std::collections::HashMap<String, Option<solidcraft_multiphysics::results::ComponentStatus>> =
+        solidcraft_multiphysics::report::verdicts(table).into_iter().collect();
+    let mut scene = Scene::default();
+    let mut bounds = Aabb3::EMPTY;
+    let mut triangles = 0usize;
+    for body in world.bodies.iter().filter(|b| session.body_visible(&b.name)) {
+        let mesh = body.mesh();
+        triangles = triangles.saturating_add(mesh.triangles.len());
+        if triangles > 400_000 {
+            return None;
+        }
+        bounds = bounds.union(&mesh.bounds());
+        let (color, opacity) = match verdicts.get(&body.name) {
+            Some(status) => {
+                let [r, g, b] = solidcraft_multiphysics::report::verdict_rgb(*status);
+                (Rgb(r, g, b), 1.0)
+            }
+            None => (crate::view::colors::BODY, 0.25),
+        };
+        scene.meshes.push(SceneMesh {
+            mesh,
+            color,
+            face_colors: Vec::new(),
+            opacity,
+            closed: body.is_closed(),
+            hatch: Default::default(),
+            values: None,
+        });
+    }
+    if bounds.is_empty() {
+        return None;
+    }
+    let mut camera = Camera::default();
+    camera.set_view(StandardView::Iso);
+    camera.fit(&solidcraft_render::view_bounds(&bounds));
+    scene.radius = (bounds.diagonal() * 0.5).max(camera.half_height()).max(10.);
+    scene.background = Some((crate::view::colors::BG_TOP, crate::view::colors::BG_BOTTOM));
+    crate::capture::png_with(Some(renderer), &scene, &camera, 960, 640).ok().map(|png| png.bytes)
 }
 fn query_result(session: &mut Session, params: &Value) -> Result<Value> {
     let input: solidcraft_multiphysics::results::QueryRequest = parse(params)?;

@@ -699,8 +699,12 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     assert!(inline["html"].as_str().unwrap().starts_with("<!DOCTYPE html>"));
     let directory = std::env::temp_dir().join(format!("solidcraft-report-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
+    // With a renderer installed (the app's, the CLI's), each run's parts are pictured by verdict.
+    crate::capture::install_test_renderer();
     let written = s.execute("multiphysics.result.report", &json!({"id":id,"directory":directory.to_string_lossy()})).unwrap();
-    assert_eq!(written["files"], json!(["report.csv", "report.html"]));
+    assert_eq!(written["files"], json!(["report.csv", "report.html", "run-1.png"]));
+    assert!(std::fs::read(directory.join("run-1.png")).unwrap().starts_with(b"\x89PNG"));
+    assert!(std::fs::read_to_string(directory.join("report.html")).unwrap().contains("<img src=\"run-1.png\" alt=\"hot\""));
     assert!(written.get("csv").is_none(), "not inline: the reply stays small");
     assert!(std::fs::read_to_string(directory.join("report.csv")).unwrap().starts_with("run,body,"));
     assert!(s.execute("multiphysics.result.report", &json!({"id":id,"directory":directory.to_string_lossy()})).is_err(), "a new directory only");
