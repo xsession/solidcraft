@@ -5796,6 +5796,16 @@ mod tests {
         h.step(&json!({"click":{"handle":"multiphysics:find_show_only"}})).unwrap();
         h.frames(3);
         shot(&mut h, "find-hot-parts");
+        // Zoomed in on the hot end of the board: the inset keeps the whole model in sight, with a
+        // frame round what the view shows.
+        let camera = h.app.cam;
+        let bounds = crate::viewport::model_bounds(&h.app);
+        let centre = bounds.center();
+        h.app.cam.target = solidcore_record::Vec3::new(centre.x + (bounds.max.x - centre.x) * 0.45, centre.y, centre.z);
+        h.app.cam.distance *= 0.35;
+        h.frames(3);
+        shot(&mut h, "overview-inset");
+        h.app.cam = camera;
         h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         h.app.run("multiphysics.parts.select", json!({})).unwrap();
         colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::None);

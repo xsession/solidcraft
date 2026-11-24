@@ -846,7 +846,9 @@ fn handle_input(app: &mut SolveApp, ui: &mut egui::Ui, rect: Rect, resp: &egui::
     // So is the View angles readout under it (#6032).
     let readout = crate::view_angles::readout_rect(ui.ctx(), input_rect).filter(|_| caps.orbit && app.preferences.show_view_angles);
     let nav_bar = app.viewport.layout.as_ref().filter(|layout| layout.viewport == input_rect).map_or(Rect::NOTHING, |layout| layout.navigation);
-    let on_control = |p| axes.contains(p) || nav_bar.contains(p) || readout.is_some_and(|r| r.contains(p));
+    // And the overview inset over the view's corner.
+    let inset = app.viewport.inset.filter(|r| input_rect.contains_rect(*r)).unwrap_or(Rect::NOTHING);
+    let on_control = |p| axes.contains(p) || nav_bar.contains(p) || inset.contains(p) || readout.is_some_and(|r| r.contains(p));
     // Floating windows and menus own input over the model, including wheel navigation. egui's
     // hit test also counts the model as under the pointer a few points past its own edge and
     // inside a window's or a list's edge (#678), so the pointer must be in the viewport too,

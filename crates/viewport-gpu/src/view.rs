@@ -3269,6 +3269,14 @@ struct Picture {
     isolated: bool,
 }
 
+/// Swap the scenes' uploads of two pictures (and back, called again).
+fn lend_scenes(a: &mut Picture, b: &mut Picture) {
+    std::mem::swap(&mut a.model, &mut b.model);
+    std::mem::swap(&mut a.moving, &mut b.moving);
+    std::mem::swap(&mut a.sketch, &mut b.sketch);
+    std::mem::swap(&mut a.highlight, &mut b.highlight);
+}
+
 /// A supersampled frame: the scene drawn at a multiple of the viewport's pixels.
 struct Supersampled {
     size: [u32; 2],
@@ -4820,6 +4828,26 @@ impl Renderer {
         queue.submit(std::iter::once(encoder.finish()));
     }
 
+    /// [`Renderer::prepare_view`] for a second picture of the scenes the view `main` holds (the
+    /// overview inset): drawn with that view's uploads, lent to it for the frame, so the scenes
+    /// are not uploaded twice. An upload the frame makes goes back to `main` with the rest.
+    /// Prepare it before `main`'s own frame: `main`'s uniform writes then come after its
+    /// submission.
+    pub fn prepare_inset(&mut self, slot: u64, main: u64, device: &wgpu::Device, queue: &wgpu::Queue, frame: &Frame) {
+        if slot == main {
+            return;
+        }
+        self.activate(slot);
+        let Some(lent) = self.parked.get_mut(&main) else { return };
+        lend_scenes(&mut self.pic, lent);
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("sc_inset") });
+        self.prepare_timed(device, queue, &mut encoder, frame, true);
+        queue.submit(std::iter::once(encoder.finish()));
+        if let Some(lent) = self.parked.get_mut(&main) {
+            lend_scenes(&mut self.pic, lent);
+        }
+    }
+
     /// Make `slot` the view the renderer draws: its picture comes in, and the one that was in
     /// goes to wait for its next frame.
     fn activate(&mut self, slot: u64) {
@@ -5085,12 +5113,24 @@ impl Renderer {
 
     /// [`Renderer::paint`] for the view `slot` ([`Renderer::prepare_view`]).
     pub fn paint_view(&self, slot: u64, frame: &Frame, pass: &mut wgpu::RenderPass<'static>, viewport: [f32; 4]) {
+        self.paint_slot(slot, frame, pass, viewport, true);
+    }
+
+    /// [`Renderer::paint_view`] for a picture beside the window's own (the overview inset): what
+    /// it draws is not the view's, so it leaves the draw statistics as the view left them.
+    pub fn paint_inset(&self, slot: u64, frame: &Frame, pass: &mut wgpu::RenderPass<'static>, viewport: [f32; 4]) {
+        self.paint_slot(slot, frame, pass, viewport, false);
+    }
+
+    fn paint_slot(&self, slot: u64, frame: &Frame, pass: &mut wgpu::RenderPass<'static>, viewport: [f32; 4], publish: bool) {
         let [x, y, w, h] = viewport;
         if !(w > 0.0 && h > 0.0) {
             return;
         }
         let Some(pic) = self.picture(slot) else {
-            self.publish(DrawStats::default());
+            if publish {
+                self.publish(DrawStats::default());
+            }
             return;
         };
         pass.set_viewport(x, y, w, h, 0.0, 1.0);
@@ -5106,14 +5146,18 @@ impl Renderer {
                 pass.set_bind_group(0, &ss.bind, &[]);
             }
             pass.draw(0..3, 0..1);
-            self.publish(DrawStats { draw_calls: pic.ss_stats.draw_calls + 1, supersampled: pic.ss_scaled, ..pic.ss_stats });
+            if publish {
+                self.publish(DrawStats { draw_calls: pic.ss_stats.draw_calls + 1, supersampled: pic.ss_scaled, ..pic.ss_stats });
+            }
             return;
         }
         // The pipelines draw into the scene's kind of target, not the window's pass: with no
         // offscreen frame (the device had no memory for one, #7296) nothing can be drawn. A
         // tile is never drawn straight into the pass: the uniform is another view's by now.
         if pic.isolated || self.window_differs() {
-            self.publish(DrawStats::default());
+            if publish {
+                self.publish(DrawStats::default());
+            }
             return;
         }
         let tally = Tally::default();
@@ -5123,7 +5167,9 @@ impl Renderer {
             tally.call();
         }
         self.draw(frame, pass, Phase::All, &tally);
-        self.publish(tally.stats());
+        if publish {
+            self.publish(tally.stats());
+        }
     }
 
     /// What the last frame drew; the handle stays current as later frames are drawn.

@@ -41,6 +41,19 @@ A ghosted part is drawn:
 Clicks pass through a ghosted part to what is behind it. That decision, which part a click
 means, uses the parts' exact geometry, not the mesh drawn.
 
+## The overview inset
+
+While parts are ghosted, the view's corner shows the whole model, orthographic, from the view's
+direction and framed to the model's box. The inset is a second picture of the scenes the view
+already holds on the GPU: it borrows the view's uploads for its frame, so nothing is built or
+uploaded for it, and it is drawn again only when the view turns or the scenes change. Panning
+and zooming move only its frame, which is where the rays through the view's corners meet the
+plane through the model's centre square to the view.
+
+The inset is drawn before the view in each frame, so the view's own settings reach the GPU
+after the inset's and the view is drawn exactly as without it (a test compares the pixels).
+It takes no clicks, and the view does not pick or navigate through it.
+
 ## Pictures without a window
 
 The same pipelines draw pictures without a window: the batch report's pictures, the pictures

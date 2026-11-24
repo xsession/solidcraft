@@ -2115,6 +2115,8 @@ pub(super) fn graphics(app: &mut SolveApp, state: &mut State, study: Option<&Stu
                     super::on_model::flow_on_graphics(app, ui, &mut state.view, rect);
                 }
             }
+            // With parts ghosted, the whole model in the corner, over what is drawn on it.
+            crate::overview_inset::paint(app, ui, rect);
             // Drawn after the CAD window so it stays on top of it.
             if offer_case {
                 let corner = Rect::from_min_size(rect.min + vec2(t.space_8, t.space_8), vec2(260.0, t.control_height + t.space_4));

@@ -70,6 +70,13 @@ see the board:
 
 ![The duct ghosted](../images/ghosted-duct.png)
 
-**All Solid** draws every part solid again.
+While any part is ghosted, a small **overview** sits in the view's lower right corner: the
+whole model from the view's own direction, with a frame round what the view shows. Zoom in on
+a few parts and the overview keeps where they sit in the assembly in sight; turn the view and
+the overview turns with it.
+
+![Zoomed in on the hot end of the board, the overview framing it](../images/overview-inset.png)
+
+**All Solid** draws every part solid again, and the overview goes.
 
 Next: [cut and surface plots](plots.md).

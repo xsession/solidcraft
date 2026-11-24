@@ -19,6 +19,15 @@ pub struct ViewportCallback(pub Frame);
 /// picture on the GPU, so the tiles of one egui frame do not draw over each other
 /// ([`Renderer::prepare_view`]).
 pub struct TileCallback(pub u64, pub Frame);
+/// A small picture of the scenes the window's view (slot 0) holds, beside it (the overview
+/// inset), in its own slot. Two callbacks, from one frame: the one that prepares the picture
+/// (`draws: false`) goes before the view's own callback, so its writes reach the GPU before the
+/// view's; the one that draws it (`draws: true`) goes after the view and what is over it.
+pub struct InsetCallback {
+    pub slot: u64,
+    pub frame: Arc<Frame>,
+    pub draws: bool,
+}
 /// A transparent, depth-correct selection/hover layer over live product pixels.
 pub struct ProductHighlightCallback(pub Frame, pub Option<u64>);
 
@@ -180,6 +189,33 @@ impl egui_wgpu::CallbackTrait for TileCallback {
         let Some(res) = resources.get::<Renderer>() else { return };
         let vp = info.viewport_in_pixels();
         res.paint_view(self.0, &self.1, pass, [vp.left_px as f32, vp.top_px as f32, vp.width_px as f32, vp.height_px as f32]);
+    }
+}
+
+impl egui_wgpu::CallbackTrait for InsetCallback {
+    fn prepare(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        _screen: &egui_wgpu::ScreenDescriptor,
+        _encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        if !self.draws
+            && let Some(res) = resources.get_mut::<Renderer>()
+        {
+            res.prepare_inset(self.slot, 0, device, queue, &self.frame);
+        }
+        Vec::new()
+    }
+
+    fn paint(&self, info: egui::PaintCallbackInfo, pass: &mut wgpu::RenderPass<'static>, resources: &egui_wgpu::CallbackResources) {
+        if !self.draws {
+            return;
+        }
+        let Some(res) = resources.get::<Renderer>() else { return };
+        let vp = info.viewport_in_pixels();
+        res.paint_inset(self.slot, &self.frame, pass, [vp.left_px as f32, vp.top_px as f32, vp.width_px as f32, vp.height_px as f32]);
     }
 }
 

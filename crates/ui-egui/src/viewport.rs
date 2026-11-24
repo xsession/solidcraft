@@ -263,6 +263,11 @@ pub struct ViewportState {
     /// The shapes of the last tile's picture and background in the paint list, so the window can
     /// lay them under the cards.
     pub(crate) backdrop: Option<std::ops::Range<usize>>,
+    /// Where the overview inset was drawn last frame ([`crate::overview_inset`]): the view
+    /// neither picks nor navigates there.
+    pub(crate) inset: Option<Rect>,
+    /// The overview inset's frame the view prepared this frame, for the workspace to draw.
+    pub(crate) inset_pending: Option<crate::overview_inset::Pending>,
     pub layout: Option<crate::viewport_layout::Layout>,
     pub(crate) palette_rect: Option<Rect>,
     /// None before the host's early confirmation paint; Some(NOTHING) means
@@ -7614,13 +7619,96 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     // A sketch tool belongs to its editing view, including when that view is a card or hidden.
     let sketch = app.session.active_sketch;
     let held_tool = if sketch.is_some() && crate::sketch_view::active_sketch(app).is_none() { app.tool.take() } else { None };
+    app.viewport.inset_pending = None;
     show_view(app, ui);
+    // The inset is the last frame's until the workspace draws it again after this view.
+    app.viewport.inset = None;
     crate::view_tiles::single_sketch_chrome(app, ui);
     if let Some(tool) = held_tool
         && app.session.active_sketch == sketch
         && app.tool.is_none()
     {
         app.tool = Some(tool);
+    }
+}
+
+/// How finely a frame of the model is drawn: supersampling, ambient occlusion samples and the
+/// instanced edges' tolerance in pixels.
+#[derive(Clone, Copy)]
+pub(crate) struct FrameQuality {
+    pub ssaa: f32,
+    pub ao_samples: u32,
+    pub edge_px: f32,
+}
+
+/// The GPU frame of the model's scenes seen by `cam` through `paint_vp` at `size_px`: the
+/// viewport's own picture, and other pictures of the same scenes (the overview inset).
+pub(crate) fn model_frame(
+    app: &SolveApp,
+    ctx: &egui::Context,
+    cam: &Camera,
+    paint_vp: &Mat4,
+    size_px: [f32; 2],
+    FrameQuality { ssaa, ao_samples, edge_px }: FrameQuality,
+    moving: Option<solidcraft_viewport_gpu::view::MovingLayer>,
+) -> Frame {
+    let t = Tokens::get();
+    let (clip, clip_hatch) = section_clip(app);
+    Frame {
+        product_lights: None,
+        ssaa,
+        ao_samples,
+        edge_px,
+        product: false,
+        upload_error: None,
+        key: published_key(app),
+        slot: app.viewport.slot.clone(),
+        sketch_key: app.viewport.sketch_key,
+        sketch_slot: app.viewport.sketch_slot.clone(),
+        hl_key: app.viewport.hl_key,
+        hl_slot: app.viewport.hl_slot.clone(),
+        pv_key: app.preview.key,
+        pv_slot: app.preview.slot.clone(),
+        pv_hide: app.preview.rolled_back,
+        preview_bounds: (app.preview.active && !app.preview.rolled_back).then_some(solidcraft_engine::render::view_bounds(&app.preview.bounds)),
+        clip,
+        clip_hatch,
+        cap: {
+            let [r, g, b, _] = t.section_cap.to_normalized_gamma_f32();
+            [r, g, b, if section_hatch(app) { 1.0 } else { 0.0 }]
+        },
+        view_proj: paint_vp.to_f32(),
+        turned_depth: Some(paint_vp.turned_depth_f32()),
+        back: cam.back().to_f32(),
+        size_px,
+        images: crate::ref_images::gpu_images(app),
+        clouds: crate::point_clouds::gpu_clouds(app, ctx),
+        analysis: analysis_uniform(app),
+        analysis_colors: crate::gpu::analysis_colors(&t.analysis),
+        access: crate::access::map(app),
+        outline: matches!(app.ui.visual_style, 0 | 3),
+        ao_radius: ao_radius(app),
+        eye: {
+            let e = cam.eye().to_f32();
+            [e[0], e[1], e[2], if cam.fov > 0.0 { 1.0 } else { 0.0 }]
+        },
+        // Whole-body highlights redraw the model's own plan triangles: the hover lifts each
+        // body's colour the same amount `mesh_tris` used to, and a selection replaces it.
+        hover_tint: [f32::from(t.hover_face_lift) / 255.0; 3],
+        selection_tint: {
+            let c = t.body_selected;
+            [f32::from(c.r()) / 255.0, f32::from(c.g()) / 255.0, f32::from(c.b()) / 255.0]
+        },
+        // The section hatch colours by part: the cap's, then the theme's others.
+        hatch: std::array::from_fn(|k| {
+            let c = if k == 0 { t.section_cap } else { t.section_hatch.get(k - 1).copied().unwrap_or(t.section_cap) };
+            let [r, g, b, _] = c.to_normalized_gamma_f32();
+            [r, g, b]
+        }),
+        sky: sky_uniform(crate::safe_graphics::dark_parts_shading(app), crate::safe_graphics::material_finish(app), cam.up),
+        moving,
+        motions: joint_motions::motions(app),
+        ground: joint_motions::ground(app),
     }
 }
 
@@ -7852,69 +7940,14 @@ fn show_view(app: &mut SolveApp, ui: &mut egui::Ui) {
         let ssaa = supersampling(app, ui.ctx(), paint_vp.to_f32(), size_px);
         let ao_samples = ao_samples(app, ui.ctx(), paint_vp.to_f32(), size_px);
         let edge_px = edge_px(app, ui.ctx(), paint_vp.to_f32(), size_px);
-        let (clip, clip_hatch) = section_clip(app);
-        let frame = Frame {
-            product_lights: None,
-            ssaa,
-            ao_samples,
-            edge_px,
-            product: false,
-            upload_error: None,
-            key: published_key(app),
-            slot: app.viewport.slot.clone(),
-            sketch_key: app.viewport.sketch_key,
-            sketch_slot: app.viewport.sketch_slot.clone(),
-            hl_key: app.viewport.hl_key,
-            hl_slot: app.viewport.hl_slot.clone(),
-            pv_key: app.preview.key,
-            pv_slot: app.preview.slot.clone(),
-            pv_hide: app.preview.rolled_back,
-            preview_bounds: (app.preview.active && !app.preview.rolled_back).then_some(solidcraft_engine::render::view_bounds(&app.preview.bounds)),
-            clip,
-            clip_hatch,
-            cap: {
-                let [r, g, b, _] = t.section_cap.to_normalized_gamma_f32();
-                [r, g, b, if section_hatch(app) { 1.0 } else { 0.0 }]
-            },
-            view_proj: paint_vp.to_f32(),
-            turned_depth: Some(paint_vp.turned_depth_f32()),
-            back: proj.cam.back().to_f32(),
-            size_px,
-            images: crate::ref_images::gpu_images(app),
-            clouds: crate::point_clouds::gpu_clouds(app, ui.ctx()),
-            analysis: analysis_uniform(app),
-            analysis_colors: crate::gpu::analysis_colors(&t.analysis),
-            access: crate::access::map(app),
-            outline: matches!(app.ui.visual_style, 0 | 3),
-            ao_radius: ao_radius(app),
-            eye: {
-                let e = proj.cam.eye().to_f32();
-                [e[0], e[1], e[2], if proj.cam.fov > 0.0 { 1.0 } else { 0.0 }]
-            },
-            // Whole-body highlights redraw the model's own plan triangles: the hover lifts each
-            // body's colour the same amount `mesh_tris` used to, and a selection replaces it.
-            hover_tint: [f32::from(t.hover_face_lift) / 255.0; 3],
-            selection_tint: {
-                let c = t.body_selected;
-                [f32::from(c.r()) / 255.0, f32::from(c.g()) / 255.0, f32::from(c.b()) / 255.0]
-            },
-            // The section hatch colours by part: the cap's, then the theme's others.
-            hatch: std::array::from_fn(|k| {
-                let c = if k == 0 { t.section_cap } else { t.section_hatch.get(k - 1).copied().unwrap_or(t.section_cap) };
-                let [r, g, b, _] = c.to_normalized_gamma_f32();
-                [r, g, b]
-            }),
-            sky: sky_uniform(crate::safe_graphics::dark_parts_shading(app), crate::safe_graphics::material_finish(app), proj.cam.up),
-            moving,
-            motions: joint_motions::motions(app),
-            ground: joint_motions::ground(app),
-        };
+        let frame = model_frame(app, ui.ctx(), &proj.cam, &paint_vp, size_px, FrameQuality { ssaa, ao_samples, edge_px }, moving);
         match app.viewport.scene_slot() {
             // A tile is its own paint callback: it does not go through the blur's source.
             Some(slot) => {
                 painter.add(egui_wgpu::Callback::new_paint_callback(paint, solidcraft_viewport_egui::TileCallback(slot, frame)));
             }
             None => {
+                crate::overview_inset::prepare(app, ui.ctx(), &painter, rect);
                 painter.add(egui_wgpu::Callback::new_paint_callback(rect, ViewportCallback(frame)));
             }
         }

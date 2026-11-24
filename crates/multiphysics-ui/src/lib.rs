@@ -13,8 +13,8 @@ pub mod multiphysics_workspace;
 
 // The app's modules the workspace draws with, under the names it has always used.
 pub(crate) use solidcraft_ui_egui::{
-    SolveApp, context_menu, icons, material_editor, navigation, prefs, render_workspace, ribbon, scenario, ui_kit, viewport, viewport_layout,
-    workspace,
+    SolveApp, context_menu, icons, material_editor, navigation, overview_inset, prefs, render_workspace, ribbon, scenario, ui_kit, viewport,
+    viewport_layout, workspace,
 };
 #[cfg(test)]
 pub(crate) use solidcraft_ui_egui::{documents, fonts};

@@ -253,6 +253,7 @@ pub mod op_auto;
 pub mod open_elsewhere;
 pub mod open_meshing;
 pub mod operations;
+pub mod overview_inset;
 pub mod panel_runtime;
 pub mod params_dialog;
 pub(crate) mod pattern_components;
