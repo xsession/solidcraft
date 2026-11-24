@@ -301,6 +301,63 @@ fn appearance_edits_upload_palette_rows_only() {
     assert!(glass.palette > 0, "it writes the palette: {glass:?}");
 }
 
+/// Multiphysics colour-by and ghosting are view state over the stable palette: colouring parts
+/// (`multiphysics.parts.colour`) writes palette rows and no geometry, and ghosting one
+/// (`multiphysics.parts.ghost`) uploads at most its sorted glass stream, so a large assembly
+/// recolours without sending its triangles again. Skipped without a GPU adapter.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn colour_by_and_ghosting_upload_palette_rows_only() {
+    use solidcraft_engine::multiphysics::setup_check::Swatch;
+    const SIZE: u32 = 64;
+    let Some(mut frames) = crate::gpu::OffscreenFrames::new(SIZE, false) else {
+        eprintln!("skipping: no GPU adapter");
+        return;
+    };
+    let mut app = SolveApp::new(Session::default(), Services::default());
+    app.ui.ground_shadow = false;
+    app.set_origin_shown(false);
+    app.viewport.gpu = Some(crate::gpu::GpuTarget {
+        format: egui_wgpu::wgpu::TextureFormat::Rgba8Unorm,
+        depth: None,
+        samples: 1,
+        tess: false,
+        oit: false,
+        edges: false,
+    });
+    app.run("solid.box", json!({"length": 10, "width": 10, "height": 10, "corner": [0, 0, 0], "operation": "new"})).unwrap();
+    app.run("solid.box", json!({"length": 10, "width": 10, "height": 10, "corner": [20, 0, 0], "operation": "new"})).unwrap();
+    app.fit_view();
+    let names: Vec<String> = app.session.world_state().unwrap().bodies.iter().map(|b| b.name.clone()).collect();
+    assert_eq!(names.len(), 2);
+    let highlight: crate::gpu::SceneSlot = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let mut key = 0;
+    let mut draw = |app: &SolveApp| {
+        key += 1;
+        let slot: crate::gpu::SceneSlot = std::sync::Arc::new(std::sync::Mutex::new(Some(build_scene(app))));
+        frames.frame(crate::scale_tests::view_frame(app, SIZE, (key, &slot), (0, &highlight)));
+        frames.uploads()
+    };
+    let cold = draw(&app);
+    assert!(cold.geometry > 0 && cold.palette > 0, "the first scene uploads its geometry and palette: {cold:?}");
+    app.session.part_swatches = [(names[0].clone(), Swatch::Bad), (names[1].clone(), Swatch::Scale { t: 0.5 })].into_iter().collect();
+    let coloured = draw(&app);
+    assert_eq!(coloured.geometry, 0, "colouring parts uploads no geometry: {coloured:?}");
+    assert!(coloured.palette > 0, "it writes the palette: {coloured:?}");
+    let before = super::scene_key(&app);
+    app.session.part_swatches.insert(names[0].clone(), Swatch::Good);
+    assert_ne!(super::scene_key(&app), before, "a new swatch draws a new scene");
+    let recoloured = draw(&app);
+    assert_eq!(recoloured.geometry, 0, "a part's new swatch uploads no geometry: {recoloured:?}");
+    assert!(recoloured.palette > 0, "it writes the palette: {recoloured:?}");
+    app.session.ghosted_bodies.insert(names[1].clone());
+    let ghosted = draw(&app);
+    assert!(ghosted.geometry <= 12 * 3 * crate::gpu::TRI_SIZE as u64, "ghosting a box uploads at most its sorted glass stream: {ghosted:?}");
+    app.session.part_swatches.clear();
+    let own = draw(&app);
+    assert_eq!(own.geometry, 0, "back to the parts' own looks uploads no geometry: {own:?}");
+}
+
 /// A part placed many times goes to the GPU once: drawn indirectly, its triangles are uploaded
 /// to the indirect draws' buffer alone, not to buffers of their own as well, and its shared
 /// edges (where the device draws them) to the edges' buffer; a scene adding a part that fits

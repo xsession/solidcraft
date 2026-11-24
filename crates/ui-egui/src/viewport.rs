@@ -1038,9 +1038,11 @@ fn base_scene_key(app: &SolveApp) -> u64 {
     app.preview.rolled_back.hash(&mut h);
     frame_ghosting(app).hash(&mut h);
     app.session.ghosted_bodies.hash(&mut h);
+    // The swatches themselves (the theme they are drawn from is hashed below), without looking
+    // up a colour for every part at every frame of a large assembly.
     for (name, swatch) in &app.session.part_swatches {
         name.hash(&mut h);
-        swatch_colour(*swatch).to_array().hash(&mut h);
+        swatch_key(*swatch).hash(&mut h);
     }
     app.preferences.cosmetic_threads.hash(&mut h);
     app.preferences.section_hatch.hash(&mut h);
@@ -1220,9 +1222,22 @@ pub fn swatch_colour(swatch: solidcraft_engine::multiphysics::setup_check::Swatc
     }
 }
 
+/// A swatch as hashable values (its map position is a float).
+fn swatch_key(swatch: solidcraft_engine::multiphysics::setup_check::Swatch) -> (u8, u64) {
+    use solidcraft_engine::multiphysics::setup_check::Swatch;
+    match swatch {
+        Swatch::Good => (0, 0),
+        Swatch::Warn => (1, 0),
+        Swatch::Bad => (2, 0),
+        Swatch::Muted => (3, 0),
+        Swatch::Scale { t } => (4, t.to_bits()),
+        Swatch::Category { index } => (5, u64::from(index)),
+    }
+}
+
 /// The colour-by swatch of `body`, when the parts are coloured by their setup.
 pub(crate) fn part_swatch(app: &SolveApp, body: &solidcraft_engine::doc::ModelBody) -> Option<egui::Color32> {
-    app.session.part_swatches.iter().find(|(name, _)| *name == body.name).map(|(_, swatch)| swatch_colour(*swatch))
+    app.session.part_swatches.get(&body.name).map(|swatch| swatch_colour(*swatch))
 }
 
 /// With a component active, bodies outside it are drawn faded.

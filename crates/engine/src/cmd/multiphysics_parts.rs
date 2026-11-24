@@ -192,17 +192,15 @@ pub(super) fn ghost(session: &mut Session, params: &Value) -> Result<Value> {
         session.ghosted_bodies.clear();
     }
     for name in bodies {
-        let there = session.ghosted_bodies.iter().position(|g| g == &name);
-        match (input.ghost, there) {
-            (true, None) => session.ghosted_bodies.push(name),
-            (false, Some(at)) => {
-                session.ghosted_bodies.remove(at);
-            }
-            _ => {}
+        if input.ghost {
+            session.ghosted_bodies.insert(name);
+        } else {
+            session.ghosted_bodies.remove(&name);
         }
     }
-    // Names the design no longer has are dropped, so the list stays as long as the design.
-    session.ghosted_bodies.retain(|g| state.bodies.iter().any(|b| &b.name == g));
+    // Names the design no longer has are dropped, so the set stays as large as the design.
+    let names: std::collections::HashSet<&str> = state.bodies.iter().map(|b| b.name.as_str()).collect();
+    session.ghosted_bodies.retain(|g| names.contains(g.as_str()));
     session.refresh_display();
     let ghosted = state.bodies.iter().filter(|b| session.ghosted_bodies.contains(&b.name)).map(|b| b.name.clone()).collect();
     reply(PartsGhostReply { ghosted })

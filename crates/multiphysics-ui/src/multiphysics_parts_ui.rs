@@ -146,7 +146,7 @@ pub(super) fn selected(app: &SolveApp) -> Vec<String> {
 
 /// Is `body` drawn see-through?
 pub(super) fn ghosted(app: &SolveApp, body: &str) -> bool {
-    app.session.ghosted_bodies.iter().any(|g| g == body)
+    app.session.ghosted_bodies.contains(body)
 }
 
 /// A part's name as its rows show it: with "hidden" or "ghosted" after it when it is.

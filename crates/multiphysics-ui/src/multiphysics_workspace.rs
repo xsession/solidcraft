@@ -4883,7 +4883,7 @@ mod tests {
         let undo = h.app.session.undo.len();
         h.step(&json!({"click":{"handle":"multiphysics:parts_ghost"}})).unwrap();
         h.frames(2);
-        let ghosted = h.app.session.ghosted_bodies.clone();
+        let ghosted: Vec<String> = h.app.session.ghosted_bodies.iter().cloned().collect();
         assert_eq!(ghosted, ["U2"], "{:?}", ws(&mut h.app).error);
         h.step(&json!({"click":{"handle":"multiphysics:parts_solid_all"}})).unwrap();
         h.frames(2);
@@ -4908,7 +4908,7 @@ mod tests {
         h.frames(2);
         h.step(&json!({"click":{"handle":"multiphysics:parts_legend:ic"}})).unwrap();
         h.frames(2);
-        let ghosted = h.app.session.ghosted_bodies.clone();
+        let ghosted: Vec<String> = h.app.session.ghosted_bodies.iter().cloned().collect();
         assert_eq!((ghosted, selected(&h)), (vec!["U2".to_string()], vec!["U1".to_string()]), "{:?}", ws(&mut h.app).error);
         // Again: every part solid.
         h.step(&json!({"click":{"handle":"multiphysics:parts_legend:ic"}})).unwrap();
@@ -4931,7 +4931,7 @@ mod tests {
         assert_eq!(selected(&h), ["U1"], "{:?}", ws(&mut h.app).error);
         h.step(&json!({"click":{"handle":"multiphysics:find_show_only"}})).unwrap();
         h.frames(2);
-        assert_eq!(h.app.session.ghosted_bodies, ["U2"]);
+        assert_eq!(h.app.session.ghosted_bodies.iter().collect::<Vec<_>>(), ["U2"]);
         h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         h.step(&json!({"click":{"handle":"multiphysics:parts_colour:material"}})).unwrap();
         h.frames(2);
