@@ -85,4 +85,26 @@ the overview turns with it.
 
 **All Solid** draws every part solid again, and the overview goes.
 
+## Saved result views
+
+A view that took some setting up is worth keeping. Under **Result views** in the Parts panel,
+type a name and press **Save view**. The view keeps, by name, in the study:
+
+- the camera;
+- what the parts are coloured by;
+- which parts are ghosted;
+- the cut plot on the model (its field, its plane and what the plane goes through) or the
+  surface plots;
+- the colour map and how its range is chosen, including a locked range.
+
+Press a view's name to bring it all back: after the next run, the same picture of the new
+result; for someone opening the design, the picture you meant. Parts are kept by name, so a
+part removed from the design since is skipped, and the panel says which. Saving a view does
+not make the study's runs out of date, and it is undone like any other edit.
+
+!!! tip "For scripts"
+    `multiphysics.view.save {"id": "…", "view": {"name": "Hot end", "colour_by": "verdict",
+    "plot": {"field": "temperature", "axis": 2, "anchor": "maximum"}}, "ghosted_now": true}`
+    keeps a view; `multiphysics.view.apply {"id": "…", "name": "Hot end"}` puts it back.
+
 Next: [cut and surface plots](plots.md).

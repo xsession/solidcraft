@@ -982,3 +982,58 @@ fn part_selections_follow_tags_and_a_study_of_one_follows_the_design() {
     }
     assert!(s.execute("multiphysics.model.leave_out_small", &json!({"id":id,"expected_revision":r + 1,"below_mm":1.0})).is_err());
 }
+
+/// A saved result view keeps the camera, colour-by, ghosting and cut plot by name, survives a
+/// save and reopen, is undone like any edit, and applying it puts the view back, skipping parts
+/// the design no longer has.
+#[test]
+fn a_result_view_is_saved_with_the_study_and_puts_the_view_back() {
+    let mut s = duct_session();
+    s.execute("solid.box", &json!({"length":10,"width":10,"height":4,"center":[50,20,6],"body_name":"Chip"})).unwrap();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Views","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = s.doc.multiphysics.study(&id).unwrap().revision;
+    s.execute("multiphysics.parts.ghost", &json!({"bodies":["Duct"]})).unwrap();
+    let view = json!({"name":"Chip from above","camera":{"target":[50,20,6],"yaw":0.3,"pitch":1.2,"distance":250},
+        "colour_by":"material","plot":{"field":"temperature","axis":2,"anchor":"part","part":"Chip"},
+        "range":"locked","locked_range":[20,80]});
+    let undo = s.undo.len();
+    let saved = s.execute("multiphysics.view.save", &json!({"id":id,"view":view,"ghosted_now":true})).unwrap();
+    assert_eq!((saved["replaced"].clone(), saved["views"][0]["ghosted"].clone()), (json!(false), json!(["Duct"])), "{saved}");
+    assert_eq!(s.undo.len(), undo + 1, "one undo step");
+    assert_eq!(s.doc.multiphysics.study(&id).unwrap().revision, revision, "a view is not setup: runs stay current");
+    let packed = solidcraft_io::write_design_container(&s.doc).unwrap();
+    assert_eq!(solidcraft_io::read_design(&packed).unwrap().multiphysics, s.doc.multiphysics);
+    // Bad views are refused and change nothing.
+    let before = s.doc.clone();
+    assert!(s.execute("multiphysics.view.save", &json!({"id":id,"view":{"name":"x","plot":{"field":"t","axis":5}}})).is_err());
+    assert!(s.execute("multiphysics.view.save", &json!({"id":"nope","view":{"name":"x"}})).is_err());
+    assert_eq!(s.doc, before);
+    // Somewhere else: nothing ghosted, plain colours, another camera.
+    s.execute("multiphysics.parts.ghost", &json!({"only":true})).unwrap();
+    s.camera = None;
+    let applied = s.execute("multiphysics.view.apply", &json!({"id":id,"name":"Chip from above"})).unwrap();
+    assert_eq!(applied["ghosted"], json!(["Duct"]), "{applied}");
+    assert_eq!(applied["missing"], json!([]));
+    assert_eq!(applied["colouring"]["by"], "material", "{applied}");
+    assert_eq!(applied["view"]["plot"]["part"], "Chip");
+    let camera = s.camera.expect("the view's camera");
+    assert!((camera.pitch - 1.2).abs() < 1e-12 && (camera.distance - 250.0).abs() < 1e-12);
+    assert!(s.ghosted_bodies.contains("Duct") && !s.part_swatches.is_empty());
+    assert_eq!(s.execute("multiphysics.view.list", &json!({"id":id})).unwrap()["views"].as_array().unwrap().len(), 1);
+    // The same name replaces it; a removed part is skipped and said so.
+    let replaced = s.execute("multiphysics.view.save", &json!({"id":id,"view":{"name":"Chip from above","ghosted":["Gone","Duct"]}})).unwrap();
+    assert_eq!(replaced["replaced"], true);
+    let applied = s.execute("multiphysics.view.apply", &json!({"id":id,"name":"Chip from above"})).unwrap();
+    assert_eq!((applied["ghosted"].clone(), applied["missing"].clone()), (json!(["Duct"]), json!(["Gone"])), "{applied}");
+    assert!(s.part_swatches.is_empty(), "colour_by none: the parts' own looks");
+    // Removed in one undo step, and undo brings it back.
+    s.execute("multiphysics.view.remove", &json!({"id":id,"name":"Chip from above"})).unwrap();
+    assert!(s.doc.multiphysics.study(&id).unwrap().views.is_empty());
+    assert!(s.execute("multiphysics.view.apply", &json!({"id":id,"name":"Chip from above"})).is_err());
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(s.doc.multiphysics.study(&id).unwrap().views.len(), 1);
+    // A clone of the study takes its views.
+    let clone = s.execute("multiphysics.study.clone", &json!({"id":id})).unwrap();
+    let clone_id = clone["study"]["id"].as_str().unwrap();
+    assert_eq!(s.doc.multiphysics.study(clone_id).unwrap().views.len(), 1);
+}

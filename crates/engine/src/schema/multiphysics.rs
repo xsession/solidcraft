@@ -164,6 +164,50 @@ pub struct ConvergenceReply {
     pub notes: Vec<String>,
 }
 
+/// `multiphysics.view.save`: keep a result view in a study, by name.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ViewSave {
+    pub id: String,
+    /// The view: its name, and what it shows. Without `ghosted`, the parts ghosted now.
+    pub view: solidcraft_multiphysics::result_views::ResultView,
+    /// Take the parts ghosted now in place of the view's `ghosted`.
+    #[serde(default)]
+    pub ghosted_now: bool,
+}
+
+/// `multiphysics.view.apply`, `multiphysics.view.remove`: a study's view by name.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ViewName {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ViewsReply {
+    /// The study's views, in the order they were first saved.
+    pub views: Vec<solidcraft_multiphysics::result_views::ResultView>,
+    /// For a save, whether it replaced a view of the same name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replaced: Option<bool>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ViewApplied {
+    /// The view, for the host to set its cut plot, colour scale and range from.
+    pub view: solidcraft_multiphysics::result_views::ResultView,
+    /// The parts drawn see-through now.
+    pub ghosted: Vec<String>,
+    /// Parts the view names that the design no longer has (skipped).
+    pub missing: Vec<String>,
+    /// What colour-by gave, when the view colours the parts and the study has what it needs;
+    /// otherwise why not, in `notes`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colouring: Option<solidcraft_multiphysics::setup_check::Colouring>,
+    pub notes: Vec<String>,
+}
+
 /// One retained original VTU or PVD artifact, addressed by saved study and run identity.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

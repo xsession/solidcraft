@@ -1,0 +1,18 @@
+{
+  "en": {
+    "cmd.multiphysics.view.apply": "Apply Multiphysics Result View",
+    "cmd.multiphysics.view.list": "List Multiphysics Result Views",
+    "cmd.multiphysics.view.remove": "Remove Multiphysics Result View",
+    "cmd.multiphysics.view.save": "Save Multiphysics Result View",
+    "multiphysics.views_applied": "View {name} applied",
+    "multiphysics.views_apply_tip": "Put the camera, colours, ghosted parts and cut plot back as this view keeps them",
+    "multiphysics.views_missing": "; not in the design any more: {parts}",
+    "multiphysics.views_name_hint": "New view's name",
+    "multiphysics.views_none": "No saved views. A view keeps the camera, colour-by, ghosted parts and cut plot as they are now.",
+    "multiphysics.views_remove": "Remove",
+    "multiphysics.views_save": "Save view",
+    "multiphysics.views_save_tip": "Keep the camera, colour-by, ghosted parts, cut plot and colour range as they are now, by name, in this study",
+    "multiphysics.views_saved": "View {name} saved",
+    "multiphysics.views_title": "Result views"
+  }
+}

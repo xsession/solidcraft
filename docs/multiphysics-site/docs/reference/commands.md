@@ -40,6 +40,10 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.parts.similar` | Parts alike in exact volume and box; optionally select them | view |
 | `multiphysics.parts.find` | Parts meeting rules on setup and results; optionally select them | view |
 | `multiphysics.parts.ghost` | Draw parts see-through, or solid again | view |
+| `multiphysics.view.save` | Keep a result view by name: camera, colour-by, ghosted parts, cut plot, colour range | one step |
+| `multiphysics.view.apply` | Put a saved view back: camera, ghosting and colours; the plot settings for the host | view |
+| `multiphysics.view.list` | A study's saved result views | none |
+| `multiphysics.view.remove` | Drop a saved view | one step |
 | `multiphysics.parts.colour` | Colour parts by material, power, tag or verdict, with a legend | view |
 | `multiphysics.parts.check` | The checklist of a study | none |
 | `multiphysics.parts.table` | The component table, optionally as CSV | none |

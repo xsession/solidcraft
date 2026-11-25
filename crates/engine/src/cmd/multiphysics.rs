@@ -77,6 +77,18 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.convergence", "Mesh Study Convergence", crate::checked!("multiphysics.result.convergence", convergence))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<Convergence>::new()).output(output_schema_for::<ConvergenceReply>)
         .params("fine, medium, coarse: {id (a study of the model), run_id? (default its latest run with a thermal report)}: the same study on three grids, finest first (multiphysics.model.mesh_study makes the two coarser ones). Per part all three report: its highest temperature's rise above the inflow on each grid, the observed order of accuracy, the extrapolated grid-independent value and the fine grid's convergence index (GCI, % of the fine value; Celik et al. 2008), and whether the grids converge monotonically, oscillate, have converged or are not settling yet. Notes a size ratio under 1.3 between neighbouring grids. Changes nothing."),
+    CommandSpec::new("multiphysics.view.save", "Save Multiphysics Result View", crate::checked!("multiphysics.view.save", view_save))
+        .doc_only().icon("camera").contract(&TypedContract::<ViewSave>::new()).output(output_schema_for::<ViewsReply>)
+        .params("id (a study); view: {name, camera? {target [mm], yaw, pitch, distance, fov?, roll?} (none: the camera stays where it is when applied), colour_by?: none|material|power|tag|verdict, ghosted?: [body names], plot?: {field (name in the run's field file), axis: 0|1|2, anchor?: layer|part|maximum, layer?, part?, vectors?}, surfaces?, scale?: {map, reversed?, bands?, mark_out_of_range?}, range?: auto|locked|percentile|symmetric, locked_range?: [low, high]}; ghosted_now? (take the parts ghosted now). Keeps the view in the study by name, replacing one of the same name; at most 64. One undo step; runs do not go stale."),
+    CommandSpec::new("multiphysics.view.apply", "Apply Multiphysics Result View", crate::checked!("multiphysics.view.apply", view_apply))
+        .doc_only().noundo().icon("camera").contract(&TypedContract::<ViewName>::new()).output(output_schema_for::<ViewApplied>)
+        .params("id, name. Moves the camera to the view's, ghosts exactly its parts (those the design still has; the rest are listed as missing) and colours the parts by its colour_by from the study's latest run; returns the view so the host sets its cut plot, colour scale and range. View state: not saved, not an undo step."),
+    CommandSpec::new("multiphysics.view.list", "List Multiphysics Result Views", crate::checked!("multiphysics.view.list", view_list))
+        .doc_only().noundo().icon("list").contract(&TypedContract::<StudyId>::new()).output(output_schema_for::<ViewsReply>)
+        .params("id. The study's saved result views. Changes nothing."),
+    CommandSpec::new("multiphysics.view.remove", "Remove Multiphysics Result View", crate::checked!("multiphysics.view.remove", view_remove))
+        .doc_only().icon("delete").contract(&TypedContract::<ViewName>::new()).output(output_schema_for::<ViewsReply>)
+        .params("id, name. Drops the study's view of that name in one undo step."),
     CommandSpec::new("multiphysics.result.report", "Batch Report over Runs", crate::checked!("multiphysics.result.report", report_runs))
         .doc_only().noundo().icon("export").contract(&TypedContract::<ReportRuns>::new()).output(output_schema_for::<ReportReply>)
         .params("id (a study of the model); run_ids? (default every run with a thermal report, oldest first; at most 64); directory? (a new directory: writes report.csv, every part's numbers per run, and report.html, a self-contained page of the runs' summary and each part's highest temperature per run, and run-N.png, each run's parts by verdict, when a picture renderer is installed); inline? (also return the texts). Give directory or inline. A summary per run: total power, hottest part, least margin, pass/warn/fail counts."),
@@ -375,6 +387,84 @@ fn report_runs(session: &mut Session, params: &Value) -> Result<Value> {
     };
     let (csv, html) = if input.inline { (Some(csv), Some(html)) } else { (None, None) };
     reply(ReportReply { runs: report.runs, files, csv, html })
+}
+/// Keeps a result view in a study by name (one undo step; the study's revision is unchanged, so
+/// its runs stay current).
+fn view_save(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ViewSave = parse(params)?;
+    let mut view = input.view;
+    if input.ghosted_now {
+        view.ghosted = session.ghosted_bodies.iter().cloned().collect();
+    }
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    let study = project.studies.iter_mut().find(|s| s.id == input.id).ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    let replaced = solidcraft_multiphysics::result_views::save(study, view).map_err(|e| bad("view", e.to_string()))?;
+    let views = study.views.clone();
+    session.doc_mut().multiphysics = Arc::new(project);
+    reply(ViewsReply { views, replaced: Some(replaced) })
+}
+/// Puts the session where a saved view was: camera, ghosted parts, colour-by.
+fn view_apply(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::setup_check::ColourBy;
+    let input: ViewName = parse(params)?;
+    let study = session.doc.multiphysics.study(&input.id).ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    let view = solidcraft_multiphysics::result_views::find(study, &input.name).map_err(|e| bad("name", e.to_string()))?.clone();
+    let of_model = study.model.is_some();
+    let state = session.world_state()?;
+    let names: std::collections::HashSet<&str> = state.bodies.iter().map(|b| b.name.as_str()).collect();
+    let (kept, missing): (Vec<String>, Vec<String>) = view.ghosted.iter().cloned().partition(|g| names.contains(g.as_str()));
+    let mut notes = Vec::new();
+    if let Some(c) = &view.camera {
+        let up = crate::view::home_camera(session).map(|h| h.up).unwrap_or_default();
+        let camera = solidcraft_viewport::Camera {
+            target: solidcore_record::Vec3::new(c.target[0], c.target[1], c.target[2]),
+            yaw: c.yaw,
+            pitch: c.pitch,
+            distance: c.distance,
+            fov: c.fov,
+            roll: c.roll,
+            up,
+        };
+        session.camera = Some(camera);
+    }
+    session.ghosted_bodies = kept.into_iter().collect();
+    let ghosted = state.bodies.iter().filter(|b| session.ghosted_bodies.contains(&b.name)).map(|b| b.name.clone()).collect();
+    let colouring = if view.colour_by == ColourBy::None {
+        session.part_swatches.clear();
+        None
+    } else if !of_model {
+        session.part_swatches.clear();
+        notes.push("colour-by needs a study of the model; the parts keep their own looks".into());
+        None
+    } else {
+        match parts::colour_parts(session, &input.id, view.colour_by, None) {
+            Ok(colouring) => Some(colouring),
+            Err(e) => {
+                session.part_swatches.clear();
+                notes.push(format!("the parts keep their own looks: {e}"));
+                None
+            }
+        }
+    };
+    if let Some(plot) = view.plot.as_ref().filter(|p| p.part.as_ref().is_some_and(|part| !names.contains(part.as_str()))) {
+        notes.push(format!("the cut plot's part {} is no longer in the design", plot.part.as_deref().unwrap_or_default()));
+    }
+    session.refresh_display();
+    reply(ViewApplied { view, ghosted, missing, colouring, notes })
+}
+fn view_list(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: StudyId = parse(params)?;
+    let study = session.doc.multiphysics.study(&input.id).ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    reply(ViewsReply { views: study.views.clone(), replaced: None })
+}
+fn view_remove(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ViewName = parse(params)?;
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    let study = project.studies.iter_mut().find(|s| s.id == input.id).ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    solidcraft_multiphysics::result_views::remove(study, &input.name).map_err(|e| bad("name", e.to_string()))?;
+    let views = study.views.clone();
+    session.doc_mut().multiphysics = Arc::new(project);
+    reply(ViewsReply { views, replaced: None })
 }
 /// Two runs, of one study or of two studies of the model, part by part.
 /// One run with a thermal report of a study of the model (`side.run_id`, or the study's latest

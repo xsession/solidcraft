@@ -20,7 +20,7 @@ pub(super) struct PartsUi {
     /// The part selection Select picks from the list.
     named: String,
     /// What the parts are coloured by, and the last colouring: for the document, study and mode.
-    colour_by: ColourBy,
+    pub(super) colour_by: ColourBy,
     colouring: Option<(usize, String, ColourBy, Result<Value, String>)>,
     /// The last checklist: for the document and study.
     checks: Option<(usize, String, Result<Value, String>)>,
@@ -42,6 +42,11 @@ pub(super) struct PartsUi {
     pub(super) compared: Option<Result<Value, String>>,
     /// The mesh study's last answer: making its grids, or their convergence.
     pub(super) mesh_study: Option<Result<Value, String>>,
+    /// Result views: the name typed for a new one, and the last answer.
+    #[cfg(not(target_arch = "wasm32"))]
+    view_name: String,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) viewed: Option<Result<String, String>>,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -383,6 +388,8 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     ui.label(RichText::new(solidcraft_ui_text::format("multiphysics.parts_total_power", &[("watts", &format!("{total:.2}"))])).small());
     #[cfg(not(target_arch = "wasm32"))]
     report_section(app, state, study, ui);
+    #[cfg(not(target_arch = "wasm32"))]
+    views_section(app, state, study, ui);
     compare_section(app, state, study, ui);
     mesh_study_section(app, state, study, ui);
     for action in actions {
@@ -1016,6 +1023,156 @@ fn mesh_study_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: 
 /// Batch report: the component table of every run that kept a thermal report, side by side, as
 /// CSV and a self-contained HTML page in a new directory.
 #[cfg(not(target_arch = "wasm32"))]
+/// Saved result views: the camera, colour-by, ghosted parts and cut plot as they are now, kept
+/// by name in the study (`multiphysics.view.save`), and brought back with one click.
+#[cfg(not(target_arch = "wasm32"))]
+fn views_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    use crate::ui_kit::BackingTooltipExt as _;
+    let t = Tokens::get();
+    ui.separator();
+    ui.strong(tr("multiphysics.views_title"));
+    if study.views.is_empty() {
+        ui.label(RichText::new(tr("multiphysics.views_none")).small().color(t.text_dim));
+    }
+    let mut apply_view = None;
+    let mut remove_view = None;
+    for (index, view) in study.views.iter().enumerate() {
+        ui.horizontal(|ui| {
+            let response = crate::ui_kit::button(ui, view.name.as_str(), crate::ui_kit::Button::Enabled(true));
+            crate::scenario::publish_target(&format!("multiphysics:view_apply:{index}"), response.rect);
+            if response.backing_on_hover_text(tr("multiphysics.views_apply_tip")).clicked() {
+                apply_view = Some(view.name.clone());
+            }
+            let response = crate::ui_kit::button(ui, tr("multiphysics.views_remove"), crate::ui_kit::Button::Enabled(true));
+            crate::scenario::publish_target(&format!("multiphysics:view_remove:{index}"), response.rect);
+            if response.clicked() {
+                remove_view = Some(view.name.clone());
+            }
+        });
+    }
+    ui.horizontal(|ui| {
+        let width = 200.0_f32.min(ui.available_width());
+        let response = ui
+            .allocate_ui(egui::vec2(width, crate::ui_kit::row_height()), |ui| {
+                crate::ui_kit::text_field_reserving(ui, &mut state.parts_ui.view_name, tr("multiphysics.views_name_hint"), 0.0).1
+            })
+            .inner;
+        crate::scenario::publish_target("multiphysics:view_name", response.rect);
+        let ready = !state.parts_ui.view_name.trim().is_empty();
+        let response = crate::ui_kit::button(ui, tr("multiphysics.views_save"), crate::ui_kit::Button::Enabled(ready));
+        crate::scenario::publish_target("multiphysics:view_save", response.rect);
+        if response.backing_on_hover_text(tr("multiphysics.views_save_tip")).clicked() {
+            let view = current_view(app, state, state.parts_ui.view_name.trim());
+            state.parts_ui.viewed = Some(
+                app.run("multiphysics.view.save", json!({"id": study.id, "view": view, "ghosted_now": true}))
+                    .map(|_| solidcraft_ui_text::format("multiphysics.views_saved", &[("name", state.parts_ui.view_name.trim())])),
+            );
+            if matches!(state.parts_ui.viewed, Some(Ok(_))) {
+                state.parts_ui.view_name.clear();
+            }
+        }
+    });
+    if let Some(name) = apply_view {
+        state.parts_ui.viewed = Some(apply_saved_view(app, state, &study.id, &name));
+    }
+    if let Some(name) = remove_view {
+        state.parts_ui.viewed = Some(app.run("multiphysics.view.remove", json!({"id": study.id, "name": name})).map(|_| String::new()));
+    }
+    match &state.parts_ui.viewed {
+        Some(Ok(done)) if !done.is_empty() => {
+            ui.label(RichText::new(done).small());
+        }
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+        }
+        _ => {}
+    }
+}
+
+/// The view as it is now, as `multiphysics.view.save` takes it (ghosted parts are added by the
+/// command): the camera, colour-by, the cut plot on the model or the surface plots, the scale.
+#[cfg(not(target_arch = "wasm32"))]
+fn current_view(app: &SolveApp, state: &State, name: &str) -> Value {
+    let cam = app.cam;
+    let v = &state.view;
+    let colour_by = COLOUR_BY.iter().find(|(by, _)| *by == state.parts_ui.colour_by).map_or("none", |(_, name)| name);
+    let cut_on_model = v.on_model && !v.model_surfaces && v.model_flow.is_none() && !v.slice_field_name.is_empty();
+    let plot = cut_on_model.then(|| {
+        let (anchor, part) = match v.slice_anchor {
+            super::SliceAnchor::Layer => ("layer", None),
+            super::SliceAnchor::Maximum => ("maximum", None),
+            super::SliceAnchor::Part => ("part", v.anchor_part.as_ref().map(|(_, body, _)| body.clone())),
+        };
+        // A plot through a part with no part picked is kept through its layer.
+        let anchor = if anchor == "part" && part.is_none() { "layer" } else { anchor };
+        json!({"field": v.slice_field_name, "axis": v.slice_axis, "anchor": anchor, "layer": v.slice_layer, "part": part, "vectors": v.model_vectors})
+    });
+    let mut view = json!({
+        "name": name,
+        "camera": {"target": [cam.target.x, cam.target.y, cam.target.z], "yaw": cam.yaw, "pitch": cam.pitch, "distance": cam.distance, "fov": cam.fov, "roll": cam.roll},
+        "colour_by": colour_by,
+        "surfaces": v.model_surfaces,
+        "scale": v.color_scale,
+        "range": v.range_mode,
+    });
+    if let Some(plot) = plot {
+        view["plot"] = plot;
+    }
+    if let Some((low, high)) = v.locked_range {
+        view["locked_range"] = json!([low, high]);
+    }
+    view
+}
+
+/// Applies a saved view: the command puts the camera, ghosting and colours back; the panel sets
+/// its cut plot, scale and range from the reply and shows the plot when a run is shown.
+#[cfg(not(target_arch = "wasm32"))]
+fn apply_saved_view(app: &mut SolveApp, state: &mut State, id: &str, name: &str) -> Result<String, String> {
+    use solidcraft_engine::multiphysics::result_views::{PlotAnchor, ResultView};
+    let reply = app.run("multiphysics.view.apply", json!({"id": id, "name": name}))?;
+    app.follow_view_request(true);
+    let view: ResultView = serde_json::from_value(reply["view"].clone()).map_err(|e| e.to_string())?;
+    state.parts_ui.colour_by = view.colour_by;
+    state.parts_ui.colouring = None;
+    let v = &mut state.view;
+    v.color_scale = view.scale;
+    v.range_mode = view.range;
+    v.locked_range = view.locked_range.map(|[low, high]| (low, high));
+    v.model_surfaces = view.surfaces;
+    if let Some(plot) = &view.plot {
+        v.on_model = true;
+        v.model_flow = None;
+        v.slice_axis = usize::from(plot.axis);
+        v.slice_layer = plot.layer;
+        v.model_vectors = plot.vectors;
+        v.wanted_field = Some(plot.field.clone());
+        v.slice_anchor = match plot.anchor {
+            PlotAnchor::Layer => super::SliceAnchor::Layer,
+            PlotAnchor::Maximum => super::SliceAnchor::Maximum,
+            PlotAnchor::Part => super::SliceAnchor::Part,
+        };
+        if let Some(part) = plot.part.as_ref().filter(|_| plot.anchor == PlotAnchor::Part) {
+            let _ = app.run("multiphysics.parts.select", json!({"bodies": [part]}));
+        }
+    }
+    let shown = state.view.shown_run.is_some();
+    if shown && view.surfaces {
+        super::shell::select(state, super::shell::Node::SurfacePlots);
+    } else if shown && view.plot.is_some() {
+        super::shell::select(state, super::shell::Node::CutPlots);
+    }
+    let mut text = solidcraft_ui_text::format("multiphysics.views_applied", &[("name", name)]);
+    let missing: Vec<&str> = reply["missing"].as_array().map(|m| m.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+    if !missing.is_empty() {
+        text.push_str(&solidcraft_ui_text::format("multiphysics.views_missing", &[("parts", &missing.join(", "))]));
+    }
+    for note in reply["notes"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+        text.push_str("; ");
+        text.push_str(note);
+    }
+    Ok(text)
+}
+
 fn report_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
     let t = Tokens::get();
     let runs = study.runs.iter().filter(|r| r.artifacts.iter().any(|a| a.name == "thermal_report.json")).count();

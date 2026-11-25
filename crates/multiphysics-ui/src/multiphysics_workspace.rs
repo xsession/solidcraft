@@ -101,6 +101,10 @@ pub struct ViewState {
     slice_axis: usize,
     slice_layer: usize,
     slice_field: usize,
+    /// The plotted field's name, as last drawn (a saved result view keeps the name).
+    slice_field_name: String,
+    /// A field a result view asked for, by name: picked the next time the plot is drawn.
+    wanted_field: Option<String>,
     /// What the cut plot's plane goes through: the typed layer, the picked part or the field's
     /// maximum, worked out again for every run, field and pick.
     #[cfg(not(target_arch = "wasm32"))]
@@ -192,6 +196,8 @@ impl Default for ViewState {
             slice_axis: 2,
             slice_layer: 0,
             slice_field: 0,
+            slice_field_name: String::new(),
+            wanted_field: None,
             #[cfg(not(target_arch = "wasm32"))]
             slice_anchor: SliceAnchor::Layer,
             #[cfg(not(target_arch = "wasm32"))]
@@ -3020,8 +3026,14 @@ fn slice_view(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid:
         crate::scenario::publish_target("multiphysics:slice_layer", response.rect);
     });
     let Some(planes) = grid.planes.get(view.slice_axis) else { return };
+    if let Some(wanted) = view.wanted_field.take()
+        && let Some(index) = grid.fields.iter().position(|f| f.name == wanted)
+    {
+        view.slice_field = index;
+    }
     view.slice_field = view.slice_field.min(grid.fields.len().saturating_sub(1));
     let Some(field) = grid.fields.get(view.slice_field) else { return };
+    view.slice_field_name.clone_from(&field.name);
     let field_menu = ui
         .horizontal(|ui| {
             ui.label(tr(if field.components == 3 { "multiphysics.slice_magnitude" } else { "multiphysics.slice_scalar" }));
@@ -5043,6 +5055,39 @@ mod tests {
         assert!(crate::scenario::rect_of("multiphysics:compare_run").is_none());
         // The checklist is listed, and its goals line has no parts to select.
         assert!(crate::scenario::handles("multiphysics:parts_check:goals").len() == 1);
+        // A result view keeps the camera, colours and ghosting by name and puts them back.
+        h.app.run("multiphysics.parts.ghost", json!({"bodies":["U2"]})).unwrap();
+        let saved_cam = h.app.cam;
+        // Down the Parts panel until the result views show above its Close button.
+        let at = crate::scenario::rect_of("multiphysics:report_write").map_or(egui::pos2(400.0, 400.0), |r| egui::pos2(r.center().x, 500.0));
+        let bottom = crate::scenario::rect_of("multiphysics:panel_close").map_or(560.0, |r| r.min.y);
+        for _ in 0..40 {
+            if crate::scenario::rect_of("multiphysics:view_save").is_some_and(|r| r.max.y < bottom) {
+                break;
+            }
+            h.step(&json!({"call":"ui.scroll","params":{"x": at.x, "y": at.y, "delta": -120, "unit": "point"}})).unwrap();
+            h.frames(2);
+        }
+        material_library_text(&mut h, "multiphysics:view_name", "U1 alone");
+        h.step(&json!({"click":{"handle":"multiphysics:view_save"}})).unwrap();
+        h.frames(2);
+        let views = h.app.session.doc.multiphysics.studies.iter().find(|s| s.model.is_some()).map(|s| s.views.clone()).unwrap_or_default();
+        assert_eq!(views.len(), 1, "{:?}", ws(&mut h.app).parts_ui.viewed);
+        assert_eq!((views[0].name.as_str(), views[0].ghosted.clone()), ("U1 alone", vec!["U2".to_string()]));
+        assert_eq!(views[0].colour_by, solidcraft_engine::multiphysics::setup_check::ColourBy::Material);
+        h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
+        h.step(&json!({"click":{"handle":"multiphysics:parts_colour:none"}})).unwrap();
+        h.app.cam.distance *= 3.0;
+        h.frames(2);
+        h.step(&json!({"click":{"handle":"multiphysics:view_apply:0"}})).unwrap();
+        h.frames(30);
+        assert_eq!(h.app.session.ghosted_bodies.iter().collect::<Vec<_>>(), ["U2"]);
+        assert_eq!(ws(&mut h.app).parts_ui.colour_by, solidcraft_engine::multiphysics::setup_check::ColourBy::Material);
+        assert!((h.app.cam.distance - saved_cam.distance).abs() < 1e-6 * saved_cam.distance, "{} {}", h.app.cam.distance, saved_cam.distance);
+        h.step(&json!({"click":{"handle":"multiphysics:view_remove:0"}})).unwrap();
+        h.frames(2);
+        assert!(h.app.session.doc.multiphysics.studies.iter().all(|s| s.views.is_empty()));
+        h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         // Close shuts the Parts panel; the colours stay.
         h.step(&json!({"click":{"handle":"multiphysics:panel_close"}})).unwrap();
         h.frames(2);

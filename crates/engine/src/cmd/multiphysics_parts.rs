@@ -319,15 +319,24 @@ pub(super) fn colour(session: &mut Session, params: &Value) -> Result<Value> {
         return reply(Colouring { by: ColourBy::None, parts: vec![], legend: vec![], max: None });
     }
     let id = input.id.ok_or_else(|| bad("id", "give the study whose setup colours the parts"))?;
-    let study = session.doc.multiphysics.study(&id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
+    reply(colour_parts(session, &id, input.by, input.run_id.as_deref())?)
+}
+
+/// Colours the parts by `by` from study `id` (and `run_id`, default its latest thermal run).
+pub(super) fn colour_parts(
+    session: &mut Session,
+    id: &str,
+    by: solidcraft_multiphysics::setup_check::ColourBy,
+    run_id: Option<&str>,
+) -> Result<solidcraft_multiphysics::setup_check::Colouring> {
+    let study = session.doc.multiphysics.study(id).cloned().ok_or_else(|| bad("id", "Multiphysics study not found in this document"))?;
     let (bodies, in_study) = study_bodies(session, &study)?;
     let parts = &session.doc.multiphysics.parts;
-    let table = solidcraft_multiphysics::component_table::build(&study, parts, &bodies, &in_study, input.run_id.as_deref())
-        .map_err(|e| bad("run_id", e.to_string()))?;
-    let colouring = solidcraft_multiphysics::setup_check::colour(input.by, &study, parts, &bodies, &in_study, &table);
+    let table = solidcraft_multiphysics::component_table::build(&study, parts, &bodies, &in_study, run_id).map_err(|e| bad("run_id", e.to_string()))?;
+    let colouring = solidcraft_multiphysics::setup_check::colour(by, &study, parts, &bodies, &in_study, &table);
     session.part_swatches = colouring.parts.iter().map(|p| (p.body.clone(), p.swatch)).collect();
     session.refresh_display();
-    reply(colouring)
+    Ok(colouring)
 }
 
 /// The study's parts that meet every rule of a find, on their setup and on a run's results.

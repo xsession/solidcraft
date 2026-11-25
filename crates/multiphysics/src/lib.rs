@@ -30,6 +30,7 @@ pub mod model;
 mod obstacles;
 pub mod parts;
 pub mod report;
+pub mod result_views;
 pub mod results;
 pub mod setup;
 pub mod setup_check;
@@ -110,6 +111,9 @@ pub struct Study {
     /// A study of the loaded model: its case is built from the design's bodies and faces.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<model::ModelLink>,
+    /// Saved result views (camera, colour-by, ghosting, cut plot), by name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<result_views::ResultView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -194,6 +198,7 @@ impl Project {
             runs: vec![],
             setup: setup::Setup::default(),
             model: None,
+            views: vec![],
         };
         validate_study(&study)?;
         let mut candidate = self.clone();
@@ -211,12 +216,14 @@ impl Project {
         let name = if name.trim().is_empty() { format!("{} (copy)", base.name) } else { name.trim().to_string() };
         let mut candidate = self.clone();
         let mut study = candidate.create_case_with_budget(&base.profile, &name, &base.question, base.case.clone(), MAX_PROJECT_BYTES)?;
-        if !base.setup.is_empty() || base.model.is_some() {
+        if !base.setup.is_empty() || base.model.is_some() || !base.views.is_empty() {
             study.setup = base.setup.clone();
             study.model = base.model.clone();
+            study.views = base.views.clone();
             if let Some(slot) = candidate.studies.iter_mut().find(|candidate| candidate.id == study.id) {
                 slot.setup = base.setup;
                 slot.model = base.model;
+                slot.views = base.views;
             }
             validate_study(&study)?;
             candidate.validate_with_budget(MAX_PROJECT_BYTES)?;
@@ -607,6 +614,16 @@ pub fn profile_for_solver(solver: &str) -> Option<&'static str> {
 
 fn validate_study(study: &Study) -> Result<()> {
     validate_authoring(study)?;
+    if study.views.len() > result_views::MAX_VIEWS {
+        return Err(Error::Limit("too many saved result views".into()));
+    }
+    let mut names = BTreeSet::new();
+    for view in &study.views {
+        result_views::check(view)?;
+        if !names.insert(view.name.trim()) {
+            return Err(Error::Invalid(format!("two result views are named {}", view.name)));
+        }
+    }
     if study.runs.len() > MAX_RUNS {
         return Err(Error::Limit("too many retained runs".into()));
     }
