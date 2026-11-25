@@ -61,7 +61,10 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
             low[a] = low[a].min(lo);
             high[a] = high[a].max(hi);
         }
-        volume += body.measure()?.volume;
+        // What the grid should hold as solid: porous bodies are fluid with a resistance.
+        if !link.porous.iter().any(|p| p.body == body.name) {
+            volume += body.measure()?.volume;
+        }
     }
     // Porous bodies are zones of the fluid, not walls: their exact boxes, not their triangles.
     let porous: std::collections::BTreeSet<&str> = link.porous.iter().map(|p| p.body.as_str()).collect();

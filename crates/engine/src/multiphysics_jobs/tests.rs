@@ -1131,6 +1131,8 @@ fn a_body_made_porous_is_a_block_of_cells_not_a_wall() {
     assert_eq!(case["porous_blocks"][0]["min"], json!([10, 2, 2]), "{}", case["porous_blocks"]);
     assert_eq!(case["porous_blocks"][0]["max"], json!([15, 8, 8]));
     assert!(case["bodies"].as_array().unwrap().iter().all(|b| b["name"] != "Brick"), "not a wall");
+    // The duct alone is solid: the brick's volume is not counted as solid the grid lost.
+    assert!((reply["solid_fraction"].as_f64().unwrap() - 1.0).abs() < 1e-6, "{}", reply["solid_fraction"]);
     let reply = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"porous":[]})).unwrap();
     assert!(reply["study"]["case"].get("porous_blocks").is_none());
     assert!(reply["study"]["case"]["bodies"].as_array().unwrap().iter().any(|b| b["name"] == "Brick"));
