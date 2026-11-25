@@ -509,7 +509,9 @@ fn apply_flow(case: &mut Value, flow: &ModelFlow, speed_m_per_s: f64, notes: &mu
             flow.end_time_s
         ));
     }
-    let interval = steps.div_ceil(3).max(1);
+    // The start and the end only: a frame of a full grid is several MiB, and a run's results
+    // must stay under the companion's output limit.
+    let interval = steps;
     // Pressure and momentum solved to tolerances relative to their own size: with real fluids
     // in small cells the solvers' absolute floor would otherwise stop them solving at all.
     case["config"]["piso_neighbour_update"] = serde_json::json!(true);
