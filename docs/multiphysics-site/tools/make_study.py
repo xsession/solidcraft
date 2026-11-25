@@ -40,6 +40,7 @@ def run(command, params=None):
 
 
 call("ui.home", {"open": False})
+run("file.new")  # a fresh design, whatever the app had open
 # The duct: 160 × 60 × 40 mm, 4 mm walls, open at both ends.
 run("solid.box", {"length": 160, "width": 60, "height": 40, "corner": [0, 0, 0], "operation": "new", "body_name": "Duct"})
 run("solid.box", {"length": 170, "width": 52, "height": 32, "center": [80, 30, 20], "operation": "cut"})
@@ -62,8 +63,10 @@ grouped = run("multiphysics.parts.group", {})
 print("grouped", [(g["body"], g["class"]) for g in grouped["grouped"]])
 run("multiphysics.parts.selection", {"name": "Heat sources", "members": {"kind": "query", "rules": [{"rule": "tag", "tag": "ic"}]}})
 
-# A study of the model: air inside the duct, 4 mm cells (a run stays under the 16 MiB result limit).
-study = run("multiphysics.model.create", {"name": "Board in duct", "analysis": "internal", "cell_mm": 4.0})["study"]
+# A study of the model: air at 20 °C inside the duct, 4 mm cells (a run stays under the 16 MiB
+# result limit), two seconds of flow, stopping early once the goals settle.
+air = {"kinematic_viscosity_m2_per_s": 1.5e-5, "density_kg_per_m3": 1.2, "end_time_s": 2.0, "converge_tolerance": 1e-3}
+study = run("multiphysics.model.create", {"name": "Board in duct", "analysis": "internal", "cell_mm": 4.0, "flow": air})["study"]
 sid = study["id"]
 
 
@@ -78,9 +81,11 @@ run("multiphysics.model.condition", {"id": sid, "expected_revision": rev(), "nam
                                      "role": {"kind": "outlet", "pressure_m2_per_s2": 0.0}})
 run("multiphysics.model.heat", {"id": sid, "expected_revision": rev(), "enabled": True, "inflow_temperature_k": 298.15})
 for bodies, k, power, limit in [
-    (["U1"], 150.0, 2.0, 358.15),
-    (["U2"], 150.0, 1.2, 358.15),
-    (["Q1"], 150.0, 1.0, 348.15),
+    # Powers for laminar air at 1 m/s through a small duct: in the 0.4 to 0.8 W of a small
+    # regulator or processor, not the watts a fan-cooled board carries.
+    (["U1"], 150.0, 0.8, 358.15),
+    (["U2"], 150.0, 0.5, 358.15),
+    (["Q1"], 150.0, 0.4, 348.15),
     (["J1"], 0.3, 0.0, 358.15),
     (["PCB1"], 10.0, 0.0, None),
     (["C1", "C2", "R1"], 1.0, 0.0, 378.15),

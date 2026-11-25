@@ -31,7 +31,7 @@ view: pick U2 in the component table and the plot moves to its centre. Its centr
 the part's exact bounding box, not from its mesh.
 
 !!! tip "One scale for several plots"
-    Lock the range (say 25 to 90 °C) before you switch runs: both runs are then drawn on one
+    Lock the range (say 25 to 75 °C) before you switch runs: both runs are then drawn on one
     scale, and the colours compare directly.
 
 ## Where conduction struggles

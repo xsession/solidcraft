@@ -68,6 +68,19 @@ rotation and AMI*, 025, whose rotating fan is out of reach, see below).
 | Battery pack: six 46 × 80 mm cells, 5 W each, in a duct at 0.2 m/s | Battery cooling (029) | Heat carried out equals heat released | 30.000 W of 30 W, imbalance 1e-11; cells 63 to 78 °C at this low speed |
 | TEG stack: the test device's parts, measured, 5 W in the heater, 20 °C under the cooler | Thermal-electric generator (023) | Drop across the 2 mm layer = P·L/(k·A) = 10.7 K | **12.8 K, +19 %**; energy imbalance 6e-10 |
 
+![The battery pack at 0.2 m/s, cut through its hottest point: the two cells by the inlet run
+coolest, the four downstream hotter](../images/training-battery-pack.png)
+
+![The TEG stack cut through its middle: the heater hot above, the cold plate below, the drop
+across the stack between them](../images/training-teg-stack-exact.png)
+
+**Against the cases' own pictures.** The two downloaded cases with result pictures look as ours
+do. The battery case's cells run coolest by the inlet and hottest downstream, as the pack above
+does (its two upstream cells 63 °C, the four downstream 77 °C). The TEG case's pictures show the
+hot plate, the cold plate and the temperature falling along the pillar between them, mostly
+across the thermoelectric layer, as ours does (the copper either side of the layer at 21 and
+34 °C). Their numbers are not ours to compare: their settings are their own and were not read.
+
 The TEG layer is 2 mm thick in cells of 4.9 mm: it is held by partial cells, which mix the
 layer and the copper beside it in series, exactly for heat across the layer. The 19 % comes
 from the copper blocks' edges: 25 mm blocks are about five cells across and do not line up with
@@ -80,6 +93,9 @@ around the stack would bring it down.
 |---|---|---|---|
 | 10 mm sphere in a 30 mm channel (ours) | 1.7 mm, 6 cells across the sphere | 67 | none resolved |
 | The case's 20 mm sphere in its 100 × 100 × 500 mm channel | 8 mm, 2.5 cells across | 100 | none resolved |
+
+![The 10 mm sphere's channel cut through its middle: the air slows behind the sphere, but does
+not turn back](../images/training-sphere-in-channel.png)
 
 At Re 100 a sphere's closed wake reaches about 0.9 diameters behind it (Johnson and Patel,
 *J. Fluid Mech.* 378, 1999). Neither grid resolves it: the case's long channel needs 8 mm cells

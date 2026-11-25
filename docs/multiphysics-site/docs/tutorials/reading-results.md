@@ -1,7 +1,7 @@
 # 2. Reading the results
 
 With a run kept, the **Parts** panel joins each part's setup to its result. This tutorial uses
-the example's run at 0.5 m/s, where some parts run too hot.
+the example's run at 0.5 m/s, where one part runs close to its limit.
 
 ## The component table
 
@@ -9,18 +9,18 @@ At the bottom of the Parts panel, one row per part of the study:
 
 | Part | Power (W) | Limit (°C) | Max (°C) | Margin (K) | Status |
 |---|---|---|---|---|---|
-| Duct | 0 | – | 56.0 | – | no limit |
-| PCB1 | 0 | – | 83.2 | – | no limit |
-| U1 | 2.0 | 85 | 83.0 | 2.0 | **warn** |
-| U2 | 1.2 | 85 | 86.7 | −1.7 | **fail** |
-| Q1 | 1.0 | 75 | 82.0 | −7.0 | **fail** |
-| J1 | 0 | 85 | 62.5 | 22.5 | pass |
+| Duct | 0 | – | 29.6 | – | no limit |
+| PCB1 | 0 | – | 39.2 | – | no limit |
+| U1 | 0.8 | 85 | 65.7 | 19.3 | pass |
+| U2 | 0.5 | 85 | 68.6 | 16.4 | pass |
+| Q1 | 0.4 | 75 | 72.5 | 2.5 | **warn** |
+| J1 | 0 | 85 | 33.6 | 51.4 | pass |
 
 - **Margin** is the limit less the run's highest temperature in the part.
 - **Status**: *fail* above the limit; *warn* when the margin is less than 5 % of the rise
-  the limit allows above the inflow temperature (U1: 5 % of 85 − 25 = 60 K is 3 K, and its
-  margin is 2.0 K); *pass* otherwise; *no limit* without one.
-- The total power of the study is shown under the table: 4.2 W.
+  the limit allows above the inflow temperature (Q1: 5 % of 75 − 25 = 50 K is 2.5 K, and its
+  margin is just under it); *pass* otherwise; *no limit* without one.
+- The total power of the study is shown under the table: 1.7 W.
 
 Picking a row picks the part in the tree and in the 3-D view. **Hide**, **Isolate** and
 **Show All** change what the design shows (saved, undoable). **Ghost** draws the picked parts
@@ -53,12 +53,12 @@ workspace draws the parts in their own looks again.
 
 **Find** stacks rules, and a part is found when it meets all of them. Rules read either the
 setup (tagged, not tagged, name, an attribute such as size) or the run (power, limit,
-highest or mean temperature, margin, verdict). Set the rule to *Max temperature (°C) > 80*
+highest or mean temperature, margin, verdict). Set the rule to *Max temperature (°C) > 60*
 and press **Find**:
 
-![Four parts above 80 °C found, the others ghosted](../images/find-hot-parts.png)
+![The three parts above 60 °C found, the others ghosted](../images/find-hot-parts.png)
 
-Four parts are found and selected: the board and the three heat sources. **Show only these**
+Three parts are found and selected: the three heat sources. **Show only these**
 ghosts the rest, so the found parts stand out inside the duct.
 
 ??? info "The command"

@@ -5772,6 +5772,94 @@ mod tests {
     /// the GPU: `cargo test -p solidcraft-multiphysics-ui --lib documentation_pictures --
     /// --ignored`. Skipped without a GPU adapter.
     #[cfg(not(target_arch = "wasm32"))]
+    /// The training cases' pictures (docs/multiphysics-site/docs/images/training-*.png): each
+    /// design `make_training_cases.py` saved in SOLIDCRAFT_TRAINING_RUNS, its walls ghosted and a
+    /// cut plot of its last run on the model.
+    #[test]
+    #[ignore = "writes the training cases' pictures from designs in SOLIDCRAFT_TRAINING_RUNS"]
+    fn training_case_pictures() {
+        let Ok(runs) = std::env::var("SOLIDCRAFT_TRAINING_RUNS") else { return };
+        let runs = std::path::PathBuf::from(runs);
+        let images = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/multiphysics-site/docs/images");
+        // Design, the bodies to ghost, the field file, a word of the field's name, the cut's axis,
+        // and whether the cut goes through the field's maximum (else the domain's middle).
+        let cases: [(&str, &[&str], &str, &str, usize, bool); 3] = [
+            ("battery_pack", &["Duct"], "thermal.vtu", "temperature", 2, true),
+            ("teg_stack_exact", &[], "thermal.vtu", "temperature", 1, false),
+            ("sphere_in_channel", &["Channel"], "flow", "velocity", 1, false),
+        ];
+        let size = [1600u32, 1000u32];
+        for (name, ghost, artifact, field, axis, through_maximum) in cases {
+            let design = runs.join(format!("{name}.sc"));
+            if !design.exists() {
+                continue;
+            }
+            let mut h = harness();
+            h.step(&json!({"call":"ui.resize","params":{"width": size[0], "height": size[1]}})).unwrap();
+            h.step(&json!({"call":"ui.file","params":{"path": design.to_string_lossy()}})).unwrap();
+            for _ in 0..600 {
+                if !h.app.session.doc.multiphysics.studies.is_empty() && !h.app.file_load.busy() {
+                    break;
+                }
+                h.frames(1);
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            let study = h.app.session.doc.multiphysics.studies.first().cloned().expect("the case's study");
+            let run = study.runs.last().cloned().expect("a kept run");
+            let file = run
+                .artifacts
+                .iter()
+                .filter(|a| if artifact == "flow" { a.name.starts_with("flow_") && a.name.ends_with(".vtu") } else { a.name == artifact })
+                .map(|a| a.name.clone())
+                .max()
+                .expect("the field file");
+            switch(&mut h.app, "multiphysics").unwrap();
+            h.app.run("view.isometric", json!({})).unwrap();
+            h.app.fit_view();
+            if !ghost.is_empty() {
+                h.app.run("multiphysics.parts.ghost", json!({"bodies": ghost})).unwrap();
+            }
+            h.frames(60);
+            let Some(mut gpu) = solidcraft_ui_egui::gpu::EguiFixture::new(&mut h.app, size) else { return };
+            let ctx = crate::fonts::test_context();
+            let mut state = take_state(&mut h.app);
+            state.selected = Some(study.id.clone());
+            state.selected_run = Some(run.id.clone());
+            state.shown_run = Some(run.id.clone());
+            state.selected_artifact = run.artifacts.iter().position(|a| a.name == file).unwrap_or(0);
+            state.view.defaulted_run = Some(run.id.clone());
+            shell::select(&mut state, shell::Node::CutPlots);
+            start_inspection(&h.app, &mut state, &study.id, &run.id, &file);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+            while state.inspection.is_some() {
+                poll_inspection(&h.app, &mut state);
+                assert!(std::time::Instant::now() < deadline, "inspection worker did not finish");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            let grid = state.inspected.as_ref().and_then(|i| i.outcome.as_ref().ok()).and_then(|o| o.spatial.as_ref()).and_then(|g| g.as_ref().ok());
+            let fields: Vec<String> = grid.map(|g| g.fields.iter().map(|f| f.name.clone()).collect()).unwrap_or_default();
+            let middle = grid.and_then(|g| g.planes.get(axis)).map_or(0, |p| p.len() / 2);
+            state.view.slice_field = fields.iter().position(|f| f.contains(field)).unwrap_or(0);
+            state.view.slice_axis = axis;
+            state.view.on_model = true;
+            state.view.slice_anchor = if through_maximum { SliceAnchor::Maximum } else { SliceAnchor::Layer };
+            state.view.slice_layer = middle;
+            put_state(&mut h.app, state);
+            h.frames(3);
+            h.app.messages.clear();
+            h.app.status = None;
+            let mut pixels = Vec::new();
+            for frame in 0..20 {
+                pixels = gpu.frame_at(&ctx, 1.0 + frame as f64 * 0.25, vec![], |ui| {
+                    h.app.logic(ui.ctx());
+                    h.app.ui(ui);
+                });
+            }
+            let png = solidcraft_viewport::png(size[0] as usize, size[1] as usize, pixels).unwrap();
+            std::fs::write(images.join(format!("training-{}.png", name.replace('_', "-"))), png).unwrap();
+        }
+    }
+
     #[test]
     #[ignore = "writes the documentation's pictures"]
     fn documentation_pictures() {
@@ -5856,10 +5944,10 @@ mod tests {
         };
         colour(&mut h, solidcraft_engine::multiphysics::setup_check::ColourBy::Verdict);
         shot(&mut h, "colour-by-verdict", 0.0);
-        // Find the parts hotter than 80 °C, and show only them.
+        // Find the parts hotter than 60 °C, and show only them.
         h.step(&json!({"click":{"handle":"multiphysics:find_value:0"},"double":true})).unwrap();
         h.step(&json!({"key":"A","ctrl":true})).unwrap();
-        h.step(&json!({"text":"80"})).unwrap();
+        h.step(&json!({"text":"60"})).unwrap();
         h.step(&json!({"key":"Enter"})).unwrap();
         h.step(&json!({"click":{"handle":"multiphysics:find_run"}})).unwrap();
         h.frames(2);
@@ -5893,7 +5981,8 @@ mod tests {
         h.frames(3);
         let compared = ws(&mut h.app).parts_ui.compared.clone();
         let reply = compared.expect("compared").expect("the runs compare");
-        assert_eq!(reply["comparison"]["worse"], json!(3), "{reply}");
+        // In air, halving the speed takes Q1 from pass to warn; the other parts keep theirs.
+        assert_eq!(reply["comparison"]["worse"], json!(1), "{reply}");
         shot(&mut h, "compare-runs", 2000.0);
         h.app.run("multiphysics.parts.ghost", json!({"only":true})).unwrap();
         h.app.run("multiphysics.parts.select", json!({})).unwrap();

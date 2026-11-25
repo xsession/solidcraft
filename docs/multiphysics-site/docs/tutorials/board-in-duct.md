@@ -64,9 +64,9 @@ each group of parts, pick them in the view and give them a material:
 
 | Parts | Conductivity (W/(m·K)) | Power (W) | Limit (°C) |
 |---|---|---|---|
-| U1 | 150 | 2.0 | 85 |
-| U2 | 150 | 1.2 | 85 |
-| Q1 | 150 | 1.0 | 75 |
+| U1 | 150 | 0.8 | 85 |
+| U2 | 150 | 0.5 | 85 |
+| Q1 | 150 | 0.4 | 75 |
 | J1 | 0.3 | – | 85 |
 | PCB1 | 10 | – | – |
 | C1, C2, R1 | 1 | – | 105 |
@@ -101,11 +101,19 @@ grid is made finer, they can come back.
     That keeps their power in the study, but a 1 mm part's temperature is then that of a 4 mm
     cell of air and board around it. Leaving them out says plainly that they are not modelled.
 
+## Fluid and run length
+
+A new study is air at 20 °C, run for two seconds of flow and stopped early once its goals
+settle; **Fluid and run**, at the bottom of the **Mesh** panel, changes them. The flow is
+laminar, as in every study of the model: at 1 m/s in this duct that is a fair picture, at
+several metres per second a fan-cooled board's air is turbulent and cools better than a
+laminar study says.
+
 ## Run
 
 Press **Run** (Solve group). The status bar shows the solver working; **Monitor** shows its
 progress. When it finishes, press **Keep result** to store the run in the design: until then
-it is only in this session's history. The example's run at 1.0 m/s took under a minute.
+it is only in this session's history. The example's run at 1.0 m/s took about two minutes.
 
 ??? info "The commands"
     `multiphysics.run.start {"id": "…"}`, then `multiphysics.run.status {}` until the job

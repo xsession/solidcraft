@@ -9,7 +9,7 @@ change the next time it runs.
 
 *The example used throughout these pages: a board with three heat-producing parts in an air
 duct. The duct is drawn see-through, and the parts are coloured by their verdict from a real
-run at 0.5 m/s: amber is near its limit, red is over it, green passes.*
+run at 0.5 m/s: amber is near its limit (Q1), green passes.*
 
 ## What you can do
 

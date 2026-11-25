@@ -34,12 +34,11 @@ The example's report: [report.html](../examples/report/report.html),
 
 | Run | Inlet | Hottest part | Max (°C) | Least margin | Pass | Warn | Fail |
 |---|---|---|---|---|---|---|---|
-| mp-1-1 *(older setup)* | 1.0 m/s | U2 | 77.1 | Q1, 2.9 K | 4 | 0 | 0 |
-| mp-1-2 | 0.5 m/s | U2 | 86.7 | Q1, −7.0 K | 1 | 1 | 2 |
+| mp-2-1 *(older setup)* | 1.0 m/s | Q1 | 68.4 | Q1, 6.6 K | 4 | 0 | 0 |
+| mp-2-2 | 0.5 m/s | Q1 | 72.5 | Q1, 2.5 K | 3 | 1 | 0 |
 
-Halving the inlet speed raises every part by 8 to 10 K, and three of the four parts with
-limits stop passing. Q1 has the least margin in both runs, though U2 is the hottest: Q1's
-limit is 10 K lower.
+Halving the inlet speed raises every part by 2 to 4 K, and takes Q1 from pass to warn: it is
+the hottest part and has the lowest limit, so it has the least margin in both runs.
 
 !!! note "The report never edits the design"
     It reads kept runs only, and writes into a new folder (an existing one is refused, so
@@ -60,20 +59,20 @@ and its clone with a part moved, or two points of a sweep. Parts are matched by 
 ![The two runs compared part by part](../images/compare-runs.png)
 
 Each part's highest temperature in both runs, the change, and its verdict, the largest rise
-first. A rise is amber and a fall green; a verdict that got worse is red (**Pass → Fail**),
+first. A rise is amber and a fall green; a verdict that got worse is red (**Pass → Warning** here),
 one that got better green. The line above the table counts the parts warmer, cooler, worse
 and better, and gives the change in total power: none here, as only the airflow changed.
 Changes under 0.05 K count as none.
 
 | Part | First (°C) | Second (°C) | Change (K) | Verdict |
 |---|---|---|---|---|
-| Q1 | 72.1 | 82.0 | +9.9 | Pass → Fail |
-| U2 | 77.1 | 86.7 | +9.6 | Pass → Fail |
-| J1 | 53.3 | 62.5 | +9.3 | Pass |
-| U1 | 74.6 | 83.0 | +8.4 | Pass → Warning |
+| Q1 | 68.4 | 72.5 | +4.1 | Pass → Warning |
+| U2 | 65.3 | 68.6 | +3.3 | Pass |
+| J1 | 30.6 | 33.6 | +3.0 | Pass |
+| U1 | 63.1 | 65.7 | +2.6 | Pass |
 
 ??? info "The command"
-    `multiphysics.result.compare {"first": {"id": "…", "run_id": "mp-1-1"}, "second":
+    `multiphysics.result.compare {"first": {"id": "…", "run_id": "mp-2-1"}, "second":
     {"id": "…"}}`: a side without `run_id` takes its study's latest run with a thermal report.
     `"csv": true` adds the comparison as CSV, one line per part.
 

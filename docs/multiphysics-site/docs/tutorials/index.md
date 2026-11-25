@@ -6,7 +6,7 @@ The tutorials follow one design from an empty window to a report that compares t
 
 *A 160 × 60 × 40 mm duct with 4 mm walls, open at both ends. Inside it, a board (PCB1) with two
 ICs (U1, U2), a transistor (Q1), a connector (J1) and three small passives (C1, C2, R1). Air
-enters at one end at 1.0 m/s, and then at 0.5 m/s. U1, U2 and Q1 release 2.0, 1.2 and 1.0 W.*
+enters at one end at 1.0 m/s, and then at 0.5 m/s. U1, U2 and Q1 release 0.8, 0.5 and 0.4 W.*
 
 | # | Tutorial | You will learn |
 |---|---|---|
