@@ -15,6 +15,25 @@ pub fn write_case(path: &Path, study: &Study) -> Result<()> {
     }
     safe_write::create_atomic(path, &serde_json::to_vec_pretty(&study.case).map_err(invalid)?).map_err(invalid)
 }
+/// A module of a component's setup as a new file of its own (`solidcraft-multiphysics-module/1`).
+pub fn write_module(path: &Path, module: &solidcraft_multiphysics::modules::Module) -> Result<()> {
+    crate::vfs::check(&path.to_string_lossy()).map_err(invalid)?;
+    if path.as_os_str().is_empty() {
+        return Err(invalid("Choose a new module filename"));
+    }
+    let text = solidcraft_multiphysics::modules::to_file(module).map_err(invalid)?;
+    safe_write::create_atomic(path, text.as_bytes()).map_err(invalid)
+}
+/// A module file [`write_module`] wrote, read and checked.
+pub fn read_module(path: &Path) -> Result<solidcraft_multiphysics::modules::Module> {
+    crate::vfs::check(&path.to_string_lossy()).map_err(invalid)?;
+    let size = std::fs::metadata(path).map_err(invalid)?.len();
+    if size > solidcraft_multiphysics::modules::MAX_FILE_BYTES as u64 {
+        return Err(invalid("A module file is at most 4 MiB"));
+    }
+    let text = std::fs::read_to_string(path).map_err(invalid)?;
+    solidcraft_multiphysics::modules::from_file(&text).map_err(invalid)
+}
 /// A batch report into a new directory: `report.csv`, `report.html` and its pictures (plain
 /// file names), written atomically; the directory is removed again if any file fails.
 pub fn write_report(directory: &Path, csv: &str, html: &str, pictures: &[(String, Vec<u8>)]) -> Result<Vec<String>> {

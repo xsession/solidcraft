@@ -47,6 +47,11 @@ pub(super) struct PartsUi {
     view_name: String,
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) viewed: Option<Result<String, String>>,
+    /// Modules: the component picked, the module file typed, and the last answer.
+    pub(super) module_component: String,
+    #[cfg(not(target_arch = "wasm32"))]
+    module_path: String,
+    pub(super) moduled: Option<Result<String, String>>,
 }
 
 /// One rule of the Find section: a field of `FIND_FIELDS`, a comparison of `COMPARES` for
@@ -390,6 +395,7 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     report_section(app, state, study, ui);
     #[cfg(not(target_arch = "wasm32"))]
     views_section(app, state, study, ui);
+    modules_section(app, state, study, ui);
     compare_section(app, state, study, ui);
     mesh_study_section(app, state, study, ui);
     for action in actions {
@@ -1023,6 +1029,126 @@ fn mesh_study_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: 
 /// Batch report: the component table of every run that kept a thermal report, side by side, as
 /// CSV and a self-contained HTML page in a new directory.
 #[cfg(not(target_arch = "wasm32"))]
+/// Modules: a component's setup kept from its first copy and given to every copy
+/// (`multiphysics.module.capture`, `.apply`), and to other designs through a file.
+fn modules_section(app: &mut SolveApp, state: &mut State, study: &Study, ui: &mut egui::Ui) {
+    let t = Tokens::get();
+    ui.separator();
+    ui.strong(tr("multiphysics.modules_title"));
+    let components: Vec<String> = app.session.doc.components.iter().map(|c| c.name.clone()).collect();
+    if components.is_empty() {
+        ui.label(RichText::new(tr("multiphysics.modules_no_components")).small().color(t.text_dim));
+    } else {
+        if !components.contains(&state.parts_ui.module_component) {
+            state.parts_ui.module_component = components[0].clone();
+        }
+        let current = state.parts_ui.module_component.clone();
+        crate::ui_kit::row(ui, tr("multiphysics.modules_component"), |ui| {
+            crate::ui_kit::dropdown_menu(ui, "multiphysics_module_component", &current, |ui| {
+                for (index, name) in components.iter().enumerate() {
+                    let response = crate::ui_kit::list_picker(ui, &format!("multiphysics_module_component_{index}"), name, *name == current);
+                    if response.clicked() {
+                        state.parts_ui.module_component = name.clone();
+                    }
+                }
+            })
+        });
+        let response = crate::ui_kit::button(ui, tr("multiphysics.modules_capture"), crate::ui_kit::Button::Enabled(true));
+        crate::scenario::publish_target("multiphysics:module_capture", response.rect);
+        if crate::ui_kit::BackingTooltipExt::backing_on_hover_text(response, tr("multiphysics.modules_capture_tip")).clicked() {
+            let component = state.parts_ui.module_component.clone();
+            state.parts_ui.moduled = Some(
+                app.run("multiphysics.module.capture", json!({"id": study.id, "component": component}))
+                    .map(|reply| reply["module"]["name"].as_str().unwrap_or_default().to_string()),
+            );
+        }
+    }
+    let modules: Vec<String> = app.session.doc.multiphysics.modules.iter().map(|m| m.name.clone()).collect();
+    let mut action = None;
+    for (index, name) in modules.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(name);
+            let apply = crate::ui_kit::button(ui, tr("multiphysics.modules_apply"), crate::ui_kit::Button::Enabled(true));
+            crate::scenario::publish_target(&format!("multiphysics:module_apply:{index}"), apply.rect);
+            if apply.clicked() {
+                action = Some(("apply", name.clone()));
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let export = crate::ui_kit::button(
+                    ui,
+                    tr("multiphysics.modules_export"),
+                    crate::ui_kit::Button::Enabled(!state.parts_ui.module_path.trim().is_empty()),
+                );
+                crate::scenario::publish_target(&format!("multiphysics:module_export:{index}"), export.rect);
+                if export.clicked() {
+                    action = Some(("export", name.clone()));
+                }
+            }
+            let remove = crate::ui_kit::button(ui, tr("multiphysics.modules_remove"), crate::ui_kit::Button::Enabled(true));
+            crate::scenario::publish_target(&format!("multiphysics:module_remove:{index}"), remove.rect);
+            if remove.clicked() {
+                action = Some(("remove", name.clone()));
+            }
+        });
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    ui.horizontal(|ui| {
+        ui.label(tr("multiphysics.modules_file"));
+        let width = 200.0_f32.min(ui.available_width());
+        let response = ui
+            .allocate_ui(egui::vec2(width, crate::ui_kit::row_height()), |ui| {
+                crate::ui_kit::text_field_reserving(ui, &mut state.parts_ui.module_path, "", 0.0).1
+            })
+            .inner;
+        crate::scenario::publish_target("multiphysics:module_path", response.rect);
+        let import = crate::ui_kit::button(
+            ui,
+            tr("multiphysics.modules_import"),
+            crate::ui_kit::Button::Enabled(!state.parts_ui.module_path.trim().is_empty()),
+        );
+        crate::scenario::publish_target("multiphysics:module_import", import.rect);
+        if import.clicked() {
+            action = Some(("import", String::new()));
+        }
+    });
+    if let Some((what, name)) = action {
+        #[cfg(not(target_arch = "wasm32"))]
+        let path = state.parts_ui.module_path.trim().to_string();
+        #[cfg(target_arch = "wasm32")]
+        let path = String::new();
+        state.parts_ui.moduled = Some(match what {
+            "apply" => app.run("multiphysics.module.apply", json!({"id": study.id, "expected_revision": study.revision, "module": name})).map(|r| {
+                let mut text = solidcraft_ui_text::format(
+                    "multiphysics.modules_applied",
+                    &[("module", &name), ("placements", &r["placements"].to_string()), ("bodies", &r["bodies"].to_string())],
+                );
+                let missing: Vec<&str> = r["missing"].as_array().map(|m| m.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+                if !missing.is_empty() {
+                    text.push_str(&solidcraft_ui_text::format("multiphysics.modules_missing", &[("bodies", &missing.join(", "))]));
+                }
+                text
+            }),
+            "export" => app
+                .run("multiphysics.module.export", json!({"module": name, "path": path}))
+                .map(|_| solidcraft_ui_text::format("multiphysics.modules_written", &[("path", &path)])),
+            "import" => {
+                app.run("multiphysics.module.import", json!({"path": path})).map(|r| r["module"]["name"].as_str().unwrap_or_default().to_string())
+            }
+            _ => app.run("multiphysics.module.remove", json!({"module": name})).map(|_| String::new()),
+        });
+    }
+    match &state.parts_ui.moduled {
+        Some(Ok(done)) if !done.is_empty() => {
+            ui.label(RichText::new(done).small());
+        }
+        Some(Err(error)) => {
+            ui.colored_label(t.form_error, error);
+        }
+        _ => {}
+    }
+}
+
 /// Saved result views: the camera, colour-by, ghosted parts and cut plot as they are now, kept
 /// by name in the study (`multiphysics.view.save`), and brought back with one click.
 #[cfg(not(target_arch = "wasm32"))]

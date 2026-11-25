@@ -27,6 +27,7 @@ pub mod fluid_volume;
 pub mod grouping;
 pub mod mesh_diagnostics;
 pub mod model;
+pub mod modules;
 mod obstacles;
 pub mod parts;
 pub mod report;
@@ -85,11 +86,14 @@ pub struct Project {
     /// Tags, attributes and named selections of the design's parts (`parts`).
     #[serde(skip_serializing_if = "parts::Registry::is_empty")]
     pub parts: parts::Registry,
+    /// Components' setups, kept to be given to every copy and to other designs (`modules`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modules: Vec<modules::Module>,
 }
 
 impl Default for Project {
     fn default() -> Self {
-        Self { studies: vec![], next_id: 1, parts: parts::Registry::default() }
+        Self { studies: vec![], next_id: 1, parts: parts::Registry::default(), modules: vec![] }
     }
 }
 
@@ -156,7 +160,7 @@ impl Project {
     /// Only a pristine project may be omitted from a saved design. An empty
     /// project can still reserve study identities used before its last removal.
     pub fn is_default(&self) -> bool {
-        self.studies.is_empty() && self.next_id == 1 && self.parts.is_empty()
+        self.studies.is_empty() && self.next_id == 1 && self.parts.is_empty() && self.modules.is_empty()
     }
     pub fn study(&self, id: &str) -> Option<&Study> {
         self.studies.iter().find(|study| study.id == id)
@@ -404,6 +408,16 @@ impl Project {
         }
         if self.next_id == 0 {
             return Err(Error::Invalid("next study identifier must be positive".into()));
+        }
+        if self.modules.len() > modules::MAX_MODULES {
+            return Err(Error::Limit("too many modules".into()));
+        }
+        let mut module_names = BTreeSet::new();
+        for module in &self.modules {
+            modules::check(module)?;
+            if !module_names.insert(module.name.as_str()) {
+                return Err(Error::Invalid(format!("two modules are named {}", module.name)));
+            }
         }
         let mut ids = BTreeSet::new();
         for study in &self.studies {

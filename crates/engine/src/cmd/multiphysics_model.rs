@@ -724,3 +724,133 @@ pub(super) fn leak(session: &mut Session, params: &Value) -> Result<Value> {
     let path_mm: Vec<[f64; 3]> = path.iter().flatten().map(|p| [0, 1, 2].map(|a| p[a] * 1000.0 + origin[a])).collect();
     reply(ModelLeakReply { connected: path.is_some(), path_mm })
 }
+
+/// Every placement of the component named `component`: its occurrences' names as a label, and
+/// each placed body with the name the component gives it (`Sub/U1` for a body of a component
+/// inside it).
+fn module_placements(session: &Session, component: &str) -> Result<Vec<solidcraft_multiphysics::modules::Placement>> {
+    let doc = session.placed_document();
+    let ids: Vec<u64> = doc.components.iter().filter(|c| c.name == component).map(|c| c.id).collect();
+    let target = match ids.as_slice() {
+        [id] => *id,
+        [] => return Err(bad("component", format!("the design has no component called {component}"))),
+        _ => return Err(bad("component", format!("several components are called {component}; rename one"))),
+    };
+    let occurrence = |id: u64| doc.occurrences.iter().find(|o| o.id == id);
+    let component_name = |id: u64| doc.components.iter().find(|c| c.id == id).map(|c| c.name.clone());
+    let mut placements: std::collections::BTreeMap<Vec<u64>, solidcraft_multiphysics::modules::Placement> = std::collections::BTreeMap::new();
+    for (world, own, _, path, _) in doc.body_frames_with_source(&session.model.state()) {
+        let Some(at) = path.iter().position(|o| occurrence(*o).is_some_and(|o| o.component == target)) else { continue };
+        let instance = path[..=at].to_vec();
+        let mut relative: Vec<String> = path[at + 1..].iter().filter_map(|o| occurrence(*o).and_then(|o| component_name(o.component))).collect();
+        relative.push(own);
+        let label = instance.iter().filter_map(|o| occurrence(*o).map(|o| o.name.clone())).collect::<Vec<_>>().join("/");
+        placements
+            .entry(instance)
+            .or_insert_with(|| solidcraft_multiphysics::modules::Placement { label, bodies: Vec::new() })
+            .bodies
+            .push((world, relative.join("/")));
+    }
+    if placements.is_empty() {
+        return Err(bad("component", format!("{component} is not placed in the design")));
+    }
+    Ok(placements.into_values().collect())
+}
+
+/// Keep the setup a study gives one placement of a component as a module of the design.
+pub(super) fn module_capture(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModuleCapture = parse(params)?;
+    let (_, link) = linked(session, &input.id)?;
+    let placements = module_placements(session, &input.component)?;
+    let placement = match input.placement.as_deref() {
+        Some(label) => {
+            placements.iter().find(|p| p.label == label).ok_or_else(|| bad("placement", format!("no placement of {} is {label}", input.component)))?
+        }
+        None => placements.first().ok_or_else(|| bad("component", "no placement"))?,
+    };
+    let name = input.name.unwrap_or_else(|| format!("{} setup", input.component));
+    let module = solidcraft_multiphysics::modules::capture(&name, &input.component, placement, &link, &session.doc.multiphysics.parts)
+        .map_err(|e| bad("", e.to_string()))?;
+    if module.bodies.is_empty() && module.face_sources.is_empty() {
+        return Err(bad(
+            "component",
+            format!("{} sets nothing up on {}: give its bodies materials, tags or goals first", placement.label, input.component),
+        ));
+    }
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    let replaced = solidcraft_multiphysics::modules::save(&mut project.modules, module.clone()).map_err(|e| bad("", e.to_string()))?;
+    session.doc_mut().multiphysics = Arc::new(project);
+    reply(ModuleReply { module, replaced: Some(replaced), placements: placements.iter().map(|p| p.label.clone()).collect() })
+}
+
+/// Give a module's setup to every placement of its component in a study, in one undo step.
+pub(super) fn module_apply(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModuleApply = parse(params)?;
+    let (study, link) = linked(session, &input.id)?;
+    if study.revision != input.expected_revision {
+        return Err(bad("expected_revision", format!("the study changed (revision {}); read it again", study.revision)));
+    }
+    let module = session
+        .doc
+        .multiphysics
+        .modules
+        .iter()
+        .find(|m| m.name == input.module)
+        .cloned()
+        .ok_or_else(|| bad("module", format!("the design has no module called {}", input.module)))?;
+    let placements = module_placements(session, &module.component)?;
+    let applied =
+        solidcraft_multiphysics::modules::apply(&module, &placements, &link, &session.doc.multiphysics.parts).map_err(|e| bad("", e.to_string()))?;
+    let built = commit(session, &input.id, input.expected_revision, applied.link)?;
+    if applied.registry != session.doc.multiphysics.parts {
+        let mut project = session.doc.multiphysics.as_ref().clone();
+        project.parts = applied.registry;
+        session.doc_mut().multiphysics = Arc::new(project);
+    }
+    reply(ModuleApplied { placements: applied.placements, bodies: applied.bodies, missing: applied.missing, build: built })
+}
+
+pub(super) fn module_list(session: &mut Session, _params: &Value) -> Result<Value> {
+    reply(ModulesReply { modules: session.doc.multiphysics.modules.clone() })
+}
+
+pub(super) fn module_remove(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModuleName = parse(params)?;
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    let before = project.modules.len();
+    project.modules.retain(|m| m.name != input.module);
+    if project.modules.len() == before {
+        return Err(bad("module", format!("the design has no module called {}", input.module)));
+    }
+    let modules = project.modules.clone();
+    session.doc_mut().multiphysics = Arc::new(project);
+    reply(ModulesReply { modules })
+}
+
+/// Write a module to a new file, for another design to import.
+pub(super) fn module_export(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModuleFile = parse(params)?;
+    let name = input.module.as_deref().ok_or_else(|| bad("module", "name the module to write"))?;
+    let module = session
+        .doc
+        .multiphysics
+        .modules
+        .iter()
+        .find(|m| m.name == name)
+        .ok_or_else(|| bad("module", format!("the design has no module called {name}")))?;
+    solidcraft_io::multiphysics::write_module(std::path::Path::new(&input.path), module).map_err(|e| bad("path", e.to_string()))?;
+    reply(Exported { files: vec![input.path] })
+}
+
+/// Read a module file into the design (replacing a module of the same name), in one undo step.
+pub(super) fn module_import(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: ModuleFile = parse(params)?;
+    let mut module = solidcraft_io::multiphysics::read_module(std::path::Path::new(&input.path)).map_err(|e| bad("path", e.to_string()))?;
+    if let Some(name) = input.module.filter(|n| !n.trim().is_empty()) {
+        module.name = name.trim().to_string();
+    }
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    let replaced = solidcraft_multiphysics::modules::save(&mut project.modules, module.clone()).map_err(|e| bad("", e.to_string()))?;
+    session.doc_mut().multiphysics = Arc::new(project);
+    reply(ModuleReply { module, replaced: Some(replaced), placements: vec![] })
+}

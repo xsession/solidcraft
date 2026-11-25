@@ -1038,3 +1038,80 @@ fn a_result_view_is_saved_with_the_study_and_puts_the_view_back() {
     let clone_id = clone["study"]["id"].as_str().unwrap();
     assert_eq!(s.doc.multiphysics.study(clone_id).unwrap().views.len(), 1);
 }
+
+/// A board's setup kept as a module from its first copy and given to both: the second copy's
+/// chip gets the same material, power, limit, tag and goal; through a file it reaches another
+/// design too.
+#[test]
+fn a_module_sets_up_every_copy_of_a_component_and_travels_by_file() {
+    let mut s = duct_session();
+    s.execute("component.create", &json!({"name": "Board"})).unwrap();
+    s.execute("solid.box", &json!({"length":40,"width":20,"height":2,"corner":[20,10,10],"body_name":"PCB"})).unwrap();
+    s.execute("solid.box", &json!({"length":8,"width":8,"height":3,"corner":[36,16,12],"body_name":"U1"})).unwrap();
+    s.execute("component.activate", &json!({"component": 0})).unwrap();
+    s.execute("occurrence.copy", &json!({"component": "Board", "translate": [0, 0, 12]})).unwrap();
+    let bodies: Vec<String> = serde_json::from_value(s.execute("multiphysics.cad.bodies", &json!({})).unwrap()["bodies"].clone()).unwrap();
+    // The copies' bodies are named by their placement: "U1", "U1 (Board:2)".
+    let chips: Vec<&String> = bodies.iter().filter(|b| b.starts_with("U1")).collect();
+    assert_eq!(chips.len(), 2, "{bodies:?}");
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Boards","cell_mm":2.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":true})).unwrap();
+    // Set up the first copy only.
+    let first = chips[0].clone();
+    s.execute(
+        "multiphysics.model.material",
+        &json!({"id":id,"expected_revision":revision(&s),"bodies":[first],"conductivity_w_per_m_k":150.0,"power_w":0.5,"max_temperature_k":358.15}),
+    )
+    .unwrap();
+    s.execute("multiphysics.parts.tag", &json!({"bodies":[first],"add_tags":["ic"]})).unwrap();
+    s.execute(
+        "multiphysics.model.goal",
+        &json!({"id":id,"expected_revision":revision(&s),"name":"first_chip","kind":"body_max_temperature","body":first}),
+    )
+    .unwrap();
+    let kept = s.execute("multiphysics.module.capture", &json!({"id":id,"component":"Board"})).unwrap();
+    assert_eq!(kept["module"]["name"], "Board setup");
+    assert_eq!(kept["module"]["bodies"][0]["body"], "U1", "named as the board names it: {kept}");
+    assert_eq!(kept["placements"].as_array().unwrap().len(), 2, "{kept}");
+    // Given to both copies in one undo step.
+    let undo = s.undo.len();
+    let applied = s.execute("multiphysics.module.apply", &json!({"id":id,"expected_revision":revision(&s),"module":"Board setup"})).unwrap();
+    assert_eq!((applied["placements"].clone(), applied["bodies"].clone(), applied["missing"].clone()), (json!(2), json!(2), json!([])), "{applied}");
+    assert_eq!(s.undo.len(), undo + 1);
+    let study = s.doc.multiphysics.study(&id).unwrap().clone();
+    let heat = study.model.as_ref().and_then(|l| l.heat.clone()).unwrap();
+    for chip in &chips {
+        let row = heat.materials.iter().find(|m| &&m.body == chip).unwrap_or_else(|| panic!("{chip}: {:?}", heat.materials));
+        assert_eq!((row.power_w, row.max_temperature_k), (0.5, Some(358.15)));
+        assert!(s.doc.multiphysics.parts.parts[*chip].tags.contains("ic"));
+    }
+    assert_eq!(study.model.as_ref().unwrap().goals.len(), 3, "the study's own goal and one per copy");
+    // To a file and into a fresh design.
+    let scratch = std::env::temp_dir().join(format!("sc-module-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(&scratch).unwrap();
+    let path = scratch.join("board.json");
+    s.execute("multiphysics.module.export", &json!({"module":"Board setup","path":path.to_string_lossy()})).unwrap();
+    assert!(s.execute("multiphysics.module.export", &json!({"module":"Board setup","path":path.to_string_lossy()})).is_err(), "never overwrites");
+    let mut other = Session::default();
+    let imported = other.execute("multiphysics.module.import", &json!({"path":path.to_string_lossy(),"module":"From file"})).unwrap();
+    assert_eq!(imported["module"]["component"], "Board");
+    assert_eq!(other.execute("multiphysics.module.list", &json!({})).unwrap()["modules"][0]["name"], "From file");
+    // No such component in the other design: applying says so.
+    let other_id = {
+        other.execute("solid.box", &json!({"length":10,"width":10,"height":10,"body_name":"Block"})).unwrap();
+        other.execute("multiphysics.model.create", &json!({"name":"Other","cell_mm":2.0})).unwrap()["study"]["id"].as_str().unwrap().to_string()
+    };
+    let r = other.doc.multiphysics.study(&other_id).unwrap().revision;
+    assert!(
+        other
+            .execute("multiphysics.module.apply", &json!({"id":other_id,"expected_revision":r,"module":"From file"}))
+            .unwrap_err()
+            .to_string()
+            .contains("no component")
+    );
+    s.execute("multiphysics.module.remove", &json!({"module":"Board setup"})).unwrap();
+    assert!(s.doc.multiphysics.modules.is_empty());
+    let _ = std::fs::remove_dir_all(&scratch);
+}

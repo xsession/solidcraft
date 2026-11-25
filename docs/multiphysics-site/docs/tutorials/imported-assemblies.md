@@ -65,4 +65,31 @@ small parts are left out, by a live query of the study's own (its earlier parts,
 `size_mm ≥` the size). A second size replaces the first. Their materials are kept for when
 they come back.
 
+## Modules: one setup for every copy
+
+A rack holds the same board four times; a board holds the same regulator twice. Make the
+repeated part a **component** and place it as often as it is used; then its Multiphysics setup
+needs giving only once.
+
+1. Set up one copy: its chips' materials, power and limits, their tags, a goal on the hottest
+   chip, a heat source on a face.
+2. Under **Modules** in the Parts panel, pick the component and press **Keep as module**. The
+   module records that setup by the component's *own* body names (`U1`, or `Sub/R1` for a body
+   of a component inside it), not by the names one copy has in the design (`U1 (Board:2)`).
+3. Press **Apply to every copy**. Each placement gets the same materials, tags, attributes,
+   goals and face heat, on its own bodies, and the study is built again, in one undo step.
+   What a copy already had for those bodies is replaced, so applying again changes nothing
+   more; a body a copy does not have is skipped, and the panel lists it.
+
+A module is part of the design. To use it in another design, type a file name and press
+**Export**; in the other design, type the file's name and press **Import**, then apply it to a
+study there. The other design needs a component of the same name.
+
+??? info "The commands"
+    `multiphysics.module.capture {"id": "…", "component": "Board"}` keeps the setup of the
+    component's first placement (or `"placement": "Board:2"`); `multiphysics.module.apply
+    {"id": "…", "expected_revision": 7, "module": "Board setup"}` gives it to every placement;
+    `multiphysics.module.export` / `.import {"path": "…"}` write and read it as
+    `solidcraft-multiphysics-module/1` JSON.
+
 Next: [scripting a study](scripting.md).

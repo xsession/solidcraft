@@ -208,6 +208,75 @@ pub struct ViewApplied {
     pub notes: Vec<String>,
 }
 
+/// `multiphysics.module.capture`: keep a study's setup of one placement of a component.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleCapture {
+    /// The study of the model whose setup is kept.
+    pub id: String,
+    /// The component definition, by name.
+    pub component: String,
+    /// The module's name (default "<component> setup"); one of the same name is replaced.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Which placement to read, by its occurrences' names joined with `/` (default the first).
+    #[serde(default)]
+    pub placement: Option<String>,
+}
+
+/// `multiphysics.module.apply`: give a module to every placement of its component.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleApply {
+    pub id: String,
+    pub expected_revision: u64,
+    pub module: String,
+}
+
+/// `multiphysics.module.remove`: a module by name.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleName {
+    pub module: String,
+}
+
+/// `multiphysics.module.export` (the module to write, a new file) and `.import` (a file; module
+/// renames what it holds).
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleFile {
+    #[serde(default)]
+    pub module: Option<String>,
+    pub path: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ModuleReply {
+    pub module: solidcraft_multiphysics::modules::Module,
+    /// Whether a module of the same name was replaced.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replaced: Option<bool>,
+    /// The component's placements, by label (for a capture).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub placements: Vec<String>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ModulesReply {
+    pub modules: Vec<solidcraft_multiphysics::modules::Module>,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ModuleApplied {
+    /// Placements set up, and bodies set in them.
+    pub placements: usize,
+    pub bodies: usize,
+    /// `placement/body` of the module's bodies a placement does not have.
+    pub missing: Vec<String>,
+    /// The study as built again (as `multiphysics.model.set` replies).
+    pub build: Value,
+}
+
 /// One retained original VTU or PVD artifact, addressed by saved study and run identity.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

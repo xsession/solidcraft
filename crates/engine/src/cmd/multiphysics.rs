@@ -77,6 +77,24 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("multiphysics.result.convergence", "Mesh Study Convergence", crate::checked!("multiphysics.result.convergence", convergence))
         .doc_only().noundo().icon("inspect").contract(&TypedContract::<Convergence>::new()).output(output_schema_for::<ConvergenceReply>)
         .params("fine, medium, coarse: {id (a study of the model), run_id? (default its latest run with a thermal report)}: the same study on three grids, finest first (multiphysics.model.mesh_study makes the two coarser ones). Per part all three report: its highest temperature's rise above the inflow on each grid, the observed order of accuracy, the extrapolated grid-independent value and the fine grid's convergence index (GCI, % of the fine value; Celik et al. 2008), and whether the grids converge monotonically, oscillate, have converged or are not settling yet. Notes a size ratio under 1.3 between neighbouring grids. Changes nothing."),
+    CommandSpec::new("multiphysics.module.capture", "Keep Component Setup as Module", crate::checked!("multiphysics.module.capture", model::module_capture))
+        .doc_only().icon("save").contract(&TypedContract::<ModuleCapture>::new()).output(output_schema_for::<ModuleReply>)
+        .params("id (a study of the model), component (a component definition's name), name? (default \"<component> setup\"; replaces one of the same name), placement? (its occurrences' names joined by /; default the first). Keeps what the study and the part registry give that placement's bodies (material, power, limit, tags, attributes, a highest-temperature goal) and the heat sources on its faces, by the component's own body names, as a module of the design. One undo step."),
+    CommandSpec::new("multiphysics.module.apply", "Apply Module to Every Copy", crate::checked!("multiphysics.module.apply", model::module_apply))
+        .doc_only().icon("copy").contract(&TypedContract::<ModuleApply>::new()).output(output_schema_for::<ModuleApplied>)
+        .params("id, expected_revision, module (name). Gives the module's setup to every placement of its component in the study: materials, tags, attributes, goals and face heat sources, replacing those of the same body or name, so applying twice changes nothing more. Lists bodies a placement does not have. Builds the case again in one undo step."),
+    CommandSpec::new("multiphysics.module.list", "List Modules", crate::checked!("multiphysics.module.list", model::module_list))
+        .doc_only().noundo().icon("list").contract(&TypedContract::<Empty>::new()).output(output_schema_for::<ModulesReply>)
+        .params("No parameters. The design's modules. Changes nothing."),
+    CommandSpec::new("multiphysics.module.remove", "Remove Module", crate::checked!("multiphysics.module.remove", model::module_remove))
+        .doc_only().icon("delete").contract(&TypedContract::<ModuleName>::new()).output(output_schema_for::<ModulesReply>)
+        .params("module (name). Drops it from the design in one undo step; studies it was applied to keep their setup."),
+    CommandSpec::new("multiphysics.module.export", "Export Module", crate::checked!("multiphysics.module.export", model::module_export))
+        .doc_only().noundo().icon("export").contract(&TypedContract::<ModuleFile>::new()).output(output_schema_for::<Exported>)
+        .params("module (name), path (a new .json file): writes the module (solidcraft-multiphysics-module/1) for another design to import. Never overwrites."),
+    CommandSpec::new("multiphysics.module.import", "Import Module", crate::checked!("multiphysics.module.import", model::module_import))
+        .doc_only().icon("import").contract(&TypedContract::<ModuleFile>::new()).output(output_schema_for::<ModuleReply>)
+        .params("path (a module file), module? (a name to keep it under). Checks and keeps it in the design, replacing one of the same name, in one undo step; apply it to a study with multiphysics.module.apply."),
     CommandSpec::new("multiphysics.view.save", "Save Multiphysics Result View", crate::checked!("multiphysics.view.save", view_save))
         .doc_only().icon("camera").contract(&TypedContract::<ViewSave>::new()).output(output_schema_for::<ViewsReply>)
         .params("id (a study); view: {name, camera? {target [mm], yaw, pitch, distance, fov?, roll?} (none: the camera stays where it is when applied), colour_by?: none|material|power|tag|verdict, ghosted?: [body names], plot?: {field (name in the run's field file), axis: 0|1|2, anchor?: layer|part|maximum, layer?, part?, vectors?}, surfaces?, scale?: {map, reversed?, bands?, mark_out_of_range?}, range?: auto|locked|percentile|symmetric, locked_range?: [low, high]}; ghosted_now? (take the parts ghosted now). Keeps the view in the study by name, replacing one of the same name; at most 64. One undo step; runs do not go stale."),

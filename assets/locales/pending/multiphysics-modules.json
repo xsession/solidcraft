@@ -1,0 +1,21 @@
+{
+  "en": {
+    "cmd.multiphysics.module.apply": "Apply Module to Every Copy",
+    "cmd.multiphysics.module.capture": "Keep Component Setup as Module",
+    "cmd.multiphysics.module.export": "Export Module",
+    "cmd.multiphysics.module.import": "Import Module",
+    "multiphysics.modules_applied": "{module} set up {placements} cop(ies), {bodies} bod(ies)",
+    "multiphysics.modules_apply": "Apply to every copy",
+    "multiphysics.modules_capture": "Keep as module",
+    "multiphysics.modules_capture_tip": "Keep the materials, tags, goals and face heat this study gives the component's first copy, by the component's own body names",
+    "multiphysics.modules_component": "Component",
+    "multiphysics.modules_export": "Export",
+    "multiphysics.modules_file": "Module file",
+    "multiphysics.modules_import": "Import",
+    "multiphysics.modules_missing": "; not in every copy: {bodies}",
+    "multiphysics.modules_no_components": "The design has no components. Make a board or a rack a component, place it, and its setup can be kept as a module for every copy.",
+    "multiphysics.modules_remove": "Remove",
+    "multiphysics.modules_title": "Modules",
+    "multiphysics.modules_written": "Written to {path}"
+  }
+}

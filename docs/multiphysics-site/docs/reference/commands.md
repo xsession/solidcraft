@@ -44,6 +44,12 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.view.apply` | Put a saved view back: camera, ghosting and colours; the plot settings for the host | view |
 | `multiphysics.view.list` | A study's saved result views | none |
 | `multiphysics.view.remove` | Drop a saved view | one step |
+| `multiphysics.module.capture` | Keep one copy's setup of a component as a module | one step |
+| `multiphysics.module.apply` | Give a module's setup to every copy of its component | one step |
+| `multiphysics.module.list` | The design's modules | none |
+| `multiphysics.module.remove` | Drop a module | one step |
+| `multiphysics.module.export` | Write a module to a new file | none |
+| `multiphysics.module.import` | Read a module file into the design | one step |
 | `multiphysics.parts.colour` | Colour parts by material, power, tag or verdict, with a legend | view |
 | `multiphysics.parts.check` | The checklist of a study | none |
 | `multiphysics.parts.table` | The component table, optionally as CSV | none |
