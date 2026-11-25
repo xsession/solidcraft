@@ -103,13 +103,36 @@ under the 32 768-cell limit, and a local refinement around the sphere, which wou
 rows of the box grid, does not fit beside it. This is the box grid's limit at its clearest; a
 refinement that splits only the cells near the sphere (an octree) is the remedy.
 
-### The battery case's own channel
+### The battery case's own geometry
 
-The case's air channel, joined with its inlet and outlet into one closed solid, converts and
-cuts cleanly, but setting up the study on the resulting 10 000-facet wall took longer than an
-hour: SolidCraft finds the exact face under each triangle of the wall, which grows with
-triangles times faces. It was stopped; a faster lookup is a follow-up. The battery pack above
-uses the case's cell size and pitch with our own duct.
+The case's 20 cells, measured (46 × 82 mm, on a staggered 25 mm pitch), stand in its own air
+channel, which is the case's STL joined with its inlet and outlet into one closed solid and cut out
+of a block. Air enters through the 80 × 40 mm inlet at 0.5 m/s and each cell releases 2 W (the
+case's 100 W per cell needs turbulent air, see below). On 8 mm cells:
+
+| Checked | Result |
+|---|---|
+| Energy balance | 40.000 W of 40 W, imbalance 8e-11 |
+| Cells by the inlet | 43 to 48 °C |
+| Cells in the middle and back rows | up to 72 °C |
+
+As in the case's own pictures, the cells by the inlet run coolest and the rows the air reaches
+last run hottest. Setting up this study took over an hour at first: SolidCraft looked up the face
+under each of the solver's triangles by measuring every triangle against every face of the
+10 000-facet channel. It now takes the face from the tessellation, and the study is set up and
+run in about two minutes.
+
+### A porous brick in a duct
+
+A 15 mm brick fills a 40 × 30 mm duct, a porous body with a Darcy coefficient of 1e7 1/m², air
+at 0.1 m/s (stands in for *Catalyst heat-up*, 022). The flow through it is even, so the pressure
+falls across it by Darcy's μ·D·U·L = 0.270 Pa; the run gives **0.263 Pa, −2.4 %**, with the duct
+and the brick on the cell edges (2.5 mm cells). With walls that do not fall on cell edges it came
+to −8.8 %: the grid then holds a slightly different duct and a brick 14.5 mm long.
+
+The catalyst case's own geometry is out of reach for now: its housing comes as an STL of 63 834
+triangles, past the 50 000 SolidCraft converts into a solid, and in its STEP file as an open
+shell, which bounds no air.
 
 ## What the cases needed that SolidCraft lacked
 
@@ -133,6 +156,10 @@ own tests:
 - **A fan's study took a needlessly short time step**; it now follows the fan's flow.
 - **A design opened in a second tab could not run its study**: the solver was given to the
   first design only.
+- **Setting a study up on a large imported solid took over an hour**: the face under each
+  triangle was searched for; it is now taken from the tessellation.
+- **Porous zones and natural convection** were in the solver but not in a study of the model;
+  both are now ([design to case](design-to-case.md#porous-bodies), [the solver](solver.md)).
 
 ## Cases out of reach today
 
@@ -144,8 +171,9 @@ own tests:
 | ACMI heat transfer | Heat across a moving, connecting and disconnecting interface | Fixed geometry |
 | Tank with safety valve | A baffle that opens at a pressure | Fixed geometry |
 | Combustion chamber (cold flow) | Mixing of a passive scalar | No scalar transport in the 3-D flow |
-| Catalyst heat-up | Porous zones in a heated flow | Porous zones exist in the solver; a study of the model does not offer them yet |
-| Solar chimney, gin and tonic | Natural convection (buoyancy); the drink also melting ice | Buoyancy exists in the solver; a study of the model does not offer it yet. No melting |
+| Catalyst heat-up | Porous zones in a heated flow, on the case's housing | Porous bodies, yes (run above on our own duct); no heat exchange inside them; the housing is past the conversion limit as an STL and open as a STEP shell |
+| Solar chimney | Natural convection over a 9.9 m collector and up a 20 m chimney | Natural convection, yes; but under the 32 768-cell limit the cells on that box are 0.39 m, so the 0.4 m chimney would be one cell wide |
+| Gin and tonic | Natural convection and melting ice | Natural convection, yes; no melting |
 | Magnus effect | A cylinder whose wall turns | No moving walls in a study of the model |
 | 2-D adaptive mesh refinement (blastFoam) | Compressible, shock-capturing flow | Incompressible flow |
 | Pitot tube | Compressible flow up to 50 m/s, transient | Incompressible flow |

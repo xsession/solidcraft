@@ -623,4 +623,98 @@ def teg_stack_exact():
     }
 
 
+@case
+def porous_brick():
+    # A catalyst-like brick filling a 40 × 30 mm duct for 15 mm of its 150 mm, with a Darcy
+    # coefficient of 1e7 1/m², air at 0.1 m/s. The flow through it is even, so the pressure falls
+    # across it by Darcy's μ·D·U·L = 1.8e-5 × 1e7 × 0.1 × 0.015 = 0.27 Pa; the duct's own
+    # friction over the same length adds under 0.001 Pa. Stands in for the catalyst heat-up case
+    # (022), whose housing comes as an open surface and as an STL past the conversion limit.
+    new_design()
+    wall, w, h, length = 2.5, 40.0, 30.0, 150.0  # on the 2.5 mm cells exactly
+    run("solid.box", {"length": length, "width": w + 2 * wall, "height": h + 2 * wall, "corner": [0, 0, 0], "operation": "new", "body_name": "Wall"})
+    run("solid.box", {"length": length + 10, "width": w, "height": h, "corner": [-5, wall, wall], "operation": "cut"})
+    run("solid.box", {"length": 15, "width": w, "height": h, "corner": [67.5, wall, wall], "operation": "new", "body_name": "Brick"})
+    flow = {"kinematic_viscosity_m2_per_s": AIR_NU, "density_kg_per_m3": AIR_RHO, "end_time_s": 3.0, "converge_tolerance": 2e-4}
+    study = Study("Porous brick", 2.5, flow)
+    d = 1e7
+    study.set(porous=[{"body": "Brick", "viscous_resistance_per_m2": d, "inertial_resistance_per_m": 0.0}])
+    mid = [wall + w / 2, wall + h / 2]
+    study.condition("Inlet", "Wall", [0, wall / 2, mid[1]], {"kind": "inlet", "speed_m_per_s": 0.1})
+    study.condition("Outlet", "Wall", [length, wall / 2, mid[1]], {"kind": "outlet", "pressure_m2_per_s2": 0.0})
+    study.goal("before", "point_pressure", point_mm=[62.5, mid[0], mid[1]])
+    study.goal("after", "point_pressure", point_mm=[87.5, mid[0], mid[1]])
+    study.goal("q_out", "face_volume_flow", face={"body": "Wall", "point": [length, wall / 2, mid[1]]})
+    run_id, seconds = study.solve("porous brick")
+    picture("porous_brick")
+    m = saved_run(save("porous_brick"), study.id, run_id)["metrics"]
+    q = abs(m.get("goal_q_out") or 0.0)
+    u = q / (w * h * 1e-6)
+    # The brick's cells: the drop is over the cells the brick holds, as many as its box covers.
+    expected = AIR_NU * AIR_RHO * d * u * 0.015
+    measured = (m.get("goal_before") or 0.0) - (m.get("goal_after") or 0.0)
+    return {
+        "cells": study.dimensions(),
+        "speed_m_per_s": u,
+        "drop_pa": measured,
+        "drop_darcy_pa": expected,
+        "error_percent": (measured / expected - 1) * 100 if expected else None,
+        "goals_converged": m.get("goals_converged"),
+        "simulated_s": m.get("time_s"),
+        "run_seconds": seconds,
+        "notes": study.notes,
+    }
+
+
+@case
+def catalyst_flow_exact():
+    # The catalyst heat-up case's exhaust duct (its walls, inlet and outlet joined into one
+    # closed solid, cut out of a block) and its two 300 × 200 × 60 mm catalyst bricks, measured,
+    # 200 mm apart. The bricks are porous bodies with a Darcy coefficient of 1e7 1/m² (a
+    # permeability of 1e-7 m², a fine monolith); air at 2 m/s through the inlet. Heat is out of
+    # reach (no heat exchange inside a porous zone), so the flow alone: the pressure drop across
+    # the first brick against Darcy's μ·D·U·L, with U the flow through the brick's face.
+    new_design()
+    stl = os.path.join(GEOMETRY, "catalystHeatUp/cases-12/catalystHeatUp/cad")
+    joined = os.path.join(OUTDIR, "catalyst_duct.stl")
+    open_edges = closed_stl([os.path.join(stl, "stl", n) for n in ("walls.stl", "inlet.stl", "outlet.stl")], joined)
+    print("  duct joined, edges left open:", open_edges)
+    # The case's files are in metres.
+    duct = run("file.insert_mesh", {"path": joined, "units": "m", "name": "Duct"})["created_bodies"][0]
+    run("mesh.convert", {"body": duct, "name": "Duct solid"})
+    run("solid.box", {"length": 401, "width": 210, "height": 1072, "corner": [-155, -105, -372], "operation": "new", "body_name": "Wall"})
+    run("solid.combine", {"target": "Wall", "tools": [duct], "operation": "cut"})
+    run("solid.box", {"length": 300, "width": 200, "height": 60, "corner": [-150, -100, 0], "operation": "new", "body_name": "SCR1"})
+    run("solid.box", {"length": 300, "width": 200, "height": 60, "corner": [-150, -100, 200], "operation": "new", "body_name": "SCR2"})
+    flow = {"kinematic_viscosity_m2_per_s": AIR_NU, "density_kg_per_m3": AIR_RHO, "end_time_s": 3.0, "converge_tolerance": 1e-3}
+    study = Study("Catalyst flow (case geometry)", 14.0, flow)
+    d = 1e7
+    study.set(porous=[{"body": b, "viscous_resistance_per_m2": d, "inertial_resistance_per_m": 0.0} for b in ("SCR1", "SCR2")])
+    # The inlet: the pipe's end, at x 207…241, z −372…−278 (a slanted face: a patch on the wall).
+    study.condition("Inlet", "Wall", [224, 0, -372], {"kind": "inlet", "speed_m_per_s": 2.0})
+    study.condition("Outlet", "Wall", [80, 102, 700], {"kind": "outlet", "pressure_m2_per_s2": 0.0})
+    study.goal("below", "point_pressure", point_mm=[0, 0, -10])
+    study.goal("above", "point_pressure", point_mm=[0, 0, 70])
+    study.goal("q_out", "face_volume_flow", face={"body": "Wall", "point": [80, 102, 700]})
+    run_id, seconds = study.solve("catalyst")
+    picture("catalyst_flow_exact")
+    m = saved_run(save("catalyst_flow_exact"), study.id, run_id)["metrics"]
+    q = abs(m.get("goal_q_out") or 0.0)
+    u = q / (0.3 * 0.2)
+    expected = AIR_NU * AIR_RHO * d * u * 0.06
+    measured = (m.get("goal_below") or 0.0) - (m.get("goal_above") or 0.0)
+    return {
+        "cells": study.dimensions(),
+        "flow_m3_per_s": q,
+        "brick_speed_m_per_s": u,
+        "drop_pa": measured,
+        "drop_darcy_pa": expected,
+        "error_percent": (measured / expected - 1) * 100 if expected else None,
+        "goals_converged": m.get("goals_converged"),
+        "simulated_s": m.get("time_s"),
+        "run_seconds": seconds,
+        "notes": study.notes,
+    }
+
+
 print(json.dumps(RESULTS, indent=2))
