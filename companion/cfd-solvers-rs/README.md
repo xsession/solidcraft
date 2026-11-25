@@ -1,4 +1,15 @@
-# cfd-solvers-rs 0.16.0
+# cfd-solvers-rs 0.17.0
+
+## Partial cells and lumped bodies (0.17.0)
+
+`thermal.partial_cells` (`partial_cells_v1`) measures every cell on a lattice up to 8 times finer
+per axis. A part's power and heat capacity go by the solid volume it has in each cell, so its
+power is exact and its density does not depend on the cells' sizes. A cell holding more than one
+material conducts, along each axis, at the mean of its sub-cells in series columns and in series
+layers. A surface body with `"lumped": true` may enclose no cell centre: it then does not take
+cells, the grid faces it crosses between two fluid cells become its walls in the flow (a plate
+thinner than a cell), and with partial cells its power goes into the cells its volume lies in,
+which its temperature is read from. A lumped body with heat needs `thermal.partial_cells`.
 
 ## Global flow goals (0.16.0)
 

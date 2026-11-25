@@ -95,6 +95,7 @@ fn channel(graded: bool) -> CollocatedFlowCase {
         buoyancy: None,
         thermoelectric_coolers: vec![],
         face_sources: vec![],
+        partial_cells: false,
     });
     case
 }
@@ -193,6 +194,7 @@ fn porous_zones_and_surface_bodies_follow_graded_cells() {
             .iter()
             .flat_map(|q: &[usize; 4]| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]])
             .collect(),
+        lumped: false,
     };
     let inside = body.voxelize(&case.mesh).unwrap();
     // Fine x centres in range: 0.0425, 0.0475, 0.0525, 0.0575 → 4; y centres below 0.0067: 2.

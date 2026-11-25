@@ -18,8 +18,9 @@ Know these before trusting a number.
 - **Staircase bodies.** Bodies are voxelised at cell centres. Thin walls, slanted faces and
   small gaps are only as good as the cells are small. Check the build's note on how much of
   the bodies' volume the grid holds.
-- **Lost parts.** A part thinner than a cell may not be in the grid at all. The checklist says
-  which; leave them out or refine around them.
+- **Lost parts.** A part thinner than a cell may hold no cell of its own. With heat it is
+  lumped: its power arrives, but its temperature is that of the cells around it. Without heat
+  it is simply not in the flow. The checklist says which; refine around them or leave them out.
 - **Small cases.** At most 32 768 cells, 16 MiB of output per run and 64 MiB per project. The
   example's 4 mm cells are coarse: its temperatures are an illustration of the workflow, not
   a converged answer for that board.

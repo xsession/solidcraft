@@ -95,8 +95,11 @@ grid is made finer, they can come back.
 ??? info "The command"
     `multiphysics.model.leave_out_small {"id": "…", "expected_revision": …, "below_mm": 4}`
 
-!!! warning "What happens without this step"
-    The solver refuses the case: *surface body R1 covers no cell centre; refine the grid*.
+!!! note "What happens without this step"
+    With heat on, the passives are **lumped**: each one's power goes into the cells it lies in
+    and its temperature is read there (see [partial cells](../theory/design-to-case.md#partial-cells)).
+    That keeps their power in the study, but a 1 mm part's temperature is then that of a 4 mm
+    cell of air and board around it. Leaving them out says plainly that they are not modelled.
 
 ## Run
 

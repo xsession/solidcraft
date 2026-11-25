@@ -148,7 +148,9 @@ pub fn checklist_measured(study: &Study, in_study: &[String], current: bool, exa
                     poor,
                 )
             });
-            let unpowered: Vec<&PartCapture> = capture.iter().filter(|c| c.cells == 0 && c.power_w > 0.0).collect();
+            // With partial cells a part with no cell is lumped: its power still arrives.
+            let partial = study.case.pointer("/thermal/partial_cells").and_then(serde_json::Value::as_bool) == Some(true);
+            let unpowered: Vec<&PartCapture> = capture.iter().filter(|c| c.cells == 0 && c.power_w > 0.0 && !partial).collect();
             if !unpowered.is_empty() {
                 let watts: f64 = unpowered.iter().map(|c| c.power_w).sum();
                 checks.push(line(

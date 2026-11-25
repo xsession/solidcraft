@@ -782,6 +782,7 @@ mod conjugate_heat {
             buoyancy: None,
             thermoelectric_coolers: vec![],
             face_sources: vec![],
+            partial_cells: false,
         });
         case
     }
@@ -990,6 +991,7 @@ fn buoyancy_inputs_are_validated_and_drive_flow_in_a_heated_cavity() {
         }),
         thermoelectric_coolers: vec![],
         face_sources: vec![],
+        partial_cells: false,
     });
     let manifest = Case::CollocatedFlow3d(case.clone())
         .run(&scratch.0.join("cavity"))
@@ -1069,6 +1071,7 @@ mod surface_bodies {
             name: name.into(),
             vertices,
             triangles,
+            lumped: false,
         }
     }
 
@@ -1151,6 +1154,7 @@ mod surface_bodies {
             name: name.into(),
             vertices,
             triangles,
+            lumped: false,
         }
     }
 
@@ -1230,6 +1234,7 @@ mod surface_bodies {
             buoyancy: None,
             thermoelectric_coolers: vec![],
             face_sources: vec![],
+            partial_cells: false,
         });
         let manifest = Case::CollocatedFlow3d(case.clone())
             .run(&scratch.0.join("ball"))
@@ -1313,6 +1318,7 @@ fn goals_converge_stop_the_run_and_match_the_final_reports() {
         buoyancy: None,
         thermoelectric_coolers: vec![],
         face_sources: vec![],
+        partial_cells: false,
     });
     let goal = |name: &str, kind, target: &str| Goal {
         name: name.into(),

@@ -118,6 +118,10 @@ pub struct ConjugateHeat {
     /// Heat released on parts of surface bodies (`face_heat_sources_v1`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub face_sources: Vec<FaceHeatSource>,
+    /// Power, heat capacity and conductivity by what each cell holds, measured on a finer
+    /// lattice (`partial_cells_v1`, `case::partial`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub partial_cells: bool,
 }
 
 /// Power released on part of a surface body's surface: the triangles of one model face. The
@@ -557,6 +561,9 @@ pub(super) struct EnergyState {
     source: Vec<f64>,
     capacity_j_per_k: Vec<f64>,
     pseudo_capacity: bool,
+    /// The cells each solid's temperatures are read from: its own, or for a part with none (a
+    /// lumped body) the cells its volume lies in.
+    readout: Vec<Vec<usize>>,
     condition: Vec<ThermalCondition>,
     origins: Vec<(usize, bool)>,
     fluid_cells: Vec<usize>,
@@ -685,6 +692,9 @@ impl EnergyState {
         let mut source = vec![0.0; n];
         let mut capacity: Vec<f64> = mesh.cells().iter().map(|c| rho_cp * c.volume).collect();
         let mut pseudo_capacity = false;
+        // Each solid's conductivity and volumetric heat capacity, for partial cells.
+        let mut solid_k = Vec::with_capacity(solid_names.len());
+        let mut solid_capacity = Vec::with_capacity(solid_names.len());
         for (si, name) in solid_names.iter().enumerate() {
             let solid = heat
                 .solids
@@ -728,12 +738,81 @@ impl EnergyState {
                 let area = volume / length;
                 k[pipe.axis] = length / (pipe.effective_resistance_k_per_w * area);
             }
+            solid_k.push(k);
+            solid_capacity.push(solid_rho_cp);
             for c in cells {
                 region[c] = si + 1;
                 conductivity[c] = k;
                 contact[c] = solid.contact_resistance_m2_k_per_w.unwrap_or(0.0);
-                source[c] = per_cell;
+                if !heat.partial_cells {
+                    source[c] = per_cell;
+                }
                 capacity[c] = solid_rho_cp * mesh.cells()[c].volume;
+            }
+        }
+        let mut readout: Vec<Vec<usize>> = (0..solid_names.len()).map(|si| (0..n).filter(|c| region[*c] == si + 1).collect()).collect();
+        if !heat.partial_cells {
+            if let Some(si) = readout.iter().position(Vec::is_empty) {
+                return Err(SolverError::InvalidInput(format!(
+                    "solid {} has no cell of its own; a lumped body needs thermal.partial_cells",
+                    solid_names[si]
+                )));
+            }
+        }
+        if heat.partial_cells {
+            let boxes = case.obstacles.len();
+            let partial = super::partial::measure(spec, &cell_solid, boxes, &case.bodies, [fluid.conductivity_w_per_m_k; 3], &solid_k)?;
+            // Solid volume of each part, by cell.
+            let mut volume_of = vec![0.0; solid_names.len()];
+            for (c, shares) in partial.shares.iter().enumerate() {
+                for (s, share) in shares {
+                    if let Some(v) = volume_of.get_mut(*s) {
+                        *v += share * mesh.cells()[c].volume;
+                    }
+                }
+            }
+            for (c, shares) in partial.shares.iter().enumerate() {
+                let volume = mesh.cells()[c].volume;
+                if let Some(k) = partial.conductivity[c] {
+                    conductivity[c] = k;
+                }
+                let solid_share: f64 = shares.iter().map(|(_, share)| share).sum();
+                capacity[c] = rho_cp * volume * (1.0 - solid_share).max(0.0)
+                    + shares.iter().map(|(s, share)| solid_capacity.get(*s).copied().unwrap_or(rho_cp) * share * volume).sum::<f64>();
+                for (s, share) in shares {
+                    let power = heat.solids.iter().find(|m| Some(m.obstacle.as_str()) == solid_names.get(*s).copied()).map_or(0.0, |m| m.power_w);
+                    if volume_of[*s] > 0.0 {
+                        source[c] += power * share * volume / volume_of[*s];
+                    }
+                }
+            }
+            for (si, cells) in readout.iter_mut().enumerate() {
+                if !cells.is_empty() {
+                    continue;
+                }
+                // A part with no cell of its own: the cells its volume lies in, or the cell at
+                // its box's centre when it is thinner than a sub-cell (its power goes there too).
+                *cells = (0..n).filter(|c| partial.shares[*c].iter().any(|(s, _)| *s == si)).collect();
+                if cells.is_empty() {
+                    let body = si.checked_sub(boxes).and_then(|b| case.bodies.get(b));
+                    let centre = body.and_then(|b| {
+                        let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+                        for v in &b.vertices {
+                            for a in 0..3 {
+                                lo[a] = lo[a].min(v[a]);
+                                hi[a] = hi[a].max(v[a]);
+                            }
+                        }
+                        let at: Option<Vec<usize>> = (0..3).map(|a| spec.cell_of(a, 0.5 * (lo[a] + hi[a]))).collect();
+                        at.map(|at| (at[2] * spec.dimensions[1] + at[1]) * spec.dimensions[0] + at[0])
+                    });
+                    let Some(c) = centre.filter(|c| *c < n) else {
+                        return Err(SolverError::InvalidInput(format!("solid {} lies outside the grid", solid_names[si])));
+                    };
+                    let power = heat.solids.iter().find(|m| m.obstacle == solid_names[si]).map_or(0.0, |m| m.power_w);
+                    source[c] += power;
+                    *cells = vec![c];
+                }
             }
         }
         for tec in &heat.thermoelectric_coolers {
@@ -763,6 +842,7 @@ impl EnergyState {
             source,
             capacity_j_per_k: capacity,
             pseudo_capacity,
+            readout,
             condition,
             origins,
             fluid_cells,
@@ -918,9 +998,12 @@ impl EnergyState {
             let Some(solid) = heat.solids.iter().find(|s| s.obstacle == *name) else {
                 continue;
             };
-            let values: Vec<(f64, f64)> = (0..n)
-                .filter(|c| region[*c] == si + 1)
-                .map(|c| (t[c], self.mesh.cells()[c].volume))
+            let values: Vec<(f64, f64)> = self
+                .readout
+                .get(si)
+                .into_iter()
+                .flatten()
+                .map(|c| (t[*c], self.mesh.cells()[*c].volume))
                 .collect();
             let volume: f64 = values.iter().map(|(_, v)| v).sum();
             let max = values.iter().map(|(t, _)| *t).fold(f64::MIN, f64::max);

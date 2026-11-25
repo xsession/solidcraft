@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- 0.17.0: `partial_cells_v1`, opt-in `thermal.partial_cells`: every cell is measured on a lattice
+  up to 8 times finer per axis, and the energy equation takes it for what it holds. A part's
+  power and heat capacity go by its solid volume, so its total power is exact and its power
+  density does not depend on the cells' sizes (before, power went evenly into its cells, so on a
+  locally refined grid the small cells got more per volume). A cell holding more than one
+  material conducts, along each axis, at the mean of its sub-cells in series columns and in
+  series layers. A surface body may be `lumped`: it then may enclose no cell centre, does not
+  block the flow, and with partial cells its power goes into the cells its volume lies in, which
+  its temperature is read from. The grid faces a lumped body crosses between two fluid cells are its
+  walls in the flow, on both sides: a plate thinner than a cell blocks it (`case::partial`,
+  `obstacles::plate_faces`, `tests/partial_cells.rs`).
 - 0.16.0: `goals_v3`, global flow goals: the fluid's largest and mean speed and its largest,
   smallest and mean static pressure (`tests/goals.rs`).
 - 0.15.0: `face_heat_sources_v1`, power released on part of a surface body

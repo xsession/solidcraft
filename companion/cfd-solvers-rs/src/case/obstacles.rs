@@ -74,7 +74,7 @@ pub(super) fn layout(
         )?;
         let inside = body.voxelize(spec)?;
         require(
-            inside.iter().any(|v| *v),
+            body.lumped || inside.iter().any(|v| *v),
             format!(
                 "surface body {} covers no cell centre; refine the grid",
                 body.name
@@ -185,10 +185,17 @@ pub(super) fn build(
         }
     }
     let mut faces = Vec::new();
-    for f in base.faces() {
+    let plates = plate_faces(&base, bodies, obstacles.len(), &solid);
+    for (fi, f) in base.faces().iter().enumerate() {
         let owner = retained.get(f.owner).copied().flatten();
         let neighbour = f.neighbour.and_then(|n| retained.get(n).copied().flatten());
         match (owner, neighbour, f.neighbour) {
+            // A lumped plate across the face: a wall of it on both sides.
+            (Some(o), Some(n), _) if plates[fi].is_some() => {
+                let patch = EXTERIOR.len() + plates[fi].unwrap_or(0);
+                faces.push(Face::boundary_face(o, f.center, f.area, patch));
+                faces.push(Face::boundary_face(n, f.center, -f.area, patch));
+            }
             (Some(o), Some(n), _) => faces.push(Face::internal(o, n, f.center, f.area)),
             (Some(o), None, Some(n)) => {
                 let obstacle = solid.get(n).copied().flatten().ok_or_else(|| {
@@ -242,6 +249,11 @@ pub(super) fn build(
     let mesh = PolyMesh::new(cells, faces, patches)?;
     validate_topology(&mesh)?;
     for p in EXTERIOR.len()..mesh.patches().len() {
+        // A lumped body with no cell of its own has no boundary to expose.
+        let index = p - EXTERIOR.len();
+        if p < solids && !solid.iter().any(|s| *s == Some(index)) {
+            continue;
+        }
         let what = if p >= solids {
             format!(
                 "body face condition {} covers no fluid face of the grid; refine the grid near it",
@@ -668,19 +680,90 @@ pub(super) fn fluid_face_origins(
     if obstacles.is_empty() && bodies.is_empty() {
         return Ok((0..base.face_count()).map(|f| (f, false)).collect());
     }
-    let solid: Vec<bool> = layout(spec, obstacles, bodies)?
-        .cell_solid
-        .iter()
-        .map(Option::is_some)
-        .collect();
+    let cell_solid = layout(spec, obstacles, bodies)?.cell_solid;
+    let plates = plate_faces(&base, bodies, obstacles.len(), &cell_solid);
+    let solid: Vec<bool> = cell_solid.iter().map(Option::is_some).collect();
     let fluid = |c: usize| solid.get(c) == Some(&false);
     let mut origins = Vec::new();
     for (fi, f) in base.faces().iter().enumerate() {
         match (fluid(f.owner), f.neighbour.map(fluid)) {
+            // A plate's face is two wall faces in the flow, one on each side, with no flux.
+            (true, Some(true)) if plates[fi].is_some() => {
+                origins.push((fi, false));
+                origins.push((fi, true));
+            }
             (true, _) => origins.push((fi, false)),
             (false, Some(true)) => origins.push((fi, true)),
             _ => {}
         }
     }
     Ok(origins)
+}
+
+/// The grid faces a `lumped` body (a plate thinner than a cell) closes between two fluid cells:
+/// per face of `base`, the solid whose surface crosses the line between the two cells' centres
+/// through the face's centre, along the face's axis. Such a face is a wall of that solid in the
+/// flow, on both sides; conduction through it is the energy equation's own (`case::partial`).
+/// Grid boxes come first among the solids, so body `bi` is solid `boxes + bi`.
+pub(super) fn plate_faces(
+    base: &PolyMesh,
+    bodies: &[super::bodies::SurfaceBody],
+    boxes: usize,
+    cell_solid: &[Option<usize>],
+) -> Vec<Option<usize>> {
+    let mut out = vec![None; base.face_count()];
+    let coord = |v: Vec3, a: usize| match a {
+        0 => v.x,
+        1 => v.y,
+        _ => v.z,
+    };
+    for (bi, body) in bodies.iter().enumerate().filter(|(_, b)| b.lumped) {
+        let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+        for v in &body.vertices {
+            for a in 0..3 {
+                lo[a] = lo[a].min(v[a]);
+                hi[a] = hi[a].max(v[a]);
+            }
+        }
+        for (fi, f) in base.faces().iter().enumerate() {
+            let Some(q) = f.neighbour else { continue };
+            if out[fi].is_some() || cell_solid.get(f.owner) != Some(&None) || cell_solid.get(q) != Some(&None) {
+                continue;
+            }
+            let normal = [f.area.x.abs(), f.area.y.abs(), f.area.z.abs()];
+            let axis = if normal[0] >= normal[1] && normal[0] >= normal[2] { 0 } else if normal[1] >= normal[2] { 1 } else { 2 };
+            let [b, c] = [(axis + 1) % 3, (axis + 2) % 3];
+            let (pb, pc) = (coord(f.center, b), coord(f.center, c));
+            if pb < lo[b] || pb > hi[b] || pc < lo[c] || pc > hi[c] {
+                continue;
+            }
+            let (from, to) = (coord(base.cells()[f.owner].center, axis), coord(base.cells()[q].center, axis));
+            let (from, to) = (from.min(to), from.max(to));
+            if hi[axis] <= from || lo[axis] >= to {
+                continue;
+            }
+            // The surface crosses the line between the centres: some triangle covers (pb, pc)
+            // at an axis coordinate between them.
+            let crosses = body.triangles.iter().any(|t| {
+                let [p0, p1, p2] = t.map(|i| body.vertices.get(i).copied().unwrap_or([f64::NAN; 3]));
+                let (x1, y1, x2, y2, x3, y3) = (p0[b], p0[c], p1[b], p1[c], p2[b], p2[c]);
+                let det = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+                if !(det.abs() > 1e-30) {
+                    return false;
+                }
+                let l1 = ((y2 - y3) * (pb - x3) + (x3 - x2) * (pc - y3)) / det;
+                let l2 = ((y3 - y1) * (pb - x3) + (x1 - x3) * (pc - y3)) / det;
+                let l3 = 1.0 - l1 - l2;
+                if l1 < 0.0 || l2 < 0.0 || l3 < 0.0 {
+                    return false;
+                }
+                let at = l1 * p0[axis] + l2 * p1[axis] + l3 * p2[axis];
+                at > from && at < to
+            });
+            if crosses {
+                out[fi] = Some(boxes + bi);
+            }
+        }
+    }
+    out
 }

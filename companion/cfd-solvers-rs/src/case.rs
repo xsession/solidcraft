@@ -23,6 +23,7 @@ mod fan;
 pub mod goals;
 pub mod internal_fan;
 mod obstacles;
+mod partial;
 mod poly;
 mod porous;
 pub mod rotating;
@@ -483,6 +484,7 @@ impl Case {
                 "cut_cells_v1".into(),
                 "face_heat_sources_v1".into(),
                 "goals_v3".into(),
+                "partial_cells_v1".into(),
             ],
             complete_clone: false,
             execution_completed: false,

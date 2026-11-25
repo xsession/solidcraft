@@ -935,6 +935,8 @@ fn thermal_block(case: &Value, heat: &ModelHeat, notes: &mut Vec<String>) -> Res
         "fluid": {"specific_heat_j_per_kg_k": heat.fluid.specific_heat_j_per_kg_k, "conductivity_w_per_m_k": heat.fluid.conductivity_w_per_m_k},
         "inflow_temperature_k": heat.inflow_temperature_k,
         "solids": solids,
+        // Power, heat capacity and conductivity by what each cell holds (`partial_cells_v1`).
+        "partial_cells": true,
     }))
 }
 
@@ -1147,7 +1149,29 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     // A domain face that the bodies cover entirely has no fluid next to it: it takes no
     // condition at all (the solver refuses one there). With cut cells the solver looks at the
     // thin layer next to the face, so this does too.
-    let wetted = if link.cut_cells { wetted_layers(&case)? } else { crate::fluid_volume::fluid_volume(&case)?.wetted };
+    let wetted = if link.cut_cells {
+        wetted_layers(&case)?
+    } else {
+        let volume = crate::fluid_volume::fluid_volume(&case)?;
+        // A part the grid holds no cell centre of is lumped: the grid faces it crosses are its
+        // walls in the flow (a plate thinner than a cell), and with heat its power goes into the
+        // cells its volume lies in and its temperature is read there (partial cells).
+        if !volume.empty_bodies.is_empty() {
+            if let Some(bodies) = case.get_mut("bodies").and_then(Value::as_array_mut) {
+                for body in bodies {
+                    if body["name"].as_str().is_some_and(|name| volume.empty_bodies.iter().any(|e| e == name)) {
+                        body["lumped"] = Value::Bool(true);
+                    }
+                }
+            }
+            notes.push(format!(
+                "{} take no grid cell and are lumped: the grid faces they cross are their walls{}",
+                volume.empty_bodies.join(", "),
+                if link.heat.is_some() { ", their power goes into the cells they lie in, and their temperature is read there" } else { "" }
+            ));
+        }
+        volume.wetted
+    };
     for (patch, name) in PATCHES.iter().enumerate() {
         if wetted[patch] {
             continue;
@@ -1422,6 +1446,9 @@ mod tests {
         assert!(built.issues.is_empty(), "{:?}", built.issues);
         if let Ok(path) = std::env::var("SC_DUMP_HEATED") { let _ = std::fs::write(path, built.case.to_string()); }
         let thermal = &built.case["thermal"];
+        // Power, capacity and conductivity by what each cell holds (`partial_cells_v1`).
+        assert_eq!(thermal["partial_cells"], serde_json::json!(true));
+        assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "partial_cells_v1"));
         assert_eq!(thermal["inflow_temperature_k"], serde_json::json!(300.0));
         assert_eq!(thermal["solids"], serde_json::json!([{
             "obstacle": "Duct", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0,

@@ -52,12 +52,32 @@ In the example the cell size is typed (4 mm): the grid is 40 × 15 × 10 = 6 000
 Each body is taken as its closed triangle surface, in metres, and voxelised at the cell
 centres: a cell whose centre is inside a body is that body's (a *staircase*). Consequences:
 
-- A part thinner than a cell may hold no cell centre and is lost from the grid. The
-  checklist lists such parts; the solver refuses a surface body that covers no cell centre.
-  Refine around it, or [leave it out](../tutorials/imported-assemblies.md#leave-out-small-parts).
+- A part thinner than a cell may hold no cell centre and has no cell of its own. With heat it
+  is *lumped* (below); without, it is not in the flow. The checklist lists such parts. Refine
+  around it, or [leave it out](../tutorials/imported-assemblies.md#leave-out-small-parts).
 - Where two parts claim the same cell, the earlier part keeps it, with its heat. The
   checklist lists overlaps.
 - A slanted or curved face becomes steps of cells.
+
+### Partial cells
+
+With heat on, the solver measures every cell on a lattice up to 8 times finer per axis and
+takes it for what it holds, while the flow still sees the staircase:
+
+- **Power and heat capacity go by solid volume.** A part's power is spread over the sub-cells
+  it fills, so its total is exact and its power density does not depend on the cells' sizes
+  (on a locally refined grid a staircase would give small cells more power per volume).
+- **A cell of two materials conducts like both.** Along each axis its conductivity is the
+  mean of two classic bounds over its sub-cells: columns along the axis in series, and layers
+  across it in series. A layer of board in a cell conducts across the layer like the board
+  and the air in series, along it like them side by side.
+- **A part with no cell of its own is lumped.** Its power goes into the cells its volume lies
+  in (or the cell at its centre, when it is smaller than a sub-cell), and its temperature in
+  the component table is theirs.
+
+The conductance between two cells is in series across the face between them, as before:
+the harmonic mean, so heat crossing from a good conductor into a poor one is limited by the
+poor one.
 
 ### How well the grid holds each part
 

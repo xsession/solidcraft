@@ -33,7 +33,7 @@ fn block(lo: [f64; 3], hi: [f64; 3]) -> SurfaceBody {
     // Faces -x, +x, -y, +y, -z, +z, each as two triangles wound outward.
     let quads = [[0, 4, 6, 2], [1, 3, 7, 5], [0, 1, 5, 4], [2, 6, 7, 3], [0, 2, 3, 1], [4, 5, 7, 6]];
     let triangles = quads.iter().flat_map(|q| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]).collect();
-    SurfaceBody { name: "block".into(), vertices, triangles }
+    SurfaceBody { name: "block".into(), vertices, triangles, lumped: false }
 }
 
 fn channel(conditions: Vec<BodyFaceCondition>) -> CollocatedFlowCase {

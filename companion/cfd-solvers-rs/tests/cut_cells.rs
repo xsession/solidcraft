@@ -48,7 +48,7 @@ fn sphere(centre: [f64; 3], radius: f64, levels: usize) -> SurfaceBody {
         triangles = next;
     }
     let vertices = vertices.into_iter().map(|p| std::array::from_fn(|k| centre[k] + radius * p[k])).collect();
-    SurfaceBody { name: "ball".into(), vertices, triangles }
+    SurfaceBody { name: "ball".into(), vertices, triangles, lumped: false }
 }
 
 /// A box from `lo` to `hi` as a closed outward triangle surface.
@@ -59,6 +59,7 @@ fn block(name: &str, lo: [f64; 3], hi: [f64; 3]) -> SurfaceBody {
         name: name.into(),
         vertices: (0..8).map(v).collect(),
         triangles: quads.iter().flat_map(|q| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]).collect(),
+        lumped: false,
     }
 }
 

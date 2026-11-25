@@ -19,6 +19,11 @@ pub struct SurfaceBody {
     pub name: String,
     pub vertices: Vec<[f64; 3]>,
     pub triangles: Vec<[usize; 3]>,
+    /// The body may enclose no cell centre (`partial_cells_v1`): it then has no cells of its own
+    /// and does not block the flow, and with `thermal.partial_cells` its power and temperature
+    /// are those of the cells its volume lies in. Without it such a body is refused.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lumped: bool,
 }
 
 impl SurfaceBody {
