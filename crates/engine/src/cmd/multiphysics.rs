@@ -468,10 +468,13 @@ fn verdict_picture(
             return None;
         }
         bounds = bounds.union(&mesh.bounds());
+        // A part with a verdict is solid in its colour; one without (no limit, no result, not
+        // in the study) is see-through, so an enclosure does not hide the parts inside it.
         let (color, opacity) = match verdicts.get(&body.name) {
             Some(status) => {
                 let [r, g, b] = solidcraft_multiphysics::report::verdict_rgb(*status);
-                (Rgb(r, g, b), 1.0)
+                let judged = matches!(status, Some(s) if *s != solidcraft_multiphysics::results::ComponentStatus::NoLimit);
+                (Rgb(r, g, b), if judged { 1.0 } else { 0.25 })
             }
             None => (crate::view::colors::BODY, 0.25),
         };

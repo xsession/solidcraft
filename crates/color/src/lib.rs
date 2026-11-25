@@ -6,4 +6,4 @@ mod analysis;
 pub mod hex;
 pub mod srgb;
 
-pub use analysis::AnalysisColors;
+pub use analysis::{AnalysisColors, VERDICTS_FOR_EVERY_EYE};

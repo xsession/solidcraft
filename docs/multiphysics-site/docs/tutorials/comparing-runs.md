@@ -24,6 +24,11 @@ every run that kept a thermal report, oldest first. Type a new folder's name and
 | `report.csv` | Every part's numbers per run: power, limit, highest and mean temperature, margin, verdict |
 | `run-1.png`, `run-2.png`, … | Each run's parts in their verdict colours, iso view (when SolidCraft can draw pictures, which it always can in the app) |
 
+Anyone may read a report, whatever their colour vision, so its pictures draw verdicts in blue
+(pass), yellow (warn) and vermilion (fail), which every eye tells apart, and a part without a limit
+or a result see-through grey, so an enclosure does not hide what is inside it. In the page each temperature also says its verdict in words, so no cell leans
+on colour alone.
+
 The example's report: [report.html](../examples/report/report.html),
 [report.csv](../examples/report/report.csv).
 

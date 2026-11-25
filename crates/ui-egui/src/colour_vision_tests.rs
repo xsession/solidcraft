@@ -1365,3 +1365,38 @@ fn the_curvature_scale_lightens_steadily_for_every_eye() {
         }
     }
 }
+
+/// Multiphysics verdicts colour whole parts side by side, shaded (#778): with a mode on, and in a
+/// batch report anyone may read, they are drawn in `VERDICTS_FOR_EVERY_EYE`, which must stay
+/// apart from each other and from grey (no result) or a dimmed body (not in the study) for
+/// normal vision and every loss, at each shading a face gets.
+#[test]
+fn multiphysics_verdicts_stay_apart_for_every_eye_on_shaded_parts() {
+    let shade = |c: Rgb8, x: f64| c.map(|v| (f64::from(v) * x).round().min(255.0) as u8);
+    let mut grounds: Vec<(&str, Rgb8)> = vec![("no result", [150, 150, 150])];
+    for (name, dark) in [("dim light body", false), ("dim dark body", true)] {
+        let [r, g, b, _] = Tokens::themed(dark, ColorVision::Off).body.to_array();
+        let dim = |c: u8| (f32::from(c) * 0.55) as u8;
+        grounds.push((name, [dim(r), dim(g), dim(b)]));
+    }
+    let verdicts = solidcraft_color::VERDICTS_FOR_EVERY_EYE;
+    assert_eq!(
+        solidcraft_engine::multiphysics::report::verdict_rgb(Some(solidcraft_engine::multiphysics::results::ComponentStatus::Fail)),
+        verdicts[2]
+    );
+    let mut failures = Vec::new();
+    for mode in std::iter::once(ColorVision::Off).chain(MODES) {
+        for x in LIT {
+            for i in 0..3 {
+                let others = verdicts.iter().enumerate().skip(i + 1).map(|(j, c)| (["pass", "warn", "fail"][j], *c));
+                for (name, other) in others.chain(grounds.iter().copied()) {
+                    let w = worst(mode, shade(verdicts[i], x), shade(other, x));
+                    if w < FLOOR {
+                        failures.push(format!("{mode:?} lit {x}: {} vs {name}: {w:.1}", ["pass", "warn", "fail"][i]));
+                    }
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

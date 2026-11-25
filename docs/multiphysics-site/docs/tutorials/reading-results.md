@@ -40,6 +40,12 @@ Click a legend entry to see only its parts: they stay solid, everything else is 
 Click it again to bring every part back. The other modes colour by **Material** (unassigned
 parts stand out), **Power** (on a colour map) and **Tag**.
 
+!!! note "Colour vision"
+    With a **Colour vision** mode on (Preferences, Appearance), verdicts are drawn blue for pass,
+    yellow for warn and vermilion for fail: colours that stay apart for a red-green or a
+    blue-yellow loss on every shading a part's faces get. Without a mode they keep the theme's
+    green, amber and red. The legend names each verdict, so its words always say which is which.
+
 Colours are view state: they are not saved and are not an undo step, and leaving the
 workspace draws the parts in their own looks again.
 

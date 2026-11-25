@@ -1205,15 +1205,25 @@ pub(crate) fn see_through(app: &SolveApp, body: &solidcraft_engine::doc::ModelBo
     frame_ghosted(app, body) || app.session.ghosted_bodies.contains(&body.name)
 }
 
-/// A colour-by swatch drawn from the theme: its status colours, a muted body colour, a place on
+/// A colour-by swatch drawn from the theme: its status colours (with a colour vision mode on, the
+/// verdicts every eye tells apart), a muted body colour, a place on
 /// the Viridis map, or one of the categorical colours. The legend uses the same colours.
 pub fn swatch_colour(swatch: solidcraft_engine::multiphysics::setup_check::Swatch) -> egui::Color32 {
     use solidcraft_engine::multiphysics::setup_check::Swatch;
     let t = Tokens::get();
+    // The theme's status colours are for text and badges, not shaded parts side by side: with a
+    // colour vision mode on, verdicts take the colours every eye tells apart.
+    let verdict = |i: usize, theme: egui::Color32| match solidcraft_theme::vision() {
+        solidcraft_theme::ColorVision::Off => theme,
+        _ => {
+            let [r, g, b] = solidcraft_color::VERDICTS_FOR_EVERY_EYE[i];
+            egui::Color32::from_rgb(r, g, b)
+        }
+    };
     match swatch {
-        Swatch::Good => t.form_success,
-        Swatch::Warn => t.warning,
-        Swatch::Bad => t.form_error,
+        Swatch::Good => verdict(0, t.form_success),
+        Swatch::Warn => verdict(1, t.warning),
+        Swatch::Bad => verdict(2, t.form_error),
         Swatch::Muted => {
             let [r, g, b, _] = t.body.to_array();
             let dim = |c: u8| (f32::from(c) * 0.55) as u8;

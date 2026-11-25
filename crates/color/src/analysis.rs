@@ -15,6 +15,12 @@ pub struct AnalysisColors {
     pub hatch: bool,
 }
 
+/// Verdicts (pass, warn, fail) that every eye tells apart: blue, yellow and vermilion, apart
+/// from each other and from grey or a dimmed body by CIEDE2000 10 or more for normal vision and
+/// for a protan, deutan or tritan loss, at any shading a face gets (`colour_vision_tests`). For a
+/// colour vision mode, and for pictures read by anyone, such as a batch report.
+pub const VERDICTS_FOR_EVERY_EYE: [[u8; 3]; 3] = [[25, 118, 210], [240, 228, 66], [213, 94, 0]];
+
 impl AnalysisColors {
     /// The light theme's colours (no colour vision mode): what headless pictures use.
     pub const DEFAULT: AnalysisColors = AnalysisColors {

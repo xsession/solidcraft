@@ -15,14 +15,27 @@ use crate::{Error, Result, Study};
 /// Most runs one report reads.
 pub const MAX_REPORT_RUNS: usize = 64;
 
-/// The colours a report draws verdicts in, in its pictures and its page: green, amber, red, and
-/// grey for a part the run reports nothing on.
+/// The colours a report draws verdicts in, in its pictures: blue, yellow and vermilion, which
+/// every eye tells apart (anyone may read a report), and grey, drawn see-through, for a part
+/// without a limit or a result.
 pub fn verdict_rgb(status: Option<ComponentStatus>) -> [u8; 3] {
+    let [pass, warn, fail] = solidcraft_color::VERDICTS_FOR_EVERY_EYE;
     match status {
-        Some(ComponentStatus::Pass) => [67, 160, 71],
-        Some(ComponentStatus::Warn) => [230, 160, 40],
-        Some(ComponentStatus::Fail) => [211, 67, 54],
+        Some(ComponentStatus::Pass) => pass,
+        Some(ComponentStatus::Warn) => warn,
+        Some(ComponentStatus::Fail) => fail,
         Some(ComponentStatus::NoLimit) | None => [150, 150, 150],
+    }
+}
+
+/// A verdict in words and a mark after a cell's number, so the page does not lean on colour
+/// alone; nothing for a part without a limit.
+fn verdict_mark(status: ComponentStatus) -> &'static str {
+    match status {
+        ComponentStatus::Pass => " <span class=\"v\">✓ pass</span>",
+        ComponentStatus::Warn => " <span class=\"v\">! warn</span>",
+        ComponentStatus::Fail => " <span class=\"v\">✗ fail</span>",
+        ComponentStatus::NoLimit => "",
     }
 }
 
@@ -157,7 +170,7 @@ pub fn to_html(report: &BatchReport, pictures: &[Option<String>]) -> String {
     out.push_str(
         "<style>body{font-family:sans-serif;margin:2em}table{border-collapse:collapse;margin:1em 0}\
          th,td{border:1px solid #999;padding:.3em .6em;text-align:right}th:first-child,td:first-child{text-align:left}\
-         .pass{background:#d7f0dc}.warn{background:#fbecc4}.fail{background:#f6d0cc}.stale{color:#8a5a00}</style></head><body>",
+         .pass{background:#d6e6f7}.warn{background:#fbf6c8}.fail{background:#f8dcc8}.stale{color:#8a5a00}.v{font-size:.85em}</style></head><body>",
     );
     out.push_str(&format!("<h1>{}</h1>", escape(&title)));
     out.push_str("<h2>Runs</h2><table><tr><th>Run</th><th>Power (W)</th><th>Hottest part</th><th>Max (°C)</th><th>Least margin</th><th>Margin (K)</th><th>Pass</th><th>Warn</th><th>Fail</th><th>No result</th></tr>");
@@ -188,7 +201,9 @@ pub fn to_html(report: &BatchReport, pictures: &[Option<String>]) -> String {
             let row = table.rows.iter().find(|r| r.body == part);
             let result = row.and_then(|r| r.result.as_ref().map(|x| (celsius(x.max_temperature_k), r.status)));
             match result {
-                Some((max, status)) => out.push_str(&format!("<td class=\"{}\">{}</td>", status_name(status), fixed(Some(max), 1))),
+                Some((max, status)) => {
+                    out.push_str(&format!("<td class=\"{}\">{}{}</td>", status_name(status), fixed(Some(max), 1), verdict_mark(status)))
+                }
                 None => out.push_str("<td>–</td>"),
             }
         }
@@ -196,7 +211,7 @@ pub fn to_html(report: &BatchReport, pictures: &[Option<String>]) -> String {
     }
     out.push_str("</table>");
     if pictures.iter().any(Option::is_some) {
-        out.push_str("<h2>Parts by verdict</h2><p>Green: pass, amber: warn, red: fail, grey: no result.</p>");
+        out.push_str("<h2>Parts by verdict</h2><p>Blue: pass, yellow: warn, vermilion: fail; see-through grey: no limit or no result.</p>");
         for (s, picture) in report.runs.iter().zip(pictures) {
             if let Some(file) = picture {
                 out.push_str(&format!(
@@ -275,7 +290,7 @@ mod tests {
         let html = to_html(&report, &[]);
         assert!(html.contains("<title>Board &lt;A&amp;B&gt; — batch report</title>"), "escaped: {html}");
         assert!(!html.contains("<A&B>") && !html.contains("<script"));
-        assert!(html.contains("<td class=\"fail\">71.9</td>"), "{html}");
+        assert!(html.contains("<td class=\"fail\">71.9 <span class=\"v\">✗ fail</span></td>"), "{html}");
         assert!(!html.contains("<img"), "no pictures");
         let pictured = to_html(&report, &[Some("run-1.png".into()), None]);
         assert!(pictured.contains("<img src=\"run-1.png\" alt=\"slow fan\""), "{pictured}");
