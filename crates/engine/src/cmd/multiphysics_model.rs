@@ -138,6 +138,7 @@ pub(super) fn create(session: &mut Session, params: &Value) -> Result<Value> {
         selection: input.selection,
         margin_mm: input.margin_mm,
         cell_mm: input.cell_mm,
+        flow: Some(input.flow.unwrap_or(solidcraft_multiphysics::model::ModelFlow::AIR)),
         ..Default::default()
     };
     link.validate().map_err(|e| bad("", e.to_string()))?;
@@ -190,6 +191,9 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     if let Some(level) = input.mesh_level {
         link.mesh_level = (level != 0).then_some(level);
         link.cell_mm = None;
+    }
+    if let Some(flow) = input.flow {
+        link.flow = Some(flow);
     }
     commit(session, &input.id, input.expected_revision, link)
 }

@@ -51,6 +51,14 @@ pub struct CollocatedIncompressibleConfig {
     /// with the C++ cfd_solvers, which adds the cell body force to the cell Gauss gradient.
     #[serde(default)]
     pub balanced_body_force: bool,
+    /// Solve each momentum component with its right-hand side scaled to an rms of 1, so the
+    /// momentum tolerance is relative to that component's own size (`scaled_momentum_v1`).
+    /// The linear solvers floor their tolerance at an absolute rms of 1, which for small cells
+    /// and slow flows (a right-hand side of cell volume times velocity over time step, far
+    /// below 1) means not solving at all: the flow freezes in its first steps. Off by default
+    /// for parity with the C++ cfd_solvers.
+    #[serde(default)]
+    pub scaled_momentum: bool,
 }
 impl Default for CollocatedIncompressibleConfig {
     fn default() -> Self {
@@ -76,6 +84,7 @@ impl Default for CollocatedIncompressibleConfig {
             pressure_preconditioner: PressurePreconditionerKind::None,
             piso_neighbour_update: false,
             balanced_body_force: false,
+            scaled_momentum: false,
         }
     }
 }
@@ -525,6 +534,23 @@ impl<'a> CollocatedIncompressible<'a> {
                 rhs[axis][c] = full.component(axis) - (1.0 - theta) * old_action[axis][c];
             }
         }
+        // With `scaled_momentum`, each component's system is divided by its right-hand side's
+        // rms (when below 1, where the solvers' absolute floor would otherwise apply) and the
+        // solution multiplied back: the same system, solved to a relative tolerance.
+        let scales: [f64; 3] = std::array::from_fn(|axis| {
+            let size = rms(&rhs[axis]);
+            if self.config.scaled_momentum && size > 0.0 && size < 1.0 && size.is_finite() {
+                size
+            } else {
+                1.0
+            }
+        });
+        for axis in 0..3 {
+            if scales[axis] != 1.0 {
+                rhs[axis].iter_mut().for_each(|v| *v /= scales[axis]);
+                components[axis].iter_mut().for_each(|v| *v /= scales[axis]);
+            }
+        }
         if self.config.use_krylov_momentum {
             let ilu = Ilu0Preconditioner::new(&a, 1e-12)?;
             for axis in 0..3 {
@@ -573,6 +599,12 @@ impl<'a> CollocatedIncompressible<'a> {
                     converged: residual_rms
                         <= self.config.momentum_tolerance * rms(&rhs[axis]).max(1.0),
                 };
+            }
+        }
+        for axis in 0..3 {
+            if scales[axis] != 1.0 {
+                rhs[axis].iter_mut().for_each(|v| *v *= scales[axis]);
+                components[axis].iter_mut().for_each(|v| *v *= scales[axis]);
             }
         }
         self.momentum_source = (0..n)

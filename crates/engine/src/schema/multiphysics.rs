@@ -471,6 +471,9 @@ pub struct ModelCreate {
     pub margin_mm: f64,
     #[serde(default)]
     pub cell_mm: Option<f64>,
+    /// The fluid and run length (default air for two seconds, stopping once the goals settle).
+    #[serde(default)]
+    pub flow: Option<solidcraft_multiphysics::model::ModelFlow>,
 }
 
 /// `multiphysics.model.leave_out_small`: leave the parts smaller than a size out of a study.
@@ -509,6 +512,9 @@ pub struct ModelSet {
     /// Setting a level clears a typed cell size.
     #[serde(default)]
     pub mesh_level: Option<u8>,
+    /// The fluid and how long the run simulates.
+    #[serde(default)]
+    pub flow: Option<solidcraft_multiphysics::model::ModelFlow>,
 }
 
 /// `multiphysics.model.fan`: a fan on a face of the model on the domain boundary, or remove it.

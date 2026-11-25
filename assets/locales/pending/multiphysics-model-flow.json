@@ -1,0 +1,12 @@
+{
+  "en": {
+    "multiphysics.model_end_time": "End time",
+    "multiphysics.model_end_time_hint": "Simulated time. The time step follows from the smallest cells, the inflow speed and the viscosity; a run takes at most 20 000 steps, and fewer on large grids (50 million cell steps in all).",
+    "multiphysics.model_fluid": "Fluid and run",
+    "multiphysics.model_fluid_air": "Air",
+    "multiphysics.model_fluid_template": "This study was made before fluids could be picked: it runs with its template's fluid (0.02 m²/s) and steps, which do not stand for air or water. Pick a fluid to run it as one.",
+    "multiphysics.model_fluid_values": "Kinematic viscosity {nu} m²/s, density {rho} kg/m³ (20 °C)",
+    "multiphysics.model_fluid_water": "Water",
+    "multiphysics.model_settle": "Stop once the goals settle"
+  }
+}

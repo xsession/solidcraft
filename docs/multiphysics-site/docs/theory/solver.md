@@ -20,6 +20,29 @@ the case, with velocity and pressure stored at cell centres (a *collocated* arra
 - Goals are reported as histories; with goal control, the solver can stop once they have
   settled within a tolerance.
 
+### Fluid and run length
+
+A study of the model has its own **fluid** (air or water at 20 °C, or any kinematic viscosity
+and density) and **end time**, under *Fluid and run* in its Mesh panel
+(`multiphysics.model.set {"flow": …}`). From them the study works out its run:
+
+- the **time step** is the larger one that keeps both limits of the explicit parts stable on
+  the smallest cells: the flow crosses at most 0.4 of a cell per step at twice the fastest
+  inflow (Courant number), and the viscous diffusion number stays at or below 0.4;
+- the **steps** are as many as reach the end time, up to 20 000 and up to 50 million cell
+  steps (cells × steps); past either the build says how much of the end time a run reaches;
+- the pressure and the momentum are solved to tolerances **relative to their own size**
+  (companion 0.18.0): with real fluids in small cells the solvers' fixed floor would otherwise
+  leave them unsolved, and the flow would stay where it started;
+- with **Stop once the goals settle** (on by default, at 0.1 %), the run ends early once every
+  goal has changed by at most that share between evaluation windows. A study without goals of
+  its own watches the fluid's mean speed for this.
+
+A new study starts with air for two seconds. Studies made before these settings existed keep
+running with their template's fluid (0.02 m²/s, a stand-in far more viscous than air) and
+steps, so their results stay as they were; the panel says so, and picking a fluid runs them as
+air or water from then on.
+
 ## Heat
 
 With heat on, every solid of the study conducts heat (*conjugate heat transfer*):

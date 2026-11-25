@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 0.18.0: `scaled_momentum_v1`, opt-in `config.scaled_momentum`: momentum components are solved
+  with their right-hand side scaled to an rms of 1, so small, slow cases (millimetre cells,
+  centimetres per second) no longer stop solving in their first steps under the linear
+  solvers' absolute floor.
 - 0.17.0: `partial_cells_v1`, opt-in `thermal.partial_cells`: every cell is measured on a lattice
   up to 8 times finer per axis, and the energy equation takes it for what it holds. A part's
   power and heat capacity go by its solid volume, so its total power is exact and its power

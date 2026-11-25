@@ -30,6 +30,8 @@ pub(super) struct ModelUi {
     value: String,
     cell: String,
     margin: String,
+    /// The end time as typed, for the study it was typed for.
+    end_time: Option<(String, String)>,
     /// The last leak search: the study, whether fluid connects the faces, and the path (mm).
     leak: Option<(String, bool, Vec<[f64; 3]>)>,
     /// Local mesh: the split factor offered, 2 to 4 (0 means 2).
@@ -159,7 +161,9 @@ pub(super) fn heat_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
     if heat.materials.is_empty() {
         ui.label(RichText::new(tr("multiphysics.model_material_starter")).small().color(t.text_dim));
     }
-    crate::ui_kit::row(ui, tr("multiphysics.model_conductivity"), |ui| field(ui, &mut state.model_ui.conductivity, "200", "multiphysics:model_conductivity"));
+    crate::ui_kit::row(ui, tr("multiphysics.model_conductivity"), |ui| {
+        field(ui, &mut state.model_ui.conductivity, "200", "multiphysics:model_conductivity")
+    });
     crate::ui_kit::row(ui, tr("multiphysics.model_power"), |ui| field(ui, &mut state.model_ui.power, "0", "multiphysics:model_power"));
     let bodies = selected_bodies(app);
     let conductivity = state.model_ui.conductivity.trim().parse::<f64>().ok();
@@ -260,7 +264,9 @@ pub(super) fn heat_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
         crate::ui_kit::row(ui, tr(label), |ui| field(ui, &mut state.model_ui.thermal_value, "", "multiphysics:model_thermal_value"));
     }
     if kind == "convection" {
-        crate::ui_kit::row(ui, tr("multiphysics.model_ambient_c"), |ui| field(ui, &mut state.model_ui.thermal_ambient, "20", "multiphysics:model_thermal_ambient"));
+        crate::ui_kit::row(ui, tr("multiphysics.model_ambient_c"), |ui| {
+            field(ui, &mut state.model_ui.thermal_ambient, "20", "multiphysics:model_thermal_ambient")
+        });
     }
     let value = state.model_ui.thermal_value.trim().parse::<f64>().ok().filter(|v| v.is_finite());
     let condition = match kind {
@@ -339,7 +345,13 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
     }
     let adaptive = link.refinements.iter().any(|r| r.name.starts_with("adapt_"));
     if adaptive && button(ui, "multiphysics.model_adapt_remove", "multiphysics:model_adapt_remove", true).clicked() {
-        model_command(app, state, study, "multiphysics.model.adapt", json!({"id":study.id,"expected_revision":study.revision,"run_id":"","remove":true}));
+        model_command(
+            app,
+            state,
+            study,
+            "multiphysics.model.adapt",
+            json!({"id":study.id,"expected_revision":study.revision,"run_id":"","remove":true}),
+        );
         state.model_ui.adapted = None;
         return;
     }
@@ -352,7 +364,11 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
             ));
         }
         _ => {
-            ui.label(RichText::new(tr(if run.is_some() { "multiphysics.model_adapt_hint" } else { "multiphysics.model_adapt_no_run" })).small().color(t.text_dim));
+            ui.label(
+                RichText::new(tr(if run.is_some() { "multiphysics.model_adapt_hint" } else { "multiphysics.model_adapt_no_run" }))
+                    .small()
+                    .color(t.text_dim),
+            );
         }
     }
     ui.separator();
@@ -402,7 +418,9 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
     ui.label(RichText::new(tr("multiphysics.model_refine_hint")).small().color(t.text_dim));
     if let Some((command_id, name)) = remove {
         model_command(app, state, study, command_id, json!({"id":study.id,"expected_revision":study.revision,"name":name,"remove":true}));
+        return;
     }
+    fluid_section(app, state, study, &link, ui);
 }
 
 /// The Goals node of a study of the model: quantities monitored on its faces and in its fluid.
@@ -756,7 +774,13 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
     if button(ui, "multiphysics.model_add_fan", "multiphysics:model_add_fan", faces.len() == 1 && curve.is_some()).clicked()
         && let (Some(face), Some(curve)) = (faces.first(), curve)
     {
-        model_command(app, state, study, "multiphysics.model.fan", json!({"id":study.id,"expected_revision":study.revision,"face":face,"curve":curve}));
+        model_command(
+            app,
+            state,
+            study,
+            "multiphysics.model.fan",
+            json!({"id":study.id,"expected_revision":study.revision,"face":face,"curve":curve}),
+        );
         return;
     }
     ui.label(RichText::new(tr("multiphysics.model_fan_hint")).small().color(t.text_dim));
@@ -872,4 +896,80 @@ pub(super) fn overlay(app: &mut SolveApp, state: &mut State, study: &Study, ui: 
             color,
         );
     }
+}
+
+/// The fluids offered: their name key, kinematic viscosity (m²/s) and density (kg/m³), at 20 °C.
+const FLUIDS: [(&str, f64, f64); 2] = [("multiphysics.model_fluid_air", 1.5e-5, 1.2), ("multiphysics.model_fluid_water", 1.0e-6, 998.0)];
+
+/// The fluid and how long the run simulates. A study made before these existed runs with its
+/// template's until one is picked. True when a change was sent (the study is built again).
+fn fluid_section(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &solidcraft_engine::multiphysics::Study,
+    link: &solidcraft_engine::multiphysics::model::ModelLink,
+    ui: &mut egui::Ui,
+) -> bool {
+    use solidcraft_engine::multiphysics::model::ModelFlow;
+    let t = Tokens::get();
+    ui.separator();
+    ui.strong(tr("multiphysics.model_fluid"));
+    let current = link.flow;
+    let mut wanted = current;
+    ui.horizontal_wrapped(|ui| {
+        for (index, (key, nu, rho)) in FLUIDS.iter().enumerate() {
+            let on = current.is_some_and(|f| f.kinematic_viscosity_m2_per_s == *nu && f.density_kg_per_m3 == *rho);
+            let response = crate::ui_kit::choice_chip(ui, key, tr(key), on);
+            crate::scenario::publish_target(&format!("multiphysics:model_fluid:{index}"), response.rect);
+            if response.clicked() && !on {
+                let base = current.unwrap_or(ModelFlow::AIR);
+                wanted = Some(ModelFlow { kinematic_viscosity_m2_per_s: *nu, density_kg_per_m3: *rho, ..base });
+            }
+        }
+    });
+    match current {
+        None => {
+            ui.label(RichText::new(tr("multiphysics.model_fluid_template")).small().color(t.warning));
+        }
+        Some(flow) => {
+            ui.label(
+                RichText::new(solidcraft_ui_text::format(
+                    "multiphysics.model_fluid_values",
+                    &[("nu", &format!("{:.3e}", flow.kinematic_viscosity_m2_per_s)), ("rho", &format!("{}", flow.density_kg_per_m3))],
+                ))
+                .small()
+                .color(t.text_dim),
+            );
+            // The end time as typed: applied when the field is left with a new value.
+            if state.model_ui.end_time.as_ref().is_none_or(|(id, _)| *id != study.id) {
+                state.model_ui.end_time = Some((study.id.clone(), flow.end_time_s.to_string()));
+            }
+            let mut text = state.model_ui.end_time.as_ref().map(|(_, t)| t.clone()).unwrap_or_default();
+            let (enter, response) =
+                crate::ui_kit::row(ui, tr("multiphysics.model_end_time"), |ui| crate::ui_kit::text_field_reserving(ui, &mut text, "s", 0.0));
+            crate::scenario::publish_target("multiphysics:model_end_time", response.rect);
+            let typed = text.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v > 0.0);
+            let left = enter || response.lost_focus();
+            state.model_ui.end_time = Some((study.id.clone(), text));
+            let mut settle = flow.converge_tolerance.is_some();
+            let toggled = crate::ui_kit::checkbox(ui, tr("multiphysics.model_settle"), &mut settle);
+            crate::scenario::publish_target("multiphysics:model_settle", toggled.rect);
+            let end = match typed {
+                Some(v) if left => v,
+                _ => flow.end_time_s,
+            };
+            if toggled.changed() || (end - flow.end_time_s).abs() > 1e-12 {
+                wanted = Some(ModelFlow { end_time_s: end, converge_tolerance: settle.then_some(flow.converge_tolerance.unwrap_or(1e-3)), ..flow });
+                state.model_ui.end_time = None;
+            }
+            ui.label(RichText::new(tr("multiphysics.model_end_time_hint")).small().color(t.text_dim));
+        }
+    }
+    if wanted != current
+        && let Some(flow) = wanted
+    {
+        model_command(app, state, study, "multiphysics.model.set", json!({"id":study.id,"expected_revision":study.revision,"flow":flow}));
+        return true;
+    }
+    false
 }

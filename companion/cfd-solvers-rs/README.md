@@ -1,4 +1,14 @@
-# cfd-solvers-rs 0.17.0
+# cfd-solvers-rs 0.18.0
+
+## Scaled momentum solves (0.18.0)
+
+`collocated_flow3d` accepts `config.scaled_momentum` (`scaled_momentum_v1`). The linear
+solvers stop at `tolerance × max(rms(rhs), 1)`: for a right-hand side far below 1 (cells of a
+millimetre and flows of centimetres per second give about 1e-8) that is no solve at all, and the
+flow stays where it started. With the flag each momentum component is solved with its
+right-hand side scaled to an rms of 1, so the momentum tolerance is relative. Pair it with
+`config.piso_neighbour_update`, which does the same for the pressure. Off by default: existing
+cases are unchanged.
 
 ## Partial cells and lumped bodies (0.17.0)
 

@@ -93,10 +93,17 @@ pub struct Opening {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RefineTarget {
-    Body { body: String },
-    Face { face: FaceRef },
+    Body {
+        body: String,
+    },
+    Face {
+        face: FaceRef,
+    },
     /// A box of the design (mm), such as one solution-adaptive refinement gives.
-    Region { low_mm: [f64; 3], high_mm: [f64; 3] },
+    Region {
+        low_mm: [f64; 3],
+        high_mm: [f64; 3],
+    },
 }
 
 /// Smaller cells around a body or a face of the model: every cell whose span overlaps the
@@ -321,7 +328,9 @@ impl ModelHeat {
             return Err(bad("the inflow temperature is in kelvin, above 0 and below 10 000"));
         }
         if self.materials.len() > MAX_BODIES || self.face_sources.len() > MAX_OPENINGS || self.face_conditions.len() > MAX_OPENINGS {
-            return Err(Error::Limit(format!("a model study has at most {MAX_BODIES} materials and {MAX_OPENINGS} heat sources and thermal conditions")));
+            return Err(Error::Limit(format!(
+                "a model study has at most {MAX_BODIES} materials and {MAX_OPENINGS} heat sources and thermal conditions"
+            )));
         }
         let mut bodies = std::collections::BTreeSet::new();
         for m in &self.materials {
@@ -418,10 +427,117 @@ pub struct ModelLink {
     /// A fan on a face of the model on the domain boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fan: Option<ModelFan>,
+    /// The fluid and how long the run simulates; none keeps the template's (studies made before
+    /// it existed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flow: Option<ModelFlow>,
     /// The digest of the model input the case was last built from. Another digest now means
     /// the design changed since, and the case must be built again before a run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub built_from: Option<String>,
+}
+
+/// The fluid of a study of the model and how long its run simulates.
+///
+/// The time step follows from the smallest cell, the fastest expected speed and the viscosity
+/// (Courant u·dt·Σ1/h ≤ 0.4 with twice the fastest inflow, and diffusion ν·dt·Σ1/h² ≤ 0.4), and
+/// the run takes as many steps as reach `end_time_s`, up to the step limit. With
+/// `converge_tolerance` the run stops early once every goal changed by at most that share of
+/// its scale between evaluation windows, so a steady result does not run on for nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelFlow {
+    /// m²/s; air at 20 °C is 1.5e-5, water 1.0e-6.
+    pub kinematic_viscosity_m2_per_s: f64,
+    /// kg/m³: turns the solver's kinematic pressure into pascals in goals and reports.
+    pub density_kg_per_m3: f64,
+    /// Simulated time, s.
+    pub end_time_s: f64,
+    /// Stop once every goal settles to this share of its scale (none: run to the end).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub converge_tolerance: Option<f64>,
+}
+
+impl ModelFlow {
+    /// Air at 20 °C, two seconds, stopping once the goals settle to 0.1 %.
+    pub const AIR: ModelFlow =
+        ModelFlow { kinematic_viscosity_m2_per_s: 1.5e-5, density_kg_per_m3: 1.2, end_time_s: 2.0, converge_tolerance: Some(1e-3) };
+
+    fn validate(&self) -> Result<()> {
+        let nu = self.kinematic_viscosity_m2_per_s;
+        if !(nu.is_finite() && (1e-9..=10.0).contains(&nu)) {
+            return Err(bad("the kinematic viscosity is 1e-9 to 10 m²/s"));
+        }
+        if !(self.density_kg_per_m3.is_finite() && (1e-3..=1e5).contains(&self.density_kg_per_m3)) {
+            return Err(bad("the density is 0.001 to 100 000 kg/m³"));
+        }
+        if !(self.end_time_s.is_finite() && self.end_time_s > 0.0 && self.end_time_s <= 1e6) {
+            return Err(bad("the end time is above 0 and at most 1e6 s"));
+        }
+        if self.converge_tolerance.is_some_and(|t| !(t.is_finite() && t > 0.0 && t < 0.5)) {
+            return Err(bad("the convergence tolerance is above 0 and below 0.5"));
+        }
+        Ok(())
+    }
+}
+
+/// The goal a run that should stop once it settles watches when the study has none.
+pub const SETTLE_GOAL: &str = "settle_mean_speed";
+
+/// Puts `flow` into the built `case`: viscosity, density, a stable time step, the steps that
+/// reach the end time and, with a tolerance, the goals' early stop.
+fn apply_flow(case: &mut Value, flow: &ModelFlow, speed_m_per_s: f64, notes: &mut Vec<String>) -> Result<()> {
+    let nodes = case_scene::nodes(case)?;
+    let smallest: Vec<f64> = nodes.iter().map(|axis| axis.windows(2).map(|w| w[1] - w[0]).fold(f64::INFINITY, f64::min)).collect();
+    if smallest.iter().any(|h| !(h.is_finite() && *h > 0.0)) {
+        return Err(bad("the grid has no cells to fit a time step to"));
+    }
+    let inverse: f64 = smallest.iter().map(|h| 1.0 / h).sum();
+    let inverse_sq: f64 = smallest.iter().map(|h| 1.0 / (h * h)).sum();
+    let nu = flow.kinematic_viscosity_m2_per_s;
+    let fastest = 2.0 * speed_m_per_s.max(0.05);
+    let dt = (0.4 / (fastest * inverse)).min(0.4 / (nu * inverse_sq)).min(flow.end_time_s);
+    let wanted = (flow.end_time_s / dt).ceil();
+    // At most the step limit, and at most the work limit's steps for this many cells.
+    let cells = nodes.iter().map(|axis| axis.len().saturating_sub(1) as u64).product::<u64>().max(1);
+    let most = crate::MAX_STEPS.min(crate::MAX_WORK / cells).max(1);
+    let steps = (wanted.min(most as f64) as u64).max(1);
+    if wanted > most as f64 {
+        notes.push(format!(
+            "the run's step limit ({most} steps for {cells} cells) reaches {:.3} s of the {} s asked for at a {dt:.2e} s time step; use larger cells or a shorter end time",
+            steps as f64 * dt,
+            flow.end_time_s
+        ));
+    }
+    let interval = steps.div_ceil(3).max(1);
+    // Pressure and momentum solved to tolerances relative to their own size: with real fluids
+    // in small cells the solvers' absolute floor would otherwise stop them solving at all.
+    case["config"]["piso_neighbour_update"] = serde_json::json!(true);
+    case["config"]["scaled_momentum"] = serde_json::json!(true);
+    case["config"]["kinematic_viscosity"] = serde_json::json!(nu);
+    case["config"]["density"] = serde_json::json!(flow.density_kg_per_m3);
+    case["config"]["dt"] = serde_json::json!(dt);
+    case["output"] = serde_json::json!({"steps": steps, "output_interval": interval});
+    if let Some(object) = case.as_object_mut() {
+        // Without a goal of its own, a run that should stop once it settles watches the fluid's
+        // mean speed.
+        if flow.converge_tolerance.is_some() && !object.contains_key("goals") {
+            object.insert("goals".into(), serde_json::json!([{"name": SETTLE_GOAL, "kind": "global_mean_speed"}]));
+        }
+        match flow.converge_tolerance {
+            Some(tolerance) if object.contains_key("goals") => {
+                let window = (steps / 50).clamp(10, 500);
+                object.insert(
+                    "goal_control".into(),
+                    serde_json::json!({"window_steps": window, "relative_tolerance": tolerance, "stop_when_converged": true, "min_steps": (steps / 10).max(2 * window)}),
+                );
+            }
+            _ => {
+                object.remove("goal_control");
+            }
+        }
+    }
+    Ok(())
 }
 
 fn text(value: &str, what: &str) -> Result<()> {
@@ -461,6 +577,9 @@ impl ModelLink {
         }
         if !(self.margin_mm.is_finite() && (0.0..=1e6).contains(&self.margin_mm)) {
             return Err(Error::Invalid("the margin must be 0 to 1e6 mm".into()));
+        }
+        if let Some(flow) = &self.flow {
+            flow.validate()?;
         }
         if self.mesh_level.is_some_and(|level| !(1..=MAX_MESH_LEVEL).contains(&level)) {
             return Err(Error::Invalid(format!("the mesh level is 1 to {MAX_MESH_LEVEL}")));
@@ -929,7 +1048,10 @@ fn thermal_block(case: &Value, heat: &ModelHeat, notes: &mut Vec<String>) -> Res
         })
         .collect();
     if !starter.is_empty() {
-        notes.push(format!("{} have no material and conduct like the starter material ({STARTER_CONDUCTIVITY} W/(m·K), no power); set their materials", starter.join(", ")));
+        notes.push(format!(
+            "{} have no material and conduct like the starter material ({STARTER_CONDUCTIVITY} W/(m·K), no power); set their materials",
+            starter.join(", ")
+        ));
     }
     Ok(serde_json::json!({
         "fluid": {"specific_heat_j_per_kg_k": heat.fluid.specific_heat_j_per_kg_k, "conductivity_w_per_m_k": heat.fluid.conductivity_w_per_m_k},
@@ -1279,6 +1401,19 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     {
         object.insert("goals".into(), Value::Array(goals));
     }
+    if let Some(flow) = &link.flow {
+        let speed = link
+            .openings
+            .iter()
+            .filter_map(|o| match o.role {
+                OpeningRole::Inlet { speed_m_per_s } => Some(speed_m_per_s.abs()),
+                _ => None,
+            })
+            .fold(if link.fan.is_some() { 1.0 } else { 0.0 }, f64::max);
+        // The template's time step no longer counts: say only what this one does.
+        notes.retain(|n| !n.starts_with("the time step was cut"));
+        apply_flow(&mut case, flow, speed, &mut notes)?;
+    }
     // How much of the model the grid keeps, and where the fluid is.
     let volume = crate::fluid_volume::fluid_volume(&case)?;
     // What the solver will hold: whole cells for the staircase, the cut-cell sub-lattice with cut cells.
@@ -1430,11 +1565,16 @@ mod tests {
                 max_temperature_k: Some(360.0),
             }],
             face_sources: vec![FaceHeat { name: "heater".into(), face: face("inner y"), power_w: 5.0 }],
-            face_conditions: vec![FaceThermal { name: "hot inlet".into(), face: face("in face"), condition: ThermalFace::Temperature { temperature_k: 310.0 } }],
+            face_conditions: vec![FaceThermal {
+                name: "hot inlet".into(),
+                face: face("in face"),
+                condition: ThermalFace::Temperature { temperature_k: 310.0 },
+            }],
             ..Default::default()
         });
         let mut input = duct();
-        let inner = ResolvedFace { name: "inner y".into(), body: "Duct".into(), triangles: vec![12, 13], plane: Some(([0.0, 1.0, 0.0], [50.0, 4.0, 20.0])) };
+        let inner =
+            ResolvedFace { name: "inner y".into(), body: "Duct".into(), triangles: vec![12, 13], plane: Some(([0.0, 1.0, 0.0], [50.0, 4.0, 20.0])) };
         input.faces = vec![
             ResolvedFace { name: "in".into(), ..end(0.0, -1.0) },
             ResolvedFace { name: "out".into(), ..end(100.0, 1.0) },
@@ -1444,16 +1584,21 @@ mod tests {
         ];
         let built = build(&channel(), &heated, &input).expect("build");
         assert!(built.issues.is_empty(), "{:?}", built.issues);
-        if let Ok(path) = std::env::var("SC_DUMP_HEATED") { let _ = std::fs::write(path, built.case.to_string()); }
+        if let Ok(path) = std::env::var("SC_DUMP_HEATED") {
+            let _ = std::fs::write(path, built.case.to_string());
+        }
         let thermal = &built.case["thermal"];
         // Power, capacity and conductivity by what each cell holds (`partial_cells_v1`).
         assert_eq!(thermal["partial_cells"], serde_json::json!(true));
         assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "partial_cells_v1"));
         assert_eq!(thermal["inflow_temperature_k"], serde_json::json!(300.0));
-        assert_eq!(thermal["solids"], serde_json::json!([{
-            "obstacle": "Duct", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0,
-            "density_kg_per_m3": 2700.0, "specific_heat_j_per_kg_k": 900.0, "max_temperature_k": 360.0
-        }]));
+        assert_eq!(
+            thermal["solids"],
+            serde_json::json!([{
+                "obstacle": "Duct", "conductivity_w_per_m_k": [200.0, 200.0, 200.0], "power_w": 1.0,
+                "density_kg_per_m3": 2700.0, "specific_heat_j_per_kg_k": 900.0, "max_temperature_k": 360.0
+            }])
+        );
         assert_eq!(thermal["face_sources"], serde_json::json!([{"name": "heater", "body": "Duct", "triangles": [12, 13], "power_w": 5.0}]));
         assert_eq!(thermal["boundaries"], serde_json::json!([{"patch": "left", "condition": {"kind": "temperature", "temperature_k": 310.0}}]));
         let goals = built.case["goals"].as_array().cloned().unwrap_or_default();
@@ -1547,7 +1692,8 @@ mod tests {
         let outlet = OpeningRole::Outlet { pressure_m2_per_s2: 0.0 };
         let mut fanned = link(&[("out", outlet)]);
         let curve = vec![[0.0, 4.0], [4e-4, 3.0], [1e-3, 0.0]];
-        fanned.fan = Some(ModelFan { name: "blower".into(), face: FaceRef { body: "Duct".into(), face: "left end".into() }, curve, total_pressure: false });
+        fanned.fan =
+            Some(ModelFan { name: "blower".into(), face: FaceRef { body: "Duct".into(), face: "left end".into() }, curve, total_pressure: false });
         let global = |name: &str, kind| ModelGoal { name: name.into(), kind, face: None, point_mm: None, expression: None, body: None };
         fanned.goals = vec![global("v_max", ModelGoalKind::GlobalMaxSpeed), global("p_mean", ModelGoalKind::GlobalMeanPressure)];
         let mut input = duct();
@@ -1559,7 +1705,10 @@ mod tests {
         assert_eq!(fan["curve"][1], serde_json::json!({"volume_flow_m3_per_s": 4e-4, "pressure_rise_pa": 3.0}));
         let rows = |key: &str| built.case[key].as_array().into_iter().flatten().filter(|r| r["patch"] == "left").count();
         assert_eq!(rows("velocity_boundaries") + rows("pressure_boundaries"), 0, "the fan owns its face");
-        assert_eq!(built.case["goals"], serde_json::json!([{"name": "v_max", "kind": "global_max_speed"}, {"name": "p_mean", "kind": "global_mean_pressure"}]));
+        assert_eq!(
+            built.case["goals"],
+            serde_json::json!([{"name": "v_max", "kind": "global_max_speed"}, {"name": "p_mean", "kind": "global_mean_pressure"}])
+        );
         let needs: Vec<&str> = crate::airflow::requirements(&built.case).iter().map(|r| r.capability).collect();
         assert!(needs.contains(&"fan_curve_v1") && needs.contains(&"goals_v3"), "{needs:?}");
         // Without an outlet the fan has nothing to blow against; a rising curve is refused.
@@ -1695,6 +1844,66 @@ mod tests {
         assert_eq!((dims[0].clone(), dims[2].clone()), (serde_json::json!(50), serde_json::json!(18)), "{dims}");
     }
 
+    /// A study's fluid and run length: air's viscosity and density go in, the time step follows
+    /// from the 4 mm cells and the speed (no inlet: 0.05 m/s, twice that the fastest), and the
+    /// run takes the steps that reach its end time, stopping early once a goal settles. A study
+    /// without `flow` keeps its template's (0.02 m²/s, 0.002 s, 12 steps).
+    #[test]
+    fn a_study_simulates_its_fluid_for_its_end_time_and_stops_once_settled() {
+        let mut air = link(&[]);
+        air.flow = Some(ModelFlow::AIR);
+        let built = build(&channel(), &air, &duct()).expect("air");
+        let case = &built.case;
+        assert_eq!(case["config"]["kinematic_viscosity"], serde_json::json!(1.5e-5));
+        assert_eq!(case["config"]["density"], serde_json::json!(1.2));
+        assert_eq!(
+            (case["config"]["scaled_momentum"].clone(), case["config"]["piso_neighbour_update"].clone()),
+            (serde_json::json!(true), serde_json::json!(true))
+        );
+        let needs: Vec<&str> = crate::airflow::requirements(case).iter().map(|r| r.capability).collect();
+        assert!(needs.contains(&"scaled_momentum_v1") && needs.contains(&"piso_neighbour_update_v1"), "{needs:?}");
+        // Courant: 0.4 / (0.1 m/s × 3 / 0.004 m) = 5.333e-3 s; diffusion: 0.4 / (1.5e-5 × 3 /
+        // 0.004²) = 0.142 s. The smaller wins, and 2 s takes ⌈375⌉ steps of it.
+        let dt = case["config"]["dt"].as_f64().unwrap_or(0.0);
+        assert!((dt - 0.4 / 75.0).abs() < 1e-15, "{dt}");
+        let steps = case["output"]["steps"].as_u64().unwrap_or(0);
+        assert!((375..=376).contains(&steps), "{steps}");
+        assert!(steps as f64 * dt >= 2.0 - 1e-12);
+        // No goal of its own: it watches the mean speed and stops once that settles to 0.1 %.
+        assert_eq!(case["goals"][0]["name"], SETTLE_GOAL);
+        assert_eq!(case["goal_control"]["stop_when_converged"], true);
+        assert_eq!(case["goal_control"]["relative_tolerance"], serde_json::json!(1e-3));
+        assert!(built.notes.iter().all(|n| n.contains("sealed in")), "{:?}", built.notes);
+        // Run to the end, watching nothing.
+        let mut to_the_end = air.clone();
+        to_the_end.flow = Some(ModelFlow { converge_tolerance: None, ..ModelFlow::AIR });
+        let built = build(&channel(), &to_the_end, &duct()).expect("to the end");
+        assert!(built.case.get("goals").is_none() && built.case.get("goal_control").is_none());
+        // Past the step limit: it says how far it gets.
+        let mut long = air.clone();
+        long.flow = Some(ModelFlow { end_time_s: 1000.0, ..ModelFlow::AIR });
+        let built = build(&channel(), &long, &duct()).expect("long");
+        // 2 500 cells: the step limit (20 000) comes before the work limit (50e6 / 2 500).
+        assert_eq!(built.case["output"]["steps"].as_u64(), Some(crate::MAX_STEPS));
+        assert!(built.notes.iter().any(|n| n.contains("step limit")), "{:?}", built.notes);
+        // Studies saved before keep the template's fluid and steps (12, fitted to the 4 mm cells
+        // as before: 228, see `refinements_split_the_cells_around_a_body_or_a_face_and_refit_the_time_step`).
+        let old = build(&channel(), &link(&[]), &duct()).expect("old");
+        assert_eq!(old.case["config"]["kinematic_viscosity"], serde_json::json!(0.02));
+        assert_eq!(old.case["output"]["steps"].as_u64(), Some(228));
+        // Nonsense is refused.
+        for bad in [
+            ModelFlow { kinematic_viscosity_m2_per_s: 0.0, ..ModelFlow::AIR },
+            ModelFlow { density_kg_per_m3: f64::NAN, ..ModelFlow::AIR },
+            ModelFlow { end_time_s: -1.0, ..ModelFlow::AIR },
+            ModelFlow { converge_tolerance: Some(0.9), ..ModelFlow::AIR },
+        ] {
+            let mut l = link(&[]);
+            l.flow = Some(bad);
+            assert!(l.validate().is_err(), "{bad:?}");
+        }
+    }
+
     /// The automatic grid (2 mm, the duct's walls two cells thick: 20 000 cells) split in two
     /// everywhere would be 160 000 cells: its base cells grow until the refinement fits. A
     /// typed cell size is refused instead.
@@ -1720,7 +1929,14 @@ mod tests {
         let face = |name: &str| FaceRef { body: "Duct".into(), face: name.into() };
         goals.openings[0].face = face("left end");
         goals.goals = vec![
-            ModelGoal { name: "inflow".into(), kind: ModelGoalKind::FaceVolumeFlow, face: Some(face("left end")), point_mm: None, expression: None, body: None },
+            ModelGoal {
+                name: "inflow".into(),
+                kind: ModelGoalKind::FaceVolumeFlow,
+                face: Some(face("left end")),
+                point_mm: None,
+                expression: None,
+                body: None,
+            },
             ModelGoal {
                 name: "outflow".into(),
                 kind: ModelGoalKind::FaceVolumeFlow,
@@ -1729,8 +1945,22 @@ mod tests {
                 expression: None,
                 body: None,
             },
-            ModelGoal { name: "wall_p".into(), kind: ModelGoalKind::FaceMeanPressure, face: Some(face("inner y")), point_mm: None, expression: None, body: None },
-            ModelGoal { name: "mid_p".into(), kind: ModelGoalKind::PointPressure, face: None, point_mm: Some([50.0, 20.0, 20.0]), expression: None, body: None },
+            ModelGoal {
+                name: "wall_p".into(),
+                kind: ModelGoalKind::FaceMeanPressure,
+                face: Some(face("inner y")),
+                point_mm: None,
+                expression: None,
+                body: None,
+            },
+            ModelGoal {
+                name: "mid_p".into(),
+                kind: ModelGoalKind::PointPressure,
+                face: None,
+                point_mm: Some([50.0, 20.0, 20.0]),
+                expression: None,
+                body: None,
+            },
             ModelGoal {
                 name: "balance".into(),
                 kind: ModelGoalKind::Equation,

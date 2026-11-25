@@ -25,7 +25,7 @@ checksum = "95832e849adfb21180ccb6826a99da14e5d266ae5c2e668e1602cf234f153797"
 
 [[package]]
 name = "cfd-solvers-rs"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "nalgebra",
  "num-complex",

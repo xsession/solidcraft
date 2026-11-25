@@ -485,6 +485,7 @@ impl Case {
                 "face_heat_sources_v1".into(),
                 "goals_v3".into(),
                 "partial_cells_v1".into(),
+                "scaled_momentum_v1".into(),
             ],
             complete_clone: false,
             execution_completed: false,

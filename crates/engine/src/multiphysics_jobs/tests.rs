@@ -587,10 +587,11 @@ fn a_study_of_the_model_carries_heat_on_its_bodies_and_faces() {
     // A thermal condition on a face inside the domain is refused with the reason.
     let inside = json!({"id":id,"expected_revision":revision(&s),"name":"Wall","face":face([50.0, 4.0, 20.0]),"condition":{"kind":"adiabatic"}});
     assert!(s.execute("multiphysics.model.thermal_face", &inside).unwrap_err().to_string().contains("domain boundary"));
-    // Heat off: the thermal block and the temperature goal go.
+    // Heat off: the thermal block and the temperature goal go; the run then watches the fluid's
+    // mean speed to stop once it settles (the study's flow settings).
     let off = s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s),"enabled":false})).unwrap();
     assert_eq!(off["study"]["case"].get("thermal"), None);
-    assert_eq!(off["study"]["case"].get("goals"), None);
+    assert_eq!(off["study"]["case"]["goals"], json!([{"name":"settle_mean_speed","kind":"global_mean_speed"}]));
     assert_eq!(off["link"].get("heat"), None);
 }
 
