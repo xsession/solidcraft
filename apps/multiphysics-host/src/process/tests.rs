@@ -494,3 +494,17 @@ fn real_engine_run_keep_reopen_and_export() {
     assert!(export.join("solution.vtu").is_file());
     assert!(export.join("solidcraft-study.json").is_file());
 }
+
+/// A run may take two hours unless `SOLIDCRAFT_CFD_TIMEOUT_S` says otherwise; a value that is not
+/// a whole number of seconds from 1 to a week keeps the default.
+#[test]
+fn the_run_time_limit_is_two_hours_or_what_the_environment_sets() {
+    use std::ffi::OsStr;
+    assert_eq!(DEFAULT_TIMEOUT, Duration::from_secs(7200));
+    assert_eq!(timeout_from(Some(OsStr::new("900"))), Some(Duration::from_secs(900)));
+    assert_eq!(timeout_from(Some(OsStr::new(" 60 "))), Some(Duration::from_secs(60)));
+    for bad in ["0", "-5", "1.5", "", "lots", "604801"] {
+        assert_eq!(timeout_from(Some(OsStr::new(bad))), None, "{bad}");
+    }
+    assert_eq!(timeout_from(None), None);
+}

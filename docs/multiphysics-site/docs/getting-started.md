@@ -28,7 +28,9 @@ To start them yourself, tell SolidCraft where the companion is:
     solidcraft
     ```
 
-A `cfd-solve` on your `PATH` is found as well. The browser version of SolidCraft prepares and
+A `cfd-solve` on your `PATH` is found as well. A run may take up to two hours before
+SolidCraft stops it (you can stop one sooner from the Monitor at any time);
+`SOLIDCRAFT_CFD_TIMEOUT_S` sets another limit, in seconds, up to a week. The browser version of SolidCraft prepares and
 checks studies but cannot start a local program.
 
 ## Open the workspace

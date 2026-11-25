@@ -27,10 +27,23 @@ pub struct ProcessHost {
     timeout: Duration,
 }
 
+/// How long one run may take by default: two hours. A run can be cancelled at any time; the
+/// limit only ends one nobody is watching. `SOLIDCRAFT_CFD_TIMEOUT_S` sets another (seconds, 1
+/// to a week).
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60);
+
+/// The run time limit `SOLIDCRAFT_CFD_TIMEOUT_S` asks for, if it holds a whole number of
+/// seconds from 1 to a week.
+fn timeout_from(value: Option<&std::ffi::OsStr>) -> Option<Duration> {
+    let seconds: u64 = value?.to_str()?.trim().parse().ok()?;
+    (1..=7 * 24 * 60 * 60).contains(&seconds).then(|| Duration::from_secs(seconds))
+}
+
 impl ProcessHost {
     /// Use an explicitly chosen companion. No subprocess is started by this constructor.
     pub fn new(executable: PathBuf) -> Self {
-        Self { executable, timeout: Duration::from_secs(300) }
+        let timeout = timeout_from(std::env::var_os("SOLIDCRAFT_CFD_TIMEOUT_S").as_deref()).unwrap_or(DEFAULT_TIMEOUT);
+        Self { executable, timeout }
     }
 }
 
@@ -167,7 +180,10 @@ impl ProcessHost {
             }
             if started.elapsed() > self.timeout {
                 terminate(&mut child);
-                return Err("cfd-solve exceeded the 300-second runtime limit".into());
+                return Err(format!(
+                    "cfd-solve exceeded the {}-second runtime limit (SOLIDCRAFT_CFD_TIMEOUT_S sets another)",
+                    self.timeout.as_secs()
+                ));
             }
             if let Err(error) = output_budget(&output) {
                 terminate(&mut child);
