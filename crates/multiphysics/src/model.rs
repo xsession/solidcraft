@@ -1405,6 +1405,14 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         object.insert("goals".into(), Value::Array(goals));
     }
     if let Some(flow) = &link.flow {
+        // A fan blows at most its curve's largest flow; through the domain's narrowest side that
+        // is the fastest it can drive the fluid on average.
+        let fan_speed = link.fan.as_ref().map_or(0.0, |fan| {
+            let flow = fan.curve.iter().map(|p| p[0].abs()).fold(0.0, f64::max);
+            let size: Vec<f64> = (0..3).map(|a| (input.bounds_mm[1][a] - input.bounds_mm[0][a] + 2.0 * margin) / 1000.0).collect();
+            let narrowest = (size[0] * size[1]).min(size[1] * size[2]).min(size[0] * size[2]);
+            if narrowest > 0.0 { flow / narrowest } else { 1.0 }
+        });
         let speed = link
             .openings
             .iter()
@@ -1412,7 +1420,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
                 OpeningRole::Inlet { speed_m_per_s } => Some(speed_m_per_s.abs()),
                 _ => None,
             })
-            .fold(if link.fan.is_some() { 1.0 } else { 0.0 }, f64::max);
+            .fold(fan_speed, f64::max);
         // The template's time step no longer counts: say only what this one does.
         notes.retain(|n| !n.starts_with("the time step was cut"));
         apply_flow(&mut case, flow, speed, &mut notes)?;
