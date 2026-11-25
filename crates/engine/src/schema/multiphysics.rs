@@ -789,6 +789,18 @@ pub struct ModelHeatSet {
     pub inflow_temperature_k: Option<f64>,
     #[serde(default)]
     pub fluid: Option<solidcraft_multiphysics::model::FluidHeat>,
+    /// Natural convection: true (air under the design's gravity, Z up), settings of its own,
+    /// or false to solve heat on the settled flow again.
+    #[serde(default)]
+    pub buoyancy: Option<BuoyancyInput>,
+}
+
+/// Natural convection on (air's defaults), off, or given.
+#[derive(Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum BuoyancyInput {
+    On(bool),
+    Given(solidcraft_multiphysics::model::ModelBuoyancy),
 }
 
 /// `multiphysics.model.material`: the material and power of bodies of the model, or remove.

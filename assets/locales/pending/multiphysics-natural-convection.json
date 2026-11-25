@@ -1,0 +1,6 @@
+{
+  "en": {
+    "multiphysics.model_buoyancy": "Natural convection",
+    "multiphysics.model_buoyancy_hint": "Warm air rises: the temperature drives the flow, under gravity along −Z. The heat then runs in time with the flow; give the parts a density and specific heat for their warming up to mean something."
+  }
+}

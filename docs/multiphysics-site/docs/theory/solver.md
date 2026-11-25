@@ -52,7 +52,16 @@ With heat on, every solid of the study conducts heat (*conjugate heat transfer*)
 - The fluid carries heat with the flow it settled into, and conducts it.
 - The energy equation is solved **steady and one-way**, on the settled flow: the
   temperature does not change the flow.
-- Properties are constant, and there is no buoyancy and no radiation in a study of the model.
+- With **Natural convection** on (Solid materials panel, or `multiphysics.model.heat
+  {"buoyancy": true}`), it is solved **two-way and in time** instead: warmer fluid is lighter by
+  its expansion coefficient times its rise above a reference temperature (the Boussinesq
+  approximation), gravity lifts it, and the temperature advances with every flow step. The
+  default is air under gravity along −Z (the design's up is +Z), expanding by 1/293.15 per
+  kelvin, referred to the inflow temperature. Parts warm up at their own rate when they have a
+  density and specific heat; without them only the settled temperatures mean anything. The
+  time step then also follows the speed buoyancy can reach, √(g·β·ΔT·H) with ΔT = 50 K over the
+  domain's height H.
+- Properties are otherwise constant, and there is no radiation.
 - Unlisted outer faces are adiabatic; a face condition can make one a fixed temperature, a
   heat flux or a convection to the outside.
 

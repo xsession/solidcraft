@@ -469,6 +469,14 @@ pub(super) fn heat(session: &mut Session, params: &Value) -> Result<Value> {
             heat.fluid = fluid;
         }
     }
+    if let Some(buoyancy) = input.buoyancy {
+        let heat = heat_of(&mut link)?;
+        heat.buoyancy = match buoyancy {
+            BuoyancyInput::On(true) => Some(heat.buoyancy.unwrap_or(model::ModelBuoyancy::AIR)),
+            BuoyancyInput::On(false) => None,
+            BuoyancyInput::Given(given) => Some(given),
+        };
+    }
     commit(session, &input.id, input.expected_revision, link)
 }
 

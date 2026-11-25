@@ -144,6 +144,17 @@ pub(super) fn heat_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
         model_command(app, state, study, "multiphysics.model.heat", params);
         return;
     }
+    // Natural convection: the temperature drives the flow.
+    let mut buoyant = heat.buoyancy.is_some();
+    let response = crate::ui_kit::checkbox(ui, tr("multiphysics.model_buoyancy"), &mut buoyant);
+    crate::scenario::publish_target("multiphysics:model_buoyancy", response.rect);
+    ui.label(RichText::new(tr("multiphysics.model_buoyancy_hint")).small().color(t.text_dim));
+    if buoyant != heat.buoyancy.is_some() {
+        let mut params = base();
+        params["buoyancy"] = json!(buoyant);
+        model_command(app, state, study, "multiphysics.model.heat", params);
+        return;
+    }
     ui.separator();
     // Materials and power of the bodies.
     ui.strong(tr("multiphysics.model_materials"));

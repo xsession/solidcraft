@@ -298,6 +298,44 @@ pub struct ModelHeat {
     pub face_sources: Vec<FaceHeat>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub face_conditions: Vec<FaceThermal>,
+    /// Natural convection: the temperature drives the flow (two-way, Boussinesq; companion
+    /// 0.6.0, `natural_convection_v1`). None: heat is solved on the settled flow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buoyancy: Option<ModelBuoyancy>,
+}
+
+/// Natural convection in a study of the model: warmer fluid is lighter by
+/// `expansion_per_k × (T − reference)` of its density, and gravity lifts it.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelBuoyancy {
+    /// m/s², in the design's axes (Z is up: `[0, 0, -9.81]`).
+    pub gravity_m_per_s2: [f64; 3],
+    /// 1/K; for air (an ideal gas) one over its absolute temperature, 3.41e-3 at 20 °C.
+    pub expansion_per_k: f64,
+    /// The temperature the fluid has its own density at, K; none: the inflow temperature.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_temperature_k: Option<f64>,
+}
+
+impl ModelBuoyancy {
+    /// Air at 20 °C under the design's gravity, Z up.
+    pub const AIR: ModelBuoyancy =
+        ModelBuoyancy { gravity_m_per_s2: [0.0, 0.0, -9.81], expansion_per_k: 1.0 / 293.15, reference_temperature_k: None };
+
+    fn validate(&self) -> Result<()> {
+        let g = self.gravity_m_per_s2;
+        if !g.iter().all(|v| v.is_finite()) || g.iter().map(|v| v * v).sum::<f64>().sqrt() > 1000.0 {
+            return Err(bad("gravity is a finite vector of at most 1000 m/s²"));
+        }
+        if !(self.expansion_per_k.is_finite() && self.expansion_per_k > 0.0 && self.expansion_per_k < 1.0) {
+            return Err(bad("the expansion coefficient is above 0 and below 1 per kelvin"));
+        }
+        if self.reference_temperature_k.is_some_and(|t| !(t.is_finite() && t > 0.0 && t < 1e4)) {
+            return Err(bad("the reference temperature is in kelvin, above 0 and below 10 000"));
+        }
+        Ok(())
+    }
 }
 
 impl Default for ModelHeat {
@@ -308,6 +346,7 @@ impl Default for ModelHeat {
             materials: Vec::new(),
             face_sources: Vec::new(),
             face_conditions: Vec::new(),
+            buoyancy: None,
         }
     }
 }
@@ -326,6 +365,9 @@ impl ModelHeat {
         }
         if !(positive(self.inflow_temperature_k) && self.inflow_temperature_k < 1e4) {
             return Err(bad("the inflow temperature is in kelvin, above 0 and below 10 000"));
+        }
+        if let Some(b) = &self.buoyancy {
+            b.validate()?;
         }
         if self.materials.len() > MAX_BODIES || self.face_sources.len() > MAX_OPENINGS || self.face_conditions.len() > MAX_OPENINGS {
             return Err(Error::Limit(format!(
@@ -1055,13 +1097,33 @@ fn thermal_block(case: &Value, heat: &ModelHeat, notes: &mut Vec<String>) -> Res
             starter.join(", ")
         ));
     }
-    Ok(serde_json::json!({
+    let mut block = serde_json::json!({
         "fluid": {"specific_heat_j_per_kg_k": heat.fluid.specific_heat_j_per_kg_k, "conductivity_w_per_m_k": heat.fluid.conductivity_w_per_m_k},
         "inflow_temperature_k": heat.inflow_temperature_k,
         "solids": solids,
         // Power, heat capacity and conductivity by what each cell holds (`partial_cells_v1`).
         "partial_cells": true,
-    }))
+    });
+    if let Some(b) = &heat.buoyancy {
+        block["buoyancy"] = serde_json::json!({
+            "gravity_m_per_s2": b.gravity_m_per_s2,
+            "expansion_per_k": b.expansion_per_k,
+            "reference_temperature_k": b.reference_temperature_k.unwrap_or(heat.inflow_temperature_k),
+        });
+        let without: Vec<&str> = heat
+            .materials
+            .iter()
+            .filter(|m| m.density_kg_per_m3.is_none() || m.specific_heat_j_per_kg_k.is_none())
+            .map(|m| m.body.as_str())
+            .collect();
+        if !without.is_empty() {
+            notes.push(format!(
+                "with natural convection the heat runs in time with the flow: {} have no density or specific heat, so they warm up at a stand-in rate and only the settled temperatures mean anything",
+                without.join(", ")
+            ));
+        }
+    }
+    Ok(block)
 }
 
 /// Heat sources on body faces (`face_heat_sources_v1`) and thermal conditions on the faces on
@@ -1413,6 +1475,13 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
             let narrowest = (size[0] * size[1]).min(size[1] * size[2]).min(size[0] * size[2]);
             if narrowest > 0.0 { flow / narrowest } else { 1.0 }
         });
+        // Natural convection moves the fluid at about √(g·β·ΔT·H) over the domain's height H;
+        // with a rise of 50 K that is an upper bound for most electronics and rooms.
+        let buoyant_speed = link.heat.as_ref().and_then(|h| h.buoyancy).map_or(0.0, |b| {
+            let g = b.gravity_m_per_s2.iter().map(|v| v * v).sum::<f64>().sqrt();
+            let height = (0..3).map(|a| (input.bounds_mm[1][a] - input.bounds_mm[0][a] + 2.0 * margin) / 1000.0).fold(0.0, f64::max);
+            (g * b.expansion_per_k * 50.0 * height).sqrt()
+        });
         let speed = link
             .openings
             .iter()
@@ -1420,7 +1489,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
                 OpeningRole::Inlet { speed_m_per_s } => Some(speed_m_per_s.abs()),
                 _ => None,
             })
-            .fold(fan_speed, f64::max);
+            .fold(fan_speed.max(buoyant_speed), f64::max);
         // The template's time step no longer counts: say only what this one does.
         notes.retain(|n| !n.starts_with("the time step was cut"));
         apply_flow(&mut case, flow, speed, &mut notes)?;
@@ -1913,6 +1982,43 @@ mod tests {
             l.flow = Some(bad);
             assert!(l.validate().is_err(), "{bad:?}");
         }
+    }
+
+    /// Natural convection: the thermal block carries gravity, the expansion and the inflow as the
+    /// reference temperature, the run's time step follows the speed buoyancy can reach in the
+    /// duct's 100 mm (√(9.81 × 3.41e-3 × 50 × 0.1) = 0.41 m/s, twice that the fastest), and a
+    /// body without a heat capacity is named.
+    #[test]
+    fn natural_convection_drives_the_flow_and_sets_the_time_step() {
+        let mut hot = link(&[]);
+        hot.flow = Some(ModelFlow::AIR);
+        hot.heat = Some(ModelHeat {
+            materials: vec![BodyHeat {
+                body: "Duct".into(),
+                conductivity_w_per_m_k: 200.0,
+                power_w: 2.0,
+                density_kg_per_m3: None,
+                specific_heat_j_per_kg_k: None,
+                max_temperature_k: None,
+            }],
+            buoyancy: Some(ModelBuoyancy::AIR),
+            ..Default::default()
+        });
+        let built = build(&channel(), &hot, &duct()).expect("buoyant");
+        let thermal = &built.case["thermal"];
+        assert_eq!(thermal["buoyancy"]["gravity_m_per_s2"], serde_json::json!([0.0, 0.0, -9.81]));
+        assert_eq!(thermal["buoyancy"]["reference_temperature_k"], thermal["inflow_temperature_k"]);
+        assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "natural_convection_v1"));
+        let speed = (9.81f64 / 293.15 * 50.0 * 0.1).sqrt();
+        let dt = built.case["config"]["dt"].as_f64().unwrap_or(0.0);
+        assert!((dt - 0.4 / (2.0 * speed * 750.0)).abs() < 1e-12, "{dt}");
+        assert!(built.notes.iter().any(|n| n.contains("Duct have no density")), "{:?}", built.notes);
+        // Bad settings are refused.
+        let mut bad = hot.clone();
+        if let Some(h) = bad.heat.as_mut() {
+            h.buoyancy = Some(ModelBuoyancy { expansion_per_k: 0.0, ..ModelBuoyancy::AIR });
+        }
+        assert!(bad.validate().is_err());
     }
 
     /// The duct's outer underside fills the domain's lowest side: no fluid touches that side,
