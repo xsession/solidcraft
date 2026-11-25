@@ -584,6 +584,9 @@ pub struct ModelSet {
     /// The fluid and how long the run simulates.
     #[serde(default)]
     pub flow: Option<solidcraft_multiphysics::model::ModelFlow>,
+    /// The bodies that are porous zones, with their resistances (replaces the list; [] for none).
+    #[serde(default)]
+    pub porous: Option<Vec<solidcraft_multiphysics::model::ModelPorous>>,
 }
 
 /// `multiphysics.model.fan`: a fan on a face of the model on the domain boundary, or remove it.

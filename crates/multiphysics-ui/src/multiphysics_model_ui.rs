@@ -32,6 +32,9 @@ pub(super) struct ModelUi {
     margin: String,
     /// The end time as typed, for the study it was typed for.
     end_time: Option<(String, String)>,
+    /// A porous body's Darcy (1/m²) and Forchheimer (1/m) coefficients, as typed.
+    porous_d: String,
+    porous_c: String,
     /// The last leak search: the study, whether fluid connects the faces, and the path (mm).
     leak: Option<(String, bool, Vec<[f64; 3]>)>,
     /// Local mesh: the split factor offered, 2 to 4 (0 means 2).
@@ -429,6 +432,9 @@ pub(super) fn mesh_panel(app: &mut SolveApp, state: &mut State, study: &Study, u
     ui.label(RichText::new(tr("multiphysics.model_refine_hint")).small().color(t.text_dim));
     if let Some((command_id, name)) = remove {
         model_command(app, state, study, command_id, json!({"id":study.id,"expected_revision":study.revision,"name":name,"remove":true}));
+        return;
+    }
+    if porous_section(app, state, study, &link, ui) {
         return;
     }
     fluid_section(app, state, study, &link, ui);
@@ -983,4 +989,57 @@ fn fluid_section(
         return true;
     }
     false
+}
+
+/// Bodies taken as porous zones (a catalyst brick, a filter): the picked body becomes one with
+/// the typed resistances. True when a change was sent (the study is built again).
+fn porous_section(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &solidcraft_engine::multiphysics::Study,
+    link: &solidcraft_engine::multiphysics::model::ModelLink,
+    ui: &mut egui::Ui,
+) -> bool {
+    let t = Tokens::get();
+    ui.separator();
+    ui.strong(tr("multiphysics.model_porous"));
+    let mut list = link.porous.clone();
+    let mut changed = false;
+    for (index, p) in link.porous.iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("{} · D {:e} 1/m² · C {} 1/m", p.body, p.viscous_resistance_per_m2, p.inertial_resistance_per_m));
+            let response = remove_button(ui);
+            crate::scenario::publish_target(&format!("multiphysics:model_porous_remove:{index}"), response.rect);
+            if response.clicked() {
+                list.retain(|q| q.body != p.body);
+                changed = true;
+            }
+        });
+    }
+    let bodies = selected_bodies(app);
+    crate::ui_kit::row(ui, tr("multiphysics.model_porous_d"), |ui| crate::ui_kit::text_field(ui, &mut state.model_ui.porous_d, "1e6"));
+    crate::ui_kit::row(ui, tr("multiphysics.model_porous_c"), |ui| crate::ui_kit::text_field(ui, &mut state.model_ui.porous_c, "0"));
+    let d = state.model_ui.porous_d.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0);
+    let c = if state.model_ui.porous_c.trim().is_empty() {
+        Some(0.0)
+    } else {
+        state.model_ui.porous_c.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0)
+    };
+    let ready = bodies.len() == 1 && d.is_some() && c.is_some();
+    if button(ui, "multiphysics.model_porous_make", "multiphysics:model_porous_make", ready).clicked()
+        && let (Some(body), Some(d), Some(c)) = (bodies.first(), d, c)
+    {
+        list.retain(|q| &q.body != body);
+        list.push(solidcraft_engine::multiphysics::model::ModelPorous {
+            body: body.clone(),
+            viscous_resistance_per_m2: d,
+            inertial_resistance_per_m: c,
+        });
+        changed = true;
+    }
+    ui.label(RichText::new(tr("multiphysics.model_porous_hint")).small().color(t.text_dim));
+    if changed {
+        model_command(app, state, study, "multiphysics.model.set", json!({"id":study.id,"expected_revision":study.revision,"porous":list}));
+    }
+    changed
 }

@@ -469,6 +469,10 @@ pub struct ModelLink {
     /// A fan on a face of the model on the domain boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fan: Option<ModelFan>,
+    /// Bodies that are porous zones (a catalyst brick, a filter, a heat sink's fin block taken
+    /// as a whole) rather than solid walls (companion 0.4.0, `porous_blocks_v1`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub porous: Vec<ModelPorous>,
     /// The fluid and how long the run simulates; none keeps the template's (studies made before
     /// it existed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -477,6 +481,19 @@ pub struct ModelLink {
     /// the design changed since, and the case must be built again before a run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub built_from: Option<String>,
+}
+
+/// A body of the design taken as a porous zone: the cells whose centres lie in its exact box
+/// resist the flow through them by Darcy and Forchheimer, the pressure falling by
+/// (μ·D·u + ½·ρ·C·|u|·u) per metre.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelPorous {
+    pub body: String,
+    /// Darcy coefficient D = 1/K, 1/m² (the inverse of the permeability).
+    pub viscous_resistance_per_m2: f64,
+    /// Forchheimer coefficient C, 1/m.
+    pub inertial_resistance_per_m: f64,
 }
 
 /// The fluid of a study of the model and how long its run simulates.
@@ -624,6 +641,22 @@ impl ModelLink {
         }
         if let Some(flow) = &self.flow {
             flow.validate()?;
+        }
+        if self.porous.len() > MAX_OPENINGS {
+            return Err(Error::Limit(format!("a model study has at most {MAX_OPENINGS} porous bodies")));
+        }
+        let mut porous = std::collections::BTreeSet::new();
+        for p in &self.porous {
+            text(&p.body, "a porous body")?;
+            if !porous.insert(p.body.as_str()) {
+                return Err(Error::Invalid(format!("{} is porous twice", p.body)));
+            }
+            let fine = |v: f64| (0.0..1e15).contains(&v);
+            if !(fine(p.viscous_resistance_per_m2) && fine(p.inertial_resistance_per_m))
+                || p.viscous_resistance_per_m2 + p.inertial_resistance_per_m <= 0.0
+            {
+                return Err(Error::Invalid(format!("{}: resistances are 0 or more, finite, and not both 0", p.body)));
+            }
         }
         if self.mesh_level.is_some_and(|level| !(1..=MAX_MESH_LEVEL).contains(&level)) {
             return Err(Error::Invalid(format!("the mesh level is 1 to {MAX_MESH_LEVEL}")));
@@ -779,6 +812,8 @@ pub struct ModelInput {
     pub volume_mm3: f64,
     /// Every face the link names, in the order of [`ModelLink::face_refs`].
     pub faces: Vec<ResolvedFace>,
+    /// The exact boxes (mm) of the bodies the link makes porous, which are not in `obj`.
+    pub porous_boxes: Vec<(String, [[f64; 3]; 2])>,
 }
 
 impl ModelInput {
@@ -796,6 +831,12 @@ impl ModelInput {
                 for v in normal.iter().chain(&point) {
                     hasher.update(v.to_bits().to_le_bytes());
                 }
+            }
+        }
+        for (name, [low, high]) in &self.porous_boxes {
+            hasher.update(name.as_bytes());
+            for v in low.iter().chain(high) {
+                hasher.update(v.to_bits().to_le_bytes());
             }
         }
         Ok(format!("{:x}", hasher.finalize()))
@@ -1227,6 +1268,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         object.remove("goals");
         object.remove("thermal");
         object.remove("fan");
+        object.remove("porous_blocks");
         for key in ["velocity_boundaries", "pressure_boundaries"] {
             if let Some(rows) = object.get_mut(key).and_then(Value::as_array_mut) {
                 rows.retain(|row| row["patch"].as_str().is_some_and(|patch| PATCHES.contains(&patch)));
@@ -1466,6 +1508,41 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     {
         object.insert("goals".into(), Value::Array(goals));
     }
+    // Porous bodies: the cells whose centres lie in each one's exact box.
+    if !input.porous_boxes.is_empty() {
+        let nodes = case_scene::nodes(&case)?;
+        let mut blocks = Vec::new();
+        for p in &link.porous {
+            let [low, high] = input
+                .porous_boxes
+                .iter()
+                .find(|(name, _)| *name == p.body)
+                .map(|(_, b)| *b)
+                .ok_or_else(|| bad(format!("{} is porous but not in the study", p.body)))?;
+            let mut range = [[0usize; 2]; 3];
+            for (axis, slot) in range.iter_mut().enumerate() {
+                let lo = (low[axis] - imported.origin_mm[axis]) / 1000.0;
+                let hi = (high[axis] - imported.origin_mm[axis]) / 1000.0;
+                let inside: Vec<usize> =
+                    nodes[axis].windows(2).enumerate().filter(|(_, w)| (lo..=hi).contains(&(0.5 * (w[0] + w[1])))).map(|(i, _)| i).collect();
+                let (Some(first), Some(last)) = (inside.first(), inside.last()) else {
+                    return Err(bad(format!("{} is thinner than a cell along {}; set a smaller cell size", p.body, ["x", "y", "z"][axis])));
+                };
+                *slot = [*first, last + 1];
+            }
+            blocks.push(serde_json::json!({
+                "name": format!("porous_{}", case_scene::part_name(&p.body)),
+                "min": [range[0][0], range[1][0], range[2][0]],
+                "max": [range[0][1], range[1][1], range[2][1]],
+                "viscous_resistance_per_m2": p.viscous_resistance_per_m2,
+                "inertial_resistance_per_m": p.inertial_resistance_per_m,
+            }));
+        }
+        if let Some(object) = case.as_object_mut() {
+            object.insert("porous_blocks".into(), Value::Array(blocks));
+        }
+        notes.push("porous bodies take the cells inside their boxes: a body that is not a box is taken as its box".into());
+    }
     if let Some(flow) = &link.flow {
         // A fan blows at most its curve's largest flow; through the domain's narrowest side that
         // is the fastest it can drive the fluid on average.
@@ -1585,7 +1662,13 @@ mod tests {
             obj.quad([p(0.0, 0.0), p(i0, i0), p(i0, i1), p(0.0, o)], [nx, 0.0, 0.0]);
             obj.quad([p(o, 0.0), p(o, o), p(i1, i1), p(i1, i0)], [nx, 0.0, 0.0]);
         }
-        ModelInput { obj: obj.text("Duct"), bounds_mm: [[0.0; 3], [l, o, o]], volume_mm3: l * (o * o - 32.0 * 32.0), faces: vec![] }
+        ModelInput {
+            obj: obj.text("Duct"),
+            bounds_mm: [[0.0; 3], [l, o, o]],
+            volume_mm3: l * (o * o - 32.0 * 32.0),
+            faces: vec![],
+            porous_boxes: vec![],
+        }
     }
 
     fn channel() -> Value {
@@ -2019,6 +2102,28 @@ mod tests {
             h.buoyancy = Some(ModelBuoyancy { expansion_per_k: 0.0, ..ModelBuoyancy::AIR });
         }
         assert!(bad.validate().is_err());
+    }
+
+    /// A porous brick across the duct's channel, x 40 to 60 and y, z 4 to 36 mm: on 4 mm cells
+    /// the centres inside are x 42…58 (cells 10 to 14) and y, z 6…34 (cells 1 to 8), half-open
+    /// [10, 15) and [1, 9); a brick thinner than a cell is refused.
+    #[test]
+    fn a_porous_body_becomes_a_block_of_the_cells_in_its_box() {
+        let mut porous = link(&[]);
+        porous.porous = vec![ModelPorous { body: "Brick".into(), viscous_resistance_per_m2: 1e6, inertial_resistance_per_m: 50.0 }];
+        let mut input = duct();
+        input.porous_boxes = vec![("Brick".into(), [[40.0, 4.0, 4.0], [60.0, 36.0, 36.0]])];
+        let built = build(&channel(), &porous, &input).expect("porous");
+        assert_eq!(
+            built.case["porous_blocks"],
+            serde_json::json!([{"name": "porous_Brick", "min": [10, 1, 1], "max": [15, 9, 9], "viscous_resistance_per_m2": 1e6, "inertial_resistance_per_m": 50.0}])
+        );
+        assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "porous_blocks_v1"));
+        input.porous_boxes = vec![("Brick".into(), [[40.0, 4.0, 4.0], [41.0, 36.0, 36.0]])];
+        assert!(build(&channel(), &porous, &input).unwrap_err().to_string().contains("thinner than a cell"));
+        porous.porous[0].viscous_resistance_per_m2 = 0.0;
+        porous.porous[0].inertial_resistance_per_m = 0.0;
+        assert!(porous.validate().is_err(), "no resistance at all");
     }
 
     /// The duct's outer underside fills the domain's lowest side: no fluid touches that side,

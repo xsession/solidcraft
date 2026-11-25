@@ -1115,3 +1115,25 @@ fn a_module_sets_up_every_copy_of_a_component_and_travels_by_file() {
     assert!(s.doc.multiphysics.modules.is_empty());
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// A brick in the duct made porous: it is no longer a wall the grid cuts out but a porous block
+/// over the cells in its box; dropping the list makes it a wall again.
+#[test]
+fn a_body_made_porous_is_a_block_of_cells_not_a_wall() {
+    let mut s = duct_session();
+    s.execute("solid.box", &json!({"length":20,"width":24,"height":24,"corner":[40,8,8],"body_name":"Brick"})).unwrap();
+    let id = s.execute("multiphysics.model.create", &json!({"name":"Porous","cell_mm":4.0})).unwrap()["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session| s.doc.multiphysics.study(&id).unwrap().revision;
+    let porous = json!([{"body":"Brick","viscous_resistance_per_m2":1e6,"inertial_resistance_per_m":20.0}]);
+    let reply = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"porous":porous})).unwrap();
+    let case = &reply["study"]["case"];
+    // 4 mm cells: centres 42…58 along x (cells 10 to 14), 10…30 along y and z (2 to 7).
+    assert_eq!(case["porous_blocks"][0]["min"], json!([10, 2, 2]), "{}", case["porous_blocks"]);
+    assert_eq!(case["porous_blocks"][0]["max"], json!([15, 8, 8]));
+    assert!(case["bodies"].as_array().unwrap().iter().all(|b| b["name"] != "Brick"), "not a wall");
+    let reply = s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"porous":[]})).unwrap();
+    assert!(reply["study"]["case"].get("porous_blocks").is_none());
+    assert!(reply["study"]["case"]["bodies"].as_array().unwrap().iter().any(|b| b["name"] == "Brick"));
+    let unknown = json!([{"body":"Nothing","viscous_resistance_per_m2":1.0,"inertial_resistance_per_m":0.0}]);
+    assert!(s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"porous":unknown})).is_err());
+}

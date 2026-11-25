@@ -63,7 +63,20 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
         }
         volume += body.measure()?.volume;
     }
-    let names: Vec<String> = chosen.iter().map(|b| b.name.clone()).collect();
+    // Porous bodies are zones of the fluid, not walls: their exact boxes, not their triangles.
+    let porous: std::collections::BTreeSet<&str> = link.porous.iter().map(|p| p.body.as_str()).collect();
+    let mut porous_boxes = Vec::new();
+    for body in chosen.iter().filter(|b| porous.contains(b.name.as_str())) {
+        let b = body.body.exact_bounds()?;
+        porous_boxes.push((body.name.clone(), [[b.min.x, b.min.y, b.min.z], [b.max.x, b.max.y, b.max.z]]));
+    }
+    if let Some(missing) = link.porous.iter().find(|p| !porous_boxes.iter().any(|(name, _)| *name == p.body)) {
+        return Err(bad("porous", format!("{} is porous but not one of the study's bodies", missing.body)));
+    }
+    let names: Vec<String> = chosen.iter().filter(|b| !porous.contains(b.name.as_str())).map(|b| b.name.clone()).collect();
+    if names.is_empty() {
+        return Err(bad("porous", "a study needs a body that is not porous, to bound the fluid or stand in it"));
+    }
     let painted = session.doc.painted(&state);
     // Tessellated for the grid, not for print: the smallest cells the study can have, a typed
     // cell size or the box's share of the cell limit, split by its finest local refinement.
@@ -112,7 +125,7 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
             labels.get(&body.name).map(|l| l.iter().enumerate().filter(|(_, f)| **f == Some(index)).map(|(t, _)| t).collect()).unwrap_or_default();
         faces.push(ResolvedFace { name: face_ref.face.clone(), plane, body: body.name.clone(), triangles });
     }
-    Ok(ModelInput { obj: files.obj, bounds_mm: [low, high], volume_mm3: volume, faces })
+    Ok(ModelInput { obj: files.obj, bounds_mm: [low, high], volume_mm3: volume, faces, porous_boxes })
 }
 
 /// Build `link`'s case for the study and store both in one revision; reply with what it gave.
@@ -212,6 +225,9 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     }
     if let Some(flow) = input.flow {
         link.flow = Some(flow);
+    }
+    if let Some(porous) = input.porous {
+        link.porous = porous;
     }
     commit(session, &input.id, input.expected_revision, link)
 }

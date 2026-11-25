@@ -101,6 +101,16 @@ part of their volume instead: each connected piece of fluid in a cut cell is a c
 own, with the open part of its faces and a wall face, measured on a lattice up to eight times
 finer per axis. A wall thinner than a cell then still separates the fluid on its sides.
 
+### Porous bodies
+
+A body can be a **porous zone** instead of a wall: a catalyst brick, a filter, a block of fins
+taken as a whole (Mesh panel, **Porous bodies**; `multiphysics.model.set {"porous": […]}`). It is
+not cut out of the fluid; the cells whose centres lie in its exact box resist the flow through
+them, the pressure falling by μ·D·u + ½·ρ·C·|u|·u per metre, with D the Darcy coefficient
+(1/m², the inverse of the permeability) and C the Forchheimer coefficient (1/m). A body that is
+not a box is taken as its box, and one thinner than a cell along any axis is refused. Heat is not
+exchanged inside a porous zone: it is a resistance to the flow only.
+
 ## Conditions on faces
 
 Conditions are picked on faces of the model. A **flat face on the domain's boundary** opens

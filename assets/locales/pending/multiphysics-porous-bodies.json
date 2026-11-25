@@ -1,0 +1,9 @@
+{
+  "en": {
+    "multiphysics.model_porous": "Porous bodies",
+    "multiphysics.model_porous_c": "Forchheimer C (1/m)",
+    "multiphysics.model_porous_d": "Darcy D (1/m²)",
+    "multiphysics.model_porous_hint": "Pick one body: it stops being a wall and the cells inside its box resist the flow, by μ·D·u + ½·ρ·C·u² per metre (a catalyst brick, a filter, a fin block taken as a whole).",
+    "multiphysics.model_porous_make": "Make porous"
+  }
+}
