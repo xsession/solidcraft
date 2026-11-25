@@ -1906,10 +1906,20 @@ pub(crate) fn open_tab_behind(app: &mut SolveApp, session: Session) -> Result<()
     if app.docs.slots.len() >= MAX_OPEN {
         return Err(format!("at most {MAX_OPEN} designs can be open"));
     }
-    let mut slot = DocSlot::new(session);
+    let mut slot = DocSlot::new(with_host_of(&app.session, session));
     slot.fit = true;
     app.docs.slots.insert(app.docs.active + 1, Some(slot));
     Ok(())
+}
+
+/// `session`, running its Multiphysics studies with the program `open` runs them with, unless it
+/// has one of its own: the solver is the application's, set once at startup, and a design opened
+/// in another tab must be able to run its studies too.
+fn with_host_of(open: &Session, mut session: Session) -> Session {
+    if !session.multiphysics_host_available() {
+        session.set_multiphysics_host(open.multiphysics_host());
+    }
+    session
 }
 
 /// Open `session` in a new tab after the active one and switch to it (`fit`: frame its model).
@@ -1925,7 +1935,7 @@ pub fn open_tab(app: &mut SolveApp, session: Session) -> Result<(), String> {
         return Err(format!("at most {MAX_OPEN} designs can be open"));
     }
     let at = app.docs.active + 1;
-    app.docs.slots.insert(at, Some(DocSlot::new(session)));
+    app.docs.slots.insert(at, Some(DocSlot::new(with_host_of(&app.session, session))));
     crate::agent_chat::follow_new_tab(app, |app| switch(app, at));
     crate::history_folds::load(app);
     app.fit_view();
@@ -3505,6 +3515,29 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    /// The Multiphysics solver is the application's: a design opened in a new tab (or behind the
+    /// active one) runs its studies with it too, not only the design the app started with.
+    #[test]
+    fn a_design_opened_in_a_new_tab_runs_its_studies_with_the_apps_solver() {
+        struct Solver;
+        impl solidcraft_engine::multiphysics_jobs::Host for Solver {
+            fn start(
+                &self,
+                _: solidcraft_engine::multiphysics_jobs::FrozenRun,
+            ) -> Result<Box<dyn solidcraft_engine::multiphysics_jobs::Job>, String> {
+                Err("not in this test".into())
+            }
+        }
+        let mut app = SolveApp::new(Session::default(), Default::default());
+        app.session.set_multiphysics_host(Some(std::sync::Arc::new(Solver)));
+        open_tab(&mut app, Session::default()).unwrap();
+        assert!(app.session.multiphysics_host_available(), "the new tab's design");
+        open_tab_behind(&mut app, Session::default()).unwrap();
+        let behind = app.docs.active + 1;
+        switch(&mut app, behind);
+        assert!(app.session.multiphysics_host_available(), "a design opened behind");
     }
 
     #[test]

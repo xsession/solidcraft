@@ -75,6 +75,10 @@ impl Session {
         self.cancel_multiphysics_jobs();
         self.multiphysics_jobs.host = host;
     }
+    /// The program that runs this session's studies, to give a design opened beside it.
+    pub fn multiphysics_host(&self) -> Option<Arc<dyn Host>> {
+        self.multiphysics_jobs.host.clone()
+    }
     pub fn multiphysics_host_available(&self) -> bool {
         self.multiphysics_jobs.host.is_some()
     }
