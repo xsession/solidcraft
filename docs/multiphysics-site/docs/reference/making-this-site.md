@@ -43,3 +43,18 @@ cargo test -p solidcraft-multiphysics-ui --lib documentation_pictures -- --ignor
 
 It writes `docs/images/*.png` and the batch report in `docs/examples/report`. Without a GPU
 adapter it skips. Run it again after a change to the workspace, and the pictures follow.
+
+## The training cases
+
+The [training cases](../theory/training-cases.md) are made and run by
+`docs/multiphysics-site/tools/make_training_cases.py`, against a running SolidCraft as above. It
+writes each case's design, a `results.json` the page quotes and nothing into the repository:
+
+```sh
+SOLIDCRAFT_CONTROL_TOKEN=$(cat ~/.local/share/solidcraft/control/7979.token) PORT=7979 \
+    python3 make_training_cases.py /path/to/outdir [case …]
+```
+
+The cases measured from downloaded geometry read it from `TRAINING_GEOMETRY` (default
+`outdir/../geometry`): extract only the geometry files (STL, STEP) there.
+`stl_parts.py FILE.stl` lists an STL's connected pieces with their boxes and volumes.
