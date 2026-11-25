@@ -73,7 +73,8 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
         (box_mm3 / solidcraft_multiphysics::MAX_CELLS as f64).cbrt() / 4.0
     });
     let finest = link.refinements.iter().map(|r| r.factor as f64).fold(1.0, f64::max);
-    let files = solidcraft_io::export_obj_for_cells(&painted, &names, "components.mtl", base / finest).map_err(|e| bad("bodies", e.to_string()))?;
+    let cell = solidcraft_io::export_obj_for_cells(&painted, &names, "components.mtl", base / finest).map_err(|e| bad("bodies", e.to_string()))?;
+    let files = cell.files;
     // Which exact face each triangle of a body lies on, read once per body that needs it.
     let mut labels: std::collections::BTreeMap<String, Vec<Option<usize>>> = std::collections::BTreeMap::new();
     let refs = link.face_refs();
@@ -88,14 +89,24 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
             _ => None,
         };
         if !labels.contains_key(&body.name) {
-            // Which face each of the solver's triangles is on: the exact face nearest its centroid.
-            let points: Vec<solidcore_record::Vec3> = model::triangle_centroids(&files.obj, &body.name)
-                .map_err(|e| bad("bodies", e.to_string()))?
-                .into_iter()
-                .map(|p| solidcore_record::Vec3::new(p[0], p[1], p[2]))
-                .collect();
-            let nearest = body.body.nearest_faces(&points).ok_or_else(|| bad("bodies", format!("{} has no exact faces", body.name)))?;
-            labels.insert(body.name.clone(), nearest);
+            // Which face each of the solver's triangles is on: the face the tessellation made it
+            // from. Only where that does not line up with the triangles read back (it always
+            // should) is each triangle's face searched for, as the exact face nearest its
+            // centroid, which takes a distance to every face for every triangle.
+            let centroids = model::triangle_centroids(&files.obj, &body.name).map_err(|e| bad("bodies", e.to_string()))?;
+            let made = cell
+                .faces
+                .get(&body.name)
+                .filter(|faces| faces.len() == centroids.len() && faces.iter().all(|f| *f != u32::MAX))
+                .map(|faces| faces.iter().map(|f| Some(*f as usize)).collect::<Vec<_>>());
+            let found = match made {
+                Some(made) => made,
+                None => {
+                    let points: Vec<solidcore_record::Vec3> = centroids.into_iter().map(|p| solidcore_record::Vec3::new(p[0], p[1], p[2])).collect();
+                    body.body.nearest_faces(&points).ok_or_else(|| bad("bodies", format!("{} has no exact faces", body.name)))?
+                }
+            };
+            labels.insert(body.name.clone(), found);
         }
         let triangles =
             labels.get(&body.name).map(|l| l.iter().enumerate().filter(|(_, f)| **f == Some(index)).map(|(t, _)| t).collect()).unwrap_or_default();

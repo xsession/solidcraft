@@ -1117,6 +1117,11 @@ pub fn obj(meshes: &[(String, Mesh)]) -> String {
 /// takes the rest of the line); the material of a body takes its name with the characters a
 /// material name cannot hold replaced by an underscore.
 pub fn obj_files(bodies: &[ObjBody<'_>], mtl_name: &str) -> ObjFiles {
+    obj_files_faced(bodies, mtl_name).0
+}
+
+/// [`obj_files`], and for each body the B-rep face each of its written triangles came from.
+fn obj_files_faced(bodies: &[ObjBody<'_>], mtl_name: &str) -> (ObjFiles, Vec<Vec<u32>>) {
     let materials = material_names(bodies);
     let mut obj = String::from("# SolidCraft OBJ export (mm)\n");
     let mut mtl = String::new();
@@ -1125,6 +1130,7 @@ pub fn obj_files(bodies: &[ObjBody<'_>], mtl_name: &str) -> ObjFiles {
         mtl = String::from("# SolidCraft material library\n");
     }
     let (mut vbase, mut nbase) = (1usize, 1usize);
+    let mut faces = Vec::with_capacity(bodies.len());
     for (i, b) in bodies.iter().enumerate() {
         let name: String = b.name.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
         obj += &format!("o {name}\n");
@@ -1132,12 +1138,13 @@ pub fn obj_files(bodies: &[ObjBody<'_>], mtl_name: &str) -> ObjFiles {
             obj += &format!("usemtl {material}\n");
             mtl += &format!("newmtl {material}\nKd {}\n", kd(color));
         }
-        let (text, vb, nb) = mesh_text(b.mesh, vbase, nbase);
+        let (text, vb, nb, tri_face) = mesh_text(b.mesh, vbase, nbase);
         obj += &text;
         vbase = vb;
         nbase = nb;
+        faces.push(tri_face);
     }
-    ObjFiles { obj, mtl, warnings: Vec::new() }
+    (ObjFiles { obj, mtl, warnings: Vec::new() }, faces)
 }
 
 /// The mesh of a body, welded as STL and 3MF are ([`weld`]: vertices closer than
@@ -1146,7 +1153,7 @@ pub fn obj_files(bodies: &[ObjBody<'_>], mtl_name: &str) -> ObjFiles {
 /// (#9074). Each corner keeps the normal it had ([`corner_normals`]), so edges between faces
 /// stay sharp. Vertices and normals are each written once per distinct value. Returns the text
 /// and the bases the next body carries on from.
-fn mesh_text(mesh: &Mesh, vbase: usize, nbase: usize) -> (String, usize, usize) {
+fn mesh_text(mesh: &Mesh, vbase: usize, nbase: usize) -> (String, usize, usize, Vec<u32>) {
     use std::collections::HashMap;
     use std::fmt::Write as _;
     let mut bounds = solidcraft_geom::Aabb3::EMPTY;
@@ -1187,7 +1194,9 @@ fn mesh_text(mesh: &Mesh, vbase: usize, nbase: usize) -> (String, usize, usize) 
         let _ = writeln!(faces, "f {a}//{na} {b}//{nb} {c}//{nc}");
     }
     s += &faces;
-    (s, vbase + positions.len(), nbase + nmap.len())
+    // The B-rep face each written triangle came from.
+    let tri_face = from.iter().map(|k| mesh.tri_face.get(*k as usize).copied().unwrap_or(u32::MAX)).collect();
+    (s, vbase + positions.len(), nbase + nmap.len(), tri_face)
 }
 
 /// The normals at the corners `at` of a welded piece of triangle `t` of `mesh` (the whole
@@ -1277,13 +1286,23 @@ pub fn export_obj(state: &ModelState, bodies: &[String], mtl_name: &str, quality
 /// surface a point is on, so a print export's precision (a 20 mm sphere in tens of thousands of
 /// triangles, a faceted import's slivers split into hundreds of thousands) only makes the case
 /// too large to send.
-pub fn export_obj_for_cells(state: &ModelState, bodies: &[String], mtl_name: &str, cell_mm: f64) -> Result<ObjFiles> {
+pub fn export_obj_for_cells(state: &ModelState, bodies: &[String], mtl_name: &str, cell_mm: f64) -> Result<CellObj> {
     let sel = selected(state, bodies)?;
     let cell = if cell_mm.is_finite() && cell_mm > 0.0 { cell_mm } else { 1.0 };
     let spec = |size: f64| solidcraft_kernel::MeshSpec { chord: (cell / 20.0).max(MeshQuality::Standard.chord(size)), size: None, min_angle: 1.0 };
     let (items, warnings) = per_placed_body(&sel, |b, body| body_mesh_to(b, body, &spec))?;
     let bodies: Vec<ObjBody<'_>> = items.iter().map(|(b, mesh)| ObjBody { name: b.name.as_str(), mesh, color: b.body.color() }).collect();
-    Ok(ObjFiles { warnings, ..obj_files(&bodies, mtl_name) })
+    let (files, faces) = obj_files_faced(&bodies, mtl_name);
+    let faces = bodies.iter().map(|b| b.name.to_string()).zip(faces).collect();
+    Ok(CellObj { files: ObjFiles { warnings, ..files }, faces })
+}
+
+/// [`export_obj_for_cells`]: the files, and by body name the B-rep face each of its triangles
+/// (in the order the OBJ lists them) came from, so a face's triangles are known without
+/// searching for them.
+pub struct CellObj {
+    pub files: ObjFiles,
+    pub faces: std::collections::BTreeMap<String, Vec<u32>>,
 }
 
 /// The OBJ export of the given bodies: the mesh file and the material library beside it.
@@ -2159,10 +2178,24 @@ mod tests {
         };
         let exact = 4.0 / 3.0 * std::f64::consts::PI * 1000.0;
         let (print, _) = measure(&export_obj(&st, &[], "s.mtl", MeshQuality::default()).unwrap().obj);
-        let (cells, volume) = measure(&export_obj_for_cells(&st, &[], "s.mtl", 2.0).unwrap().obj);
+        let (cells, volume) = measure(&export_obj_for_cells(&st, &[], "s.mtl", 2.0).unwrap().files.obj);
         assert!(print > 10_000, "{print}");
         assert!(cells < 5_000 && cells * 5 < print, "{cells} vs {print}");
         assert!((volume / exact - 1.0).abs() < 0.02, "{volume} vs {exact}");
+    }
+
+    /// The export for cells says which B-rep face each written triangle came from: a box's six
+    /// faces, two triangles each, one face per triangle and every face used.
+    #[test]
+    fn an_export_for_cells_names_each_triangles_face() {
+        let (_, m) = model();
+        let st = (*m.state()).clone();
+        let cell = export_obj_for_cells(&st, &[], "b.mtl", 2.0).unwrap();
+        let faces = &cell.faces[&st.bodies[0].name];
+        let written = cell.files.obj.lines().filter(|l| l.starts_with("f ")).count();
+        assert_eq!(faces.len(), written);
+        let used: std::collections::BTreeSet<u32> = faces.iter().copied().collect();
+        assert_eq!(used, (0..6).collect(), "{faces:?}");
     }
 
     /// The design properties land in each format's own metadata (#1015): STEP and IGES headers,
