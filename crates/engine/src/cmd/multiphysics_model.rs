@@ -65,8 +65,15 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
     }
     let names: Vec<String> = chosen.iter().map(|b| b.name.clone()).collect();
     let painted = session.doc.painted(&state);
-    let files = solidcraft_io::export_obj(&painted, &names, "components.mtl", solidcraft_io::MeshQuality::default())
-        .map_err(|e| bad("bodies", e.to_string()))?;
+    // Tessellated for the grid, not for print: the smallest cells the study can have, a typed
+    // cell size or the box's share of the cell limit, split by its finest local refinement.
+    let base = link.cell_mm.unwrap_or_else(|| {
+        let margin = if link.analysis == solidcraft_multiphysics::model::Analysis::External { 2.0 * link.margin_mm } else { 0.0 };
+        let box_mm3: f64 = (0..3).map(|a| (high[a] - low[a]).max(0.0) + margin).product();
+        (box_mm3 / solidcraft_multiphysics::MAX_CELLS as f64).cbrt() / 4.0
+    });
+    let finest = link.refinements.iter().map(|r| r.factor as f64).fold(1.0, f64::max);
+    let files = solidcraft_io::export_obj_for_cells(&painted, &names, "components.mtl", base / finest).map_err(|e| bad("bodies", e.to_string()))?;
     // Which exact face each triangle of a body lies on, read once per body that needs it.
     let mut labels: std::collections::BTreeMap<String, Vec<Option<usize>>> = std::collections::BTreeMap::new();
     let refs = link.face_refs();

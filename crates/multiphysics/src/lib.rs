@@ -57,7 +57,7 @@ pub const MAX_ARTIFACTS: usize = 128;
 const MAX_PROJECT_BYTES: usize = 64 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 const MAX_NODES: usize = 200_000;
-pub(crate) const MAX_CELLS: u64 = 32_768;
+pub const MAX_CELLS: u64 = 32_768;
 pub(crate) const MAX_STEPS: u64 = 20_000;
 pub(crate) const MAX_WORK: u64 = 50_000_000;
 

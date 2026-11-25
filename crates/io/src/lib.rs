@@ -1271,6 +1271,21 @@ pub fn export_obj(state: &ModelState, bodies: &[String], mtl_name: &str, quality
     obj_export(&selected(state, bodies)?, mtl_name, quality)
 }
 
+/// [`export_obj`] for an analysis grid of cells about `cell_mm` across: facets stand off curved
+/// faces by at most a twentieth of a cell (never finer than the standard quality's), and
+/// triangles are not reshaped toward a smallest angle. A grid only samples which side of the
+/// surface a point is on, so a print export's precision (a 20 mm sphere in tens of thousands of
+/// triangles, a faceted import's slivers split into hundreds of thousands) only makes the case
+/// too large to send.
+pub fn export_obj_for_cells(state: &ModelState, bodies: &[String], mtl_name: &str, cell_mm: f64) -> Result<ObjFiles> {
+    let sel = selected(state, bodies)?;
+    let cell = if cell_mm.is_finite() && cell_mm > 0.0 { cell_mm } else { 1.0 };
+    let spec = |size: f64| solidcraft_kernel::MeshSpec { chord: (cell / 20.0).max(MeshQuality::Standard.chord(size)), size: None, min_angle: 1.0 };
+    let (items, warnings) = per_placed_body(&sel, |b, body| body_mesh_to(b, body, &spec))?;
+    let bodies: Vec<ObjBody<'_>> = items.iter().map(|(b, mesh)| ObjBody { name: b.name.as_str(), mesh, color: b.body.color() }).collect();
+    Ok(ObjFiles { warnings, ..obj_files(&bodies, mtl_name) })
+}
+
 /// The OBJ export of the given bodies: the mesh file and the material library beside it.
 fn obj_export(sel: &[&solidcraft_doc::ModelBody], mtl_name: &str, quality: MeshQuality) -> Result<ObjFiles> {
     let (items, warnings) = per_placed_body(sel, |b, body| body_mesh(b, body, quality))?;
@@ -1282,18 +1297,31 @@ fn obj_export(sel: &[&solidcraft_doc::ModelBody], mtl_name: &str, quality: MeshQ
 /// ([`PartMesh::placed`]) for a placement of a part, else its own ([`export_mesh_sized`]), its
 /// chord from `size`, with its notes, each led by the body's name. A mesh it cannot make is an
 /// error led by the body's name too, so an export of several bodies says whose face it is.
-fn body_mesh(b: &solidcraft_doc::ModelBody, (body, size, part): &Placed, quality: MeshQuality) -> Result<(Mesh, Vec<String>)> {
+fn body_mesh(b: &solidcraft_doc::ModelBody, placed: &Placed, quality: MeshQuality) -> Result<(Mesh, Vec<String>)> {
+    body_mesh_to(b, placed, &|size| quality.spec(size))
+}
+
+/// [`body_mesh`] to the spec `spec` gives for the body's size.
+fn body_mesh_to(
+    b: &solidcraft_doc::ModelBody,
+    (body, size, part): &Placed,
+    spec: &dyn Fn(f64) -> solidcraft_kernel::MeshSpec,
+) -> Result<(Mesh, Vec<String>)> {
     let named = |e: IoError| match e {
         IoError::Kernel(k) => IoError::Invalid(format!("{}: {k}", b.name)),
         other => other,
     };
+    let spec = spec(*size);
     let placed = match part {
-        Some((part, rel)) => part.placed(&quality.spec(*size), rel).map_err(named)?,
+        Some((part, rel)) => part.placed(&spec, rel).map_err(named)?,
         None => None,
     };
     let (mesh, notes) = match placed {
         Some(placed) => placed,
-        None => export_mesh_sized(body, *size, quality).map_err(named)?,
+        None => {
+            let (mesh, stats) = body.export_mesh(&spec).map_err(|e| named(e.into()))?;
+            (mesh, mesh_notes(&stats, &spec))
+        }
     };
     Ok((mesh, notes.into_iter().map(|n| format!("{}: {n}", b.name)).collect()))
 }
@@ -2100,6 +2128,41 @@ mod tests {
         // The export that writes one file names no material library it cannot write.
         let o = String::from_utf8(export(&st, &[], Format::Obj, "part").unwrap()).unwrap();
         assert!(!o.contains("mtllib"), "{o}");
+    }
+
+    /// An analysis grid's export follows a 20 mm sphere to a twentieth of its 2 mm cells, in a
+    /// few thousand triangles; the standard (print) export takes tens of thousands, which a
+    /// Multiphysics case cannot hold. Both enclose the sphere's volume closely.
+    #[test]
+    fn an_export_for_cells_is_as_fine_as_the_cells_need() {
+        let (_, m) = model();
+        let mut st = (*m.state()).clone();
+        st.bodies[0].body = solidcraft_kernel::sphere(Vec3::ZERO, 10.0).unwrap();
+        let measure = |obj: &str| {
+            let v: Vec<[f64; 3]> = obj
+                .lines()
+                .filter_map(|l| l.strip_prefix("v "))
+                .map(|l| {
+                    let mut it = l.split_whitespace().filter_map(|x| x.parse::<f64>().ok());
+                    [it.next().unwrap_or(0.0), it.next().unwrap_or(0.0), it.next().unwrap_or(0.0)]
+                })
+                .collect();
+            let mut volume = 0.0;
+            let mut count = 0;
+            for f in obj.lines().filter_map(|l| l.strip_prefix("f ")) {
+                let i: Vec<usize> = f.split_whitespace().filter_map(|t| t.split('/').next()?.parse::<usize>().ok()).collect();
+                let [a, b, c] = [v[i[0] - 1], v[i[1] - 1], v[i[2] - 1]];
+                volume += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0;
+                count += 1;
+            }
+            (count, volume)
+        };
+        let exact = 4.0 / 3.0 * std::f64::consts::PI * 1000.0;
+        let (print, _) = measure(&export_obj(&st, &[], "s.mtl", MeshQuality::default()).unwrap().obj);
+        let (cells, volume) = measure(&export_obj_for_cells(&st, &[], "s.mtl", 2.0).unwrap().obj);
+        assert!(print > 10_000, "{print}");
+        assert!(cells < 5_000 && cells * 5 < print, "{cells} vs {print}");
+        assert!((volume / exact - 1.0).abs() < 0.02, "{volume} vs {exact}");
     }
 
     /// The design properties land in each format's own metadata (#1015): STEP and IGES headers,

@@ -1071,7 +1071,6 @@ fn heat_on_faces(
     thermal_faces: &[ResolvedFace],
     domain: [[f64; 3]; 2],
     cell_mm: [f64; 3],
-    wetted: [bool; 6],
 ) -> Result<()> {
     let mut sources = Vec::new();
     for (source, face) in heat.face_sources.iter().zip(source_faces) {
@@ -1083,7 +1082,9 @@ fn heat_on_faces(
     let mut boundaries: Vec<Value> = Vec::new();
     let mut given: [Option<&str>; 6] = Default::default();
     for (condition, face) in heat.face_conditions.iter().zip(thermal_faces) {
-        let Some(side) = face.plane.and_then(|plane| patch_of(plane, domain, cell_mm)).filter(|p| wetted[*p]) else {
+        // The energy equation covers solid and fluid cells alike, so a side of the domain that
+        // only solid touches (a cold plate under the whole model) takes a condition too.
+        let Some(side) = face.plane.and_then(|plane| patch_of(plane, domain, cell_mm)) else {
             return Err(bad(format!(
                 "{}: a thermal condition goes on a flat face on the domain boundary; on a face inside the domain, give a heat source",
                 condition.name
@@ -1341,7 +1342,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         placed.push((opening.name.clone(), PATCHES[patch].to_string()));
     }
     if let Some(heat) = &link.heat {
-        heat_on_faces(&mut case, heat, source_faces, thermal_faces, domain, cell_mm, wetted)?;
+        heat_on_faces(&mut case, heat, source_faces, thermal_faces, domain, cell_mm)?;
     }
     if let (Some(fan), Some(face)) = (&link.fan, fan_faces.first()) {
         put_fan(&mut case, fan, face, domain, cell_mm, wetted, &given)?;
@@ -1902,6 +1903,33 @@ mod tests {
             l.flow = Some(bad);
             assert!(l.validate().is_err(), "{bad:?}");
         }
+    }
+
+    /// The duct's outer underside fills the domain's lowest side: no fluid touches that side,
+    /// but heat is solved in the solid cells too, so a temperature condition goes on it.
+    #[test]
+    fn a_thermal_condition_goes_on_a_side_only_solid_touches() {
+        let mut cold = link(&[]);
+        cold.heat = Some(ModelHeat {
+            face_conditions: vec![FaceThermal {
+                name: "cold plate".into(),
+                face: FaceRef { body: "Duct".into(), face: "underside".into() },
+                condition: ThermalFace::Temperature { temperature_k: 290.0 },
+            }],
+            ..Default::default()
+        });
+        let mut input = duct();
+        input.faces = vec![ResolvedFace {
+            name: "underside".into(),
+            body: "Duct".into(),
+            plane: Some(([0.0, 0.0, -1.0], [50.0, 20.0, 0.0])),
+            ..Default::default()
+        }];
+        let built = build(&channel(), &cold, &input).expect("a condition on an all-solid side");
+        assert_eq!(
+            built.case["thermal"]["boundaries"],
+            serde_json::json!([{"patch": "front", "condition": {"kind": "temperature", "temperature_k": 290.0}}])
+        );
     }
 
     /// The automatic grid (2 mm, the duct's walls two cells thick: 20 000 cells) split in two
