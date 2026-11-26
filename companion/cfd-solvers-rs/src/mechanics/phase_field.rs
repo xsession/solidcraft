@@ -113,16 +113,11 @@ impl PhaseFieldFracture1D {
         for _ in 0..c.damage_iterations {
             let mut max_change: f64 = 0.0;
             for cell in 0..n {
+                // The gradient term couples a cell to the neighbours it has; an end of the bar
+                // has none beyond it (zero damage gradient), so it adds nothing there.
                 let (hl, hr) = (cell > 0, cell + 1 < n);
-                let sum = (if hl {
-                    self.damage[cell - 1]
-                } else {
-                    self.damage[cell]
-                }) + (if hr {
-                    self.damage[cell + 1]
-                } else {
-                    self.damage[cell]
-                });
+                let sum = (if hl { self.damage[cell - 1] } else { 0.0 })
+                    + (if hr { self.damage[cell + 1] } else { 0.0 });
                 let count = hl as u8 as f64 + hr as u8 as f64;
                 let diag =
                     2.0 * self.history[cell] + c.fracture_energy / c.length_scale + count * gc;

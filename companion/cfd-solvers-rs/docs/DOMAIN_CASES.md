@@ -36,7 +36,7 @@ but its feed reactance for a half-wave dipole is tens of kilo-ohms, so it is not
 | `elasticity2d` | Plane stress/strain linear triangles; edge supports, gravity, uniform heating; element stresses | `elasticity.vtu` (displacement, σ, von Mises) | Steel cantilever tip 4.80e-5 m vs Euler–Bernoulli 5.78e-5 m (linear triangles are stiff) |
 | `bar_modes1d` | Fixed–free axial bar eigenmodes | `modes.csv`, `mode_shapes.csv` | 1262 Hz vs `c/4L` = 1261.8 Hz |
 | `j2_uniaxial` | J2 plasticity with linear hardening under cyclic uniaxial stress (Newton on lateral strain) | `stress_strain.csv` | Elastic to 250 MPa, hardening loops, lateral stress residual < 1e-7 Pa |
-| `phase_field_fracture1d` | AT2 phase-field damage in a notched bar under end displacement | `load_displacement.csv`, `damage_profile.csv` | Peak force, then softening to full damage |
+| `phase_field_fracture1d` | AT2 phase-field damage in a notched bar under end displacement | `load_displacement.csv`, `damage_profile.csv` | Peak force 0.0711 N, then softening; with no notch the peak is the AT2 strength (3√3/16)·√(E·G_c/ℓ) |
 | `cosserat_cantilever` | Position-based Cosserat rod clamped over its first segment | `tip_history.csv`, `rod_shape.csv` | Bounded, damped sag; compliance is not calibrated to EI |
 | `dem_granular` | Hertz–Mindlin DEM spheres settling in a walled box | `particles_*.vtu`, `particles.pvd`, `settling.csv` | 125 spheres settle; none escape |
 

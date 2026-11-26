@@ -301,29 +301,37 @@ fn continuum_meshfree_and_fracture() {
     );
     close("meshfree", &gv, 0.0, 0.0);
 
-    let mut pf = PhaseFieldFracture1D::new(PhaseFieldFracture1DConfig {
+    // The 1-D phase-field bar departs from the reference on purpose: the reference counts an
+    // end cell's own damage as its missing neighbour without counting that neighbour in the
+    // diagonal, which drives the ends' damage to 1 at once. An end now has a zero damage
+    // gradient, so a bar with no notch damages evenly and peaks at the AT2 model's
+    // σ_c = (3√3/16)·√(E·G_c/ℓ) (Pham, Amor, Marigo and Maurini, Int. J. Damage Mech. 2011).
+    let config = PhaseFieldFracture1DConfig {
         cells: 24,
-        notch_cell: Some(12),
-        initial_notch_damage: 0.3,
+        notch_cell: None,
         damage_iterations: 300,
         ..Default::default()
-    })
-    .unwrap();
-    let mut ff = vec![];
-    for u in [0.005, 0.01, 0.02, 0.015] {
-        let d = pf.step(u).unwrap();
-        ff.extend([
-            d.reaction_force,
-            d.elastic_energy,
-            d.fracture_energy,
-            d.total_energy,
-            d.maximum_damage,
-        ]);
+    };
+    let mut pf = PhaseFieldFracture1D::new(config).unwrap();
+    let mut peak: f64 = 0.0;
+    for i in 1..=4000 {
+        peak = peak.max(
+            pf.step(i as f64 * config.length * 1e-4)
+                .unwrap()
+                .reaction_force,
+        );
     }
-    ff.extend(pf.damage());
-    ff.extend(pf.history());
-    ff.push(pf.diagnostics().total_energy);
-    close("pf", &ff, 1e-12, 1e-16);
+    let strength = 3.0 * 3f64.sqrt() / 16.0
+        * (config.youngs_modulus * config.fracture_energy / config.length_scale).sqrt()
+        * config.area;
+    assert!(
+        (peak - strength).abs() < 1e-3 * strength,
+        "peak {peak} vs {strength}"
+    );
+    assert!(
+        pf.damage().windows(2).all(|w| (w[0] - w[1]).abs() < 1e-9),
+        "an even bar damages evenly"
+    );
 
     let mut op = CoupledPhaseFieldFracture1D::new(CoupledPhaseFieldFracture1DConfig {
         cells: 8,

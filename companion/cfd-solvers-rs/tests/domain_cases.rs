@@ -181,9 +181,22 @@ fn j2_yields_at_the_yield_stress_and_hardens() {
 fn phase_field_bar_softens_after_its_peak() {
     let (m, dir) = run("phase-field-bar", |_| {});
     let f = csv_column(&dir, "load_displacement.csv", "reaction_force_N");
+    // The bar's strain is held even, so the damage grows everywhere and only nears 1 as the
+    // strain grows without bound; past the peak the force falls.
     assert!(
-        metric(&m, "peak_force_N") > *f.last().unwrap()
-            && metric(&m, "final_maximum_damage") > 0.99
+        metric(&m, "peak_force_N") > *f.last().unwrap() && metric(&m, "final_maximum_damage") > 0.5
+    );
+    // With no notch the damage stays even, and the AT2 model's homogeneous solution peaks at
+    // σ_c = (3√3/16)·√(E·G_c/ℓ) (Pham, Amor, Marigo and Maurini, Int. J. Damage Mech. 2011).
+    let (m, _) = run("phase-field-bar", |v| {
+        v["notch_damage"] = 0.0.into();
+        v["load_steps"] = 1000.into();
+    });
+    let strength = 3.0 * 3f64.sqrt() / 16.0 * (1.0f64 * 1e-3 / 0.02).sqrt();
+    assert!(
+        (metric(&m, "peak_force_N") - strength).abs() < 1e-4 * strength,
+        "{}",
+        metric(&m, "peak_force_N")
     );
 }
 

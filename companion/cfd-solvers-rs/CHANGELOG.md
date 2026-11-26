@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `phase_field_fracture1d`: the ends of the bar have a zero damage gradient. The damage update
+  counted an end cell's own damage as its missing neighbour without counting that neighbour in
+  the diagonal, so the ends' damage jumped to 1 at once and the bar's peak force came out 4 to 6 %
+  low. A bar with no notch now damages evenly and peaks at the AT2 model's
+  σ_c = (3√3/16)·√(E·G_c/ℓ). The bar's strain is held even, so its damage nears 1 only as the
+  strain grows without bound; the example's notched bar ends at 0.56.
 - 0.18.0: `scaled_momentum_v1`, opt-in `config.scaled_momentum`: momentum components are solved
   with their right-hand side scaled to an rms of 1, so small, slow cases (millimetre cells,
   centimetres per second) no longer stop solving in their first steps under the linear
