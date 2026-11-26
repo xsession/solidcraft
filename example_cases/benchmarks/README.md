@@ -11,6 +11,18 @@ Nothing is taken from another product: each case is written from the problem's s
 
 | Benchmark | Domain | Reference | Checked |
 |---|---|---|---|
+| [Gaussian pulse in water](acoustics-gaussian-pulse.json) | Acoustics | the 2-D wave's exact solution (Hankel transform) | the pressure across the ring's crest |
+| [Cold Lennard-Jones chain](atomistics-cold-chain.json) | Atomistics | lattice sum and equipartition | potential energy per atom |
+| [Discharge and rest](battery-discharge-and-rest.json) | Batteries | charge conservation; relaxation (Doyle, Fuller and Newman) | charge delivered; the voltage recovering and settling |
+| [Uniform heating against perfusion](bioheat-uniform-heating.json) | Bioheat | Pennes (1948) | the rise after one and ten time constants |
+| [Lid-driven cavity, Re = 100](flow-lid-driven-cavity.json) | Flow (3-D flow solver) | Ghia, Ghia and Shin (1982) | u down the vertical centreline at six heights |
+| [Hertzian sphere at rest](granular-hertz-rest.json) | Granular | Johnson, *Contact Mechanics* | how far it sinks |
+| [DG advection](high-order-dg-advection.json) | High order | Hesthaven and Warburton | difference from the exact profile; mass |
+| [Spinodal growth](microstructure-spinodal-growth.json) | Microstructure | Cahn (1961) | the wave's amplitude |
+| [Slab waveguide](photonics-slab-waveguide.json) | Photonics | Okamoto; Marcuse | the effective index |
+| [Diffusing slug](porous-diffusing-slug.json) | Porous media | Crank, *The Mathematics of Diffusion* | the profile at three points |
+| [Five-bus load flow](power-five-bus-load-flow.json) | Power networks | Stagg and El-Abiad's network; Newton–Raphson solved independently | voltages and angles |
+| [k–ε decay](turbulence-k-epsilon-decay.json) | Turbulence | Launder and Spalding (1974) | k after 2 s |
 | [Robertson's stiff reactions](chemistry-robertson.json) | Chemistry | Robertson (1966); Hairer and Wanner (1996) | the three concentrations at 40 s |
 | [RC low-pass filter](circuits-rc-low-pass.json) | Circuits | Sedra and Smith | gain at 1 and 10 kHz; the step response at one time constant |
 | [Sod's shock tube](compressible-sod-shock-tube.json) | Compressible flow | Sod (1978); Toro's exact Riemann solution | pressure and densities between the waves |
@@ -67,6 +79,15 @@ python3 example_cases/benchmarks/run_benchmarks.py /path/to/cfd-solve /tmp/bench
 - **The diode solver fails on devices longer than 2 µm** (its Gummel iteration diverges and a
   pivot vanishes), so the junction here is short, and its capacitance under reverse bias,
   whose depletion would reach the contacts, is not checked.
+- **The acoustic solver is first-order in time**: its velocity starts at t = 0 rather than half a
+  step before, so a pulse is 3 % low at a Courant number of 0.3 and within 1 % at 0.075.
+- **The 3-D flow solver's convection is first-order upwind**, the only scheme its momentum
+  equation offers: in the lid-driven cavity at Re = 100 on 65 × 65 cells the vortex core turns
+  4 to 5 % slow (within 2 % on 129 × 129). Its tolerance there is 6 %.
+- **The two-fluid (Euler–Euler) model has no pressure**: drag pushes the liquid along with the
+  bubbles instead of the liquid holding them back, so a bubble column's published behaviour
+  (liquid recirculation, a drift-flux rise speed) does not apply, and multiphase flow has no
+  benchmark yet.
 - **A thin dipole's 73 + j42.5 Ω** is the induced-EMF estimate for a sinusoidal current; the
   moment method converges to about 81 + j47 Ω at exactly half a wavelength, so the benchmark
   checks the resonance (0.48 λ, about 70 Ω) instead.

@@ -1,0 +1,31 @@
+{
+  "title": "A Gaussian carried once round by DG",
+  "domain": "High order",
+  "shows": "A Gaussian (width 0.08) carried once round a periodic unit domain by order-4 nodal discontinuous Galerkin on 64 elements comes back to where it began: it matches the exact translated profile to 2e-6 of its height of 1. Its error falls as h^(p+1): 2^4.9 per halving from 32 to 64 elements. Mass is kept to rounding.",
+  "source": "J. S. Hesthaven and T. Warburton, Nodal Discontinuous Galerkin Methods (2008), §4.8 (the h^(p+1) error of the upwind scheme for linear advection).",
+  "case": {
+    "solver": "dg_advection1d",
+    "elements": 64,
+    "order": 4,
+    "profile": "gaussian",
+    "dt": 0.00025,
+    "steps": 4000
+  },
+  "checks": [
+    {
+      "what": "largest difference from the exact profile after one period",
+      "value": {
+        "metric": "max_error"
+      },
+      "at_most": 2e-06
+    },
+    {
+      "what": "mass gained or lost, relative",
+      "value": {
+        "metric": "mass_drift"
+      },
+      "at_least": -1e-12,
+      "at_most": 1e-12
+    }
+  ]
+}

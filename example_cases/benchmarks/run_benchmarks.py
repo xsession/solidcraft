@@ -8,6 +8,7 @@ Writes OUTPUT_DIR/benchmarks.json (what each check measured) and prints a table.
 """
 import csv
 import json
+import xml.etree.ElementTree as ElementTree
 import subprocess
 import sys
 import time
@@ -22,9 +23,46 @@ def column(path, name):
     return [float(r[name]) for r in rows]
 
 
+def vtu_value(spec, out):
+    """A cell field of the last VTU frame whose name starts with `vtu`: its value in the cell
+    whose centre is nearest `nearest`, or its `stat` (`mean`, `max`, `min`) over the cells."""
+    frames = sorted(p for p in out.iterdir() if p.name.startswith(spec["vtu"]) and p.suffix == ".vtu")
+    if not frames:
+        return None
+    root = ElementTree.parse(frames[-1]).getroot()
+    arrays = {a.get("Name"): a for a in root.iter("DataArray")}
+    field = arrays.get(spec["field"])
+    if field is None:
+        return None
+    width = int(field.get("NumberOfComponents", "1"))
+    values = [float(v) for v in field.text.split()]
+    column = [values[i * width + spec.get("component", 0)] for i in range(len(values) // width)]
+    if "stat" in spec:
+        return {"mean": sum(column) / len(column), "max": max(column), "min": min(column)}[spec["stat"]]
+    points_node = next(a for a in root.iter("DataArray") if a.get("NumberOfComponents") == "3" and a in list(root.iter("Points"))[0])
+    xyz = [float(v) for v in points_node.text.split()]
+    points = [xyz[i:i + 3] for i in range(0, len(xyz), 3)]
+    connectivity = [int(v) for v in arrays["connectivity"].text.split()]
+    offsets = [int(v) for v in arrays["offsets"].text.split()]
+    best, best_d = None, float("inf")
+    start = 0
+    for cell, end in enumerate(offsets):
+        nodes = connectivity[start:end]
+        start = end
+        centre = [sum(points[n][a] for n in nodes) / len(nodes) for a in range(3)]
+        d = sum((centre[a] - spec["nearest"][a]) ** 2 for a in range(3))
+        if d < best_d:
+            best, best_d = cell, d
+    return column[best]
+
+
 def value_of(spec, out, metrics):
     if "metric" in spec:
         v = metrics.get(spec["metric"])
+        if v is None:
+            return None
+    elif "vtu" in spec:
+        v = vtu_value(spec, out)
         if v is None:
             return None
     elif "json" in spec:
@@ -52,6 +90,11 @@ def value_of(spec, out, metrics):
                     break
             if v is None:
                 return None
+    if "minus" in spec:
+        other = value_of(spec["minus"], out, metrics)
+        if other is None:
+            return None
+        v -= other
     if "over" in spec:
         under = value_of(spec["over"], out, metrics)
         if under is None:

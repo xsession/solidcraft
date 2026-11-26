@@ -1,0 +1,48 @@
+{
+  "title": "Tissue heated evenly against blood perfusion",
+  "domain": "Bioheat",
+  "shows": "Tissue absorbing 40 W/kg everywhere, cooled only by perfusion (0.005/s): Pennes's equation has it rise as ΔT·(1 − e^(−t/τ)) with ΔT = ρ·SAR/(ρ_b·c_b·ω) = 2.002 K and τ = ρc/(ρ_b·c_b·ω) = 180.2 s.",
+  "source": "H. H. Pennes, J. Appl. Physiol. 1 (1948) 93–122; the uniform solution of his equation.",
+  "case": {
+    "solver": "pennes_bioheat2d",
+    "nx": 16,
+    "ny": 16,
+    "width_m": 0.1,
+    "height_m": 0.1,
+    "peak_sar_w_kg": 40.0,
+    "hotspot_center_m": [
+      0.05,
+      0.05
+    ],
+    "hotspot_radius_m": 1000.0,
+    "dt_s": 1.0,
+    "steps": 1800,
+    "blood_perfusion_per_s": 0.005,
+    "periodic": true
+  },
+  "checks": [
+    {
+      "what": "rise after one time constant (K)",
+      "value": {
+        "file": "hotspot_history.csv",
+        "column": "max_temperature_K",
+        "at": {
+          "column": "time_s",
+          "value": 180.17116260447426
+        },
+        "add": -310.15
+      },
+      "expect": 1.2654432887814577,
+      "tolerance": 0.005
+    },
+    {
+      "what": "rise after ten time constants (K)",
+      "value": {
+        "metric": "max_temperature_K",
+        "add": -310.15
+      },
+      "expect": 2.0018100529817926,
+      "tolerance": 0.002
+    }
+  ]
+}

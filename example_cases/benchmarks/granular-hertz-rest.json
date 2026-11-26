@@ -1,0 +1,33 @@
+{
+  "title": "A sphere resting on a plane",
+  "domain": "Granular",
+  "shows": "A 10 mm glass bead dropped on the floor settles where its Hertzian contact force k·δ^(3/2) carries its weight: it sinks δ = (m·g/k)^(2/3) = 25.45 µm.",
+  "source": "Hertz's contact law: K. L. Johnson, Contact Mechanics (1985), §4.2.",
+  "case": {
+    "solver": "dem_granular",
+    "radius_m": 0.005,
+    "density_kg_m3": 2500.0,
+    "count": [
+      1,
+      1,
+      1
+    ],
+    "container_width_m": 0.05,
+    "dt_s": 5e-05,
+    "steps": 20000,
+    "frames": 4,
+    "normal_stiffness": 100000.0
+  },
+  "checks": [
+    {
+      "what": "how far it sinks, as a share of Hertz's",
+      "value": {
+        "metric": "final_mean_height_m",
+        "add": -0.005,
+        "divide_by": -2.545296765271665e-05
+      },
+      "expect": 1.0,
+      "tolerance": 0.02
+    }
+  ]
+}

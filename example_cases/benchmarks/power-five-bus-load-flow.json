@@ -1,0 +1,160 @@
+{
+  "title": "A five-bus load flow",
+  "domain": "Power networks",
+  "shows": "The five-bus network of Stagg and El-Abiad (its lines; loads only, no line charging), its slack bus at 1.06 p.u.: the bus voltages from a Newton–Raphson load flow written here independently.",
+  "source": "Network data: G. W. Stagg and A. H. El-Abiad, Computer Methods in Power System Analysis (1968); the method: J. J. Grainger and W. D. Stevenson, Power System Analysis (1994), ch. 9.",
+  "case": {
+    "solver": "power_network",
+    "buses": [
+      {
+        "name": "slack",
+        "kind": "slack",
+        "voltage_pu": 1.06
+      },
+      {
+        "name": "north",
+        "active_pu": -0.45,
+        "reactive_pu": -0.15
+      },
+      {
+        "name": "lake",
+        "active_pu": -0.4,
+        "reactive_pu": -0.05
+      },
+      {
+        "name": "main",
+        "active_pu": -0.4,
+        "reactive_pu": -0.05
+      },
+      {
+        "name": "elm",
+        "active_pu": -0.6,
+        "reactive_pu": -0.1
+      }
+    ],
+    "lines": [
+      {
+        "from": 0,
+        "to": 1,
+        "resistance_pu": 0.02,
+        "reactance_pu": 0.06
+      },
+      {
+        "from": 0,
+        "to": 2,
+        "resistance_pu": 0.08,
+        "reactance_pu": 0.24
+      },
+      {
+        "from": 1,
+        "to": 2,
+        "resistance_pu": 0.06,
+        "reactance_pu": 0.18
+      },
+      {
+        "from": 1,
+        "to": 3,
+        "resistance_pu": 0.06,
+        "reactance_pu": 0.18
+      },
+      {
+        "from": 1,
+        "to": 4,
+        "resistance_pu": 0.04,
+        "reactance_pu": 0.12
+      },
+      {
+        "from": 2,
+        "to": 3,
+        "resistance_pu": 0.01,
+        "reactance_pu": 0.03
+      },
+      {
+        "from": 3,
+        "to": 4,
+        "resistance_pu": 0.08,
+        "reactance_pu": 0.24
+      }
+    ]
+  },
+  "checks": [
+    {
+      "what": "voltage at north (p.u.)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "voltage_pu",
+        "at": {
+          "column": "bus",
+          "value": 1
+        }
+      },
+      "expect": 1.010780962045757,
+      "tolerance": 1e-05
+    },
+    {
+      "what": "voltage at lake (p.u.)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "voltage_pu",
+        "at": {
+          "column": "bus",
+          "value": 2
+        }
+      },
+      "expect": 0.9958396728141908,
+      "tolerance": 1e-05
+    },
+    {
+      "what": "voltage at main (p.u.)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "voltage_pu",
+        "at": {
+          "column": "bus",
+          "value": 3
+        }
+      },
+      "expect": 0.9916702639292744,
+      "tolerance": 1e-05
+    },
+    {
+      "what": "voltage at elm (p.u.)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "voltage_pu",
+        "at": {
+          "column": "bus",
+          "value": 4
+        }
+      },
+      "expect": 0.9786491514190732,
+      "tolerance": 1e-05
+    },
+    {
+      "what": "angle at north (°)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "angle_deg",
+        "at": {
+          "column": "bus",
+          "value": 1
+        }
+      },
+      "expect": -4.109987817680455,
+      "tolerance": 0.0001
+    },
+    {
+      "what": "angle at elm (°)",
+      "value": {
+        "file": "power_flow.csv",
+        "column": "angle_deg",
+        "at": {
+          "column": "bus",
+          "value": 4
+        }
+      },
+      "expect": -7.490044707083508,
+      "tolerance": 0.0001
+    }
+  ]
+}

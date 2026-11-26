@@ -12,10 +12,22 @@ right, and how close.
 
 ## The last run
 
-All 20 pass (solver companion 0.18.0, with the phase-field fix below).
+All 32 pass (solver companion 0.18.0, with the phase-field fix below).
 
 | Benchmark | Reference | Result |
 |---|---|---|
+| Gaussian pulse in water | the 2-D wave's exact solution | within 1.5 % across the ring's crest |
+| Cold Lennard-Jones chain | lattice sum and equipartition | −0.08 % |
+| Discharge and rest | charge conservation; relaxation | charge exact; the voltage recovers 24 mV and settles |
+| Uniform heating against perfusion | Pennes (1948) | −0.16 % after one time constant |
+| Lid-driven cavity, Re = 100 | Ghia, Ghia and Shin (1982) | within 0.5 to 5 % down the centreline |
+| Hertzian sphere at rest | Johnson | exact |
+| DG advection | Hesthaven and Warburton | 1.4e-6 from the exact profile; error falls as h^4.9 |
+| Spinodal growth | Cahn (1961) | −1.0 % |
+| Slab waveguide | Okamoto; Marcuse | −0.15 % |
+| Diffusing slug | Crank | within 0.05 % |
+| Five-bus load flow | Newton–Raphson solved independently | within 1e-8 p.u. |
+| k–ε decay | Launder and Spalding | −0.01 % |
 | Robertson's stiff reactions | Hairer and Wanner | A, B and C at 40 s within 0.01 % |
 | RC low-pass filter | closed form | gain and step response within 0.03 % |
 | Sod's shock tube | Toro's exact Riemann solution | pressure and densities between the waves within 0.01 % |
@@ -46,11 +58,17 @@ All 20 pass (solver companion 0.18.0, with the phase-field fix below).
   resonance 6 % low.
 - **The diode solver fails on devices longer than 2 µm**, so reverse-bias capacitance is not
   yet checked.
+- **The acoustic solver is first-order in time**: it starts its velocity at t = 0 rather than
+  half a step before, so a pulse comes out 3 % low at a Courant number of 0.3, within 1 % at 0.075.
+- **The 3-D flow solver's convection is first-order upwind**, the only scheme its momentum
+  equation offers: the lid-driven cavity's vortex core turns 4 to 5 % slow on 65 × 65 cells.
+- **The two-fluid (Euler–Euler) model has no pressure**: drag carries the liquid along with the
+  bubbles, so a bubble column's published behaviour does not apply.
 - **A thin dipole's 73 + j42.5 Ω** holds only for a sinusoidal current; the moment method's
   impedance at exactly half a wavelength is about 81 + j47 Ω, and its resonance matches the
   published one.
 
-Domains with no benchmark yet: acoustics, atomistics, batteries, bioheat, the Cahn–Hilliard
-equation, discontinuous Galerkin, granular flow, multiphase flow, photonics, power networks,
-porous columns, turbulence and the lid-driven cavity (which needs velocity probes in the 3-D
-flow solver's results).
+Every domain of the solver has a benchmark except multiphase flow (see above). Within some
+domains, solvers still without one: the 1-D Maxwell and 3-D FDTD solvers, Joule heating, the
+power-plane IR drop, galvanic corrosion, the Cosserat rod, the depth-dose transport, the 2-D heat
+and Poisson solvers and scalar transport.

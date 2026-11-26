@@ -1,0 +1,29 @@
+{
+  "title": "A spinodal wave growing in a Cahn–Hilliard mixture",
+  "domain": "Microstructure",
+  "shows": "A 50/50 mixture inside its spinodal (f = c²(1 − c)²/4, so f''(½) = −¼) with a small cosine wave of composition: the wave grows as exp(σt) with σ = M·k²·(−f'' − κ·k²), 9.090 per unit time here.",
+  "source": "Linear stability of the Cahn–Hilliard equation: J. W. Cahn, Acta Metall. 9 (1961) 795–801.",
+  "case": {
+    "solver": "cahn_hilliard1d",
+    "cells": 32,
+    "length": 1.0,
+    "mobility": 1.0,
+    "gradient_energy": 0.0005,
+    "mean_composition": 0.5,
+    "perturbation": 0.0001,
+    "dt": 0.0001,
+    "steps": 3300,
+    "snapshots": 1
+  },
+  "checks": [
+    {
+      "what": "the wave's amplitude at the end",
+      "value": {
+        "metric": "composition_max",
+        "add": -0.5
+      },
+      "expect": 0.0020081710029509993,
+      "tolerance": 0.02
+    }
+  ]
+}

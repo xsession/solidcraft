@@ -1,0 +1,64 @@
+{
+  "title": "Decaying turbulence in the k–ε model",
+  "domain": "Turbulence",
+  "shows": "Turbulence with no mean shear only decays: dk/dt = −ε and dε/dt = −C_ε2·ε²/k, so k = k₀·(1 + (C_ε2 − 1)·ε₀·t/k₀)^(−1/(C_ε2 − 1)), 0.4921 of its start after 2 s.",
+  "source": "B. E. Launder and D. B. Spalding, Comput. Methods Appl. Mech. Eng. 3 (1974) 269–289; S. B. Pope, Turbulent Flows (2000), §10.4.",
+  "case": {
+    "solver": "rans_transport3d",
+    "mesh": {
+      "dimensions": [
+        4,
+        4,
+        2
+      ],
+      "lengths": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 0.5
+      }
+    },
+    "output": {
+      "steps": 2000,
+      "output_interval": 2000
+    },
+    "velocity": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "velocity_gradient": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "turbulence": {
+      "model": "k_epsilon",
+      "k": 0.02,
+      "epsilon": 0.01,
+      "config": {
+        "transport": {
+          "dt": 0.001,
+          "temporal_scheme": "crank_nicolson"
+        }
+      }
+    }
+  },
+  "checks": [
+    {
+      "what": "turbulent kinetic energy after 2 s (m²/s²)",
+      "value": {
+        "vtu": "rans",
+        "field": "k_m2_per_s2",
+        "stat": "mean"
+      },
+      "expect": 0.009842238335278202,
+      "tolerance": 0.01
+    }
+  ]
+}

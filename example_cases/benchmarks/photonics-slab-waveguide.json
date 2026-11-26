@@ -1,0 +1,33 @@
+{
+  "title": "A silicon slab between silica, in a box",
+  "domain": "Photonics",
+  "shows": "A 250 nm silicon layer (n² = 12.11) between silica (n² = 2.085) at 1.55 µm, filling the width of a 2 µm box whose walls hold the field at zero: the mode separates into the slab's TE₀ mode (n = 2.9409, from tan(κd/2) = γ/κ) times sin(πx/W), so n_eff = √(n_slab² − (λ/2W)²) = 2.9152. 64 cells across the height.",
+  "source": "Symmetric slab waveguide: K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (2006), §2.1; D. Marcuse, Theory of Dielectric Optical Waveguides (1974), ch. 1.",
+  "case": {
+    "solver": "photonic_waveguide",
+    "nx": 4,
+    "ny": 64,
+    "width_m": 2e-06,
+    "height_m": 1.6e-06,
+    "core_m": [
+      0.0,
+      2e-06,
+      6.75e-07,
+      9.249999999999999e-07
+    ],
+    "core_permittivity": 12.11,
+    "cladding_permittivity": 2.085,
+    "wavelength_m": 1.55e-06,
+    "modes": 2
+  },
+  "checks": [
+    {
+      "what": "fundamental effective index",
+      "value": {
+        "metric": "fundamental_effective_index"
+      },
+      "expect": 2.915222835212652,
+      "tolerance": 0.005
+    }
+  ]
+}

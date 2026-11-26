@@ -1,0 +1,30 @@
+{
+  "title": "A cold Lennard-Jones chain",
+  "domain": "Atomistics",
+  "shows": "100 atoms on a ring at 1.12 σ apart, cooled to T = 0.01 ε/k: each has the lattice energy 4·Σ((na)⁻¹² − (na)⁻⁶) = -1.03124 ε over its neighbours within the 2.5 σ cutoff, plus T/2 of potential energy by equipartition in a harmonic crystal.",
+  "source": "Lennard-Jones lattice sums and equipartition: N. W. Ashcroft and N. D. Mermin, Solid State Physics (1976), ch. 20 and 22; M. P. Allen and D. J. Tildesley, Computer Simulation of Liquids, 2nd ed. (2017), §1.4.",
+  "case": {
+    "solver": "lennard_jones_md1d",
+    "particles": 100,
+    "box_length": 112.00000000000001,
+    "initial_temperature": 0.01,
+    "target_temperature": 0.01,
+    "thermostat_steps": 4000,
+    "dt": 0.005,
+    "steps": 10000
+  },
+  "checks": [
+    {
+      "what": "potential energy per atom less T/2 (ε)",
+      "value": {
+        "metric": "final_potential_energy_per_particle",
+        "minus": {
+          "metric": "mean_temperature",
+          "divide_by": 2.0
+        }
+      },
+      "expect": -1.0312378987308546,
+      "tolerance": 0.002
+    }
+  ]
+}

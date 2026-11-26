@@ -39,13 +39,70 @@ fn column(text: &str, name: &str) -> Option<Vec<f64>> {
     lines.filter(|l| !l.trim().is_empty()).map(|l| l.split(',').nth(index).and_then(|v| v.trim().parse().ok())).collect()
 }
 
+/// The numbers of the VTU `DataArray` named `name` in `text`, and its number of components.
+fn vtu_array(text: &str, name: &str) -> Option<(Vec<f64>, usize)> {
+    let start = text.find(&format!("Name=\"{name}\""))?;
+    let tag_start = text[..start].rfind("<DataArray")?;
+    let tag_end = start + text[start..].find('>')?;
+    let tag = &text[tag_start..tag_end];
+    let width = tag.split("NumberOfComponents=\"").nth(1).and_then(|rest| rest.split('"').next()).and_then(|n| n.parse().ok()).unwrap_or(1);
+    let body = &text[tag_end + 1..];
+    let body = &body[..body.find("</DataArray>")?];
+    Some((body.split_whitespace().map(str::parse).collect::<Result<_, _>>().ok()?, width))
+}
+
+/// A cell field of the last VTU frame whose name starts with `vtu`: its value in the cell whose
+/// centre is nearest `nearest`, or its `stat` (`mean`, `max`, `min`) over the cells.
+fn vtu_value(spec: &Value, artifacts: &[Artifact]) -> Option<f64> {
+    let prefix = spec["vtu"].as_str()?;
+    let frame = artifacts.iter().filter(|a| a.name.starts_with(prefix) && a.name.ends_with(".vtu")).max_by(|a, b| a.name.cmp(&b.name))?;
+    let text = frame.text.as_str();
+    let (values, width) = vtu_array(text, spec["field"].as_str()?)?;
+    let component = usize::try_from(spec["component"].as_u64().unwrap_or(0)).ok()?;
+    let column: Vec<f64> = values.chunks(width).filter_map(|c| c.get(component).copied()).collect();
+    if let Some(stat) = spec["stat"].as_str() {
+        return match stat {
+            "mean" => Some(column.iter().sum::<f64>() / column.len().max(1) as f64),
+            "max" => Some(column.iter().copied().fold(f64::NEG_INFINITY, f64::max)),
+            "min" => Some(column.iter().copied().fold(f64::INFINITY, f64::min)),
+            _ => None,
+        };
+    }
+    let target: Vec<f64> = spec["nearest"].as_array()?.iter().filter_map(Value::as_f64).collect();
+    // The points' array carries no name: it is the first array after <Points>.
+    let rest = &text[text.find("<Points>")?..];
+    let open = rest.find("<DataArray")?;
+    let body = &rest[open + rest[open..].find('>')? + 1..];
+    let points: Vec<f64> = body[..body.find("</DataArray>")?].split_whitespace().map(str::parse).collect::<Result<_, _>>().ok()?;
+    let (connectivity, _) = vtu_array(text, "connectivity")?;
+    let (offsets, _) = vtu_array(text, "offsets")?;
+    let mut start = 0usize;
+    let mut best = (f64::INFINITY, None);
+    for (cell, end) in offsets.iter().enumerate() {
+        let end = *end as usize;
+        let nodes = connectivity.get(start..end)?;
+        start = end;
+        let mut distance = 0.0;
+        for (axis, want) in target.iter().enumerate() {
+            let centre = nodes.iter().filter_map(|n| points.get(*n as usize * 3 + axis)).sum::<f64>() / nodes.len().max(1) as f64;
+            distance += (centre - want).powi(2);
+        }
+        if distance < best.0 {
+            best = (distance, Some(cell));
+        }
+    }
+    column.get(best.1?).copied()
+}
+
 /// A check's value from a run: a metric, a JSON artifact's value by path, or a CSV artifact's
-/// column in a given row or interpolated at a value of another column; then over another such
-/// value (`over`), then `add`, then `divide_by`.
+/// column in a given row or interpolated at a value of another column, or a VTU cell field;
+/// then less another such value (`minus`), over another (`over`), then `add`, then `divide_by`.
 fn value_of(spec: &Value, metrics: &Value, artifacts: &[Artifact]) -> Option<f64> {
     let artifact = |name: &str| artifacts.iter().find(|a| a.name == name).map(|a| a.text.as_str());
     let mut v = if let Some(metric) = spec["metric"].as_str() {
         metrics[metric].as_f64()?
+    } else if spec.get("vtu").is_some() {
+        vtu_value(spec, artifacts)?
     } else if let Some(file) = spec["json"].as_str() {
         let mut node: Value = serde_json::from_str(artifact(file)?).ok()?;
         for key in spec["path"].as_array()? {
@@ -78,6 +135,9 @@ fn value_of(spec: &Value, metrics: &Value, artifacts: &[Artifact]) -> Option<f64
             })?
         }
     };
+    if spec.get("minus").is_some() {
+        v -= value_of(&spec["minus"], metrics, artifacts)?;
+    }
     if spec.get("over").is_some() {
         v /= value_of(&spec["over"], metrics, artifacts)?;
     }
@@ -95,7 +155,7 @@ fn value_of(spec: &Value, metrics: &Value, artifacts: &[Artifact]) -> Option<f64
 #[test]
 fn every_benchmark_is_an_accepted_case_with_its_source() {
     let all = benchmarks();
-    assert!(all.len() >= 20, "{} benchmarks", all.len());
+    assert!(all.len() >= 32, "{} benchmarks", all.len());
     for (name, benchmark) in &all {
         for key in ["title", "domain", "shows", "source"] {
             assert!(benchmark[key].as_str().is_some_and(|t| !t.is_empty()), "{name}: {key}");
@@ -201,4 +261,20 @@ fn values_come_from_metrics_json_and_csv_artifacts() {
     assert_eq!(ask(json!({"metric": "missing"})), None);
     let ratio = json!({"file": "a.csv", "column": "y", "row": "max", "over": {"metric": "m"}});
     assert_eq!(ask(ratio), Some(0.5));
+    assert_eq!(ask(json!({"metric": "m", "minus": {"json": "c.json", "path": ["final", 0]}})), Some(9.75));
+}
+
+/// Two unit cells side by side along x, with a field 1 in the first and 3 in the second.
+#[test]
+fn vtu_fields_are_read_at_the_nearest_cell_and_summarised() {
+    let points = "0 0 0 1 0 0 1 1 0 0 1 0 0 0 1 1 0 1 1 1 1 0 1 1 2 0 0 2 1 0 2 0 1 2 1 1";
+    let text = format!(
+        r#"<VTKFile><UnstructuredGrid><Piece><CellData><DataArray type="Float64" Name="t" NumberOfComponents="1" format="ascii">1 3</DataArray><DataArray type="Float64" Name="u" NumberOfComponents="3" format="ascii">1 2 3 4 5 6</DataArray></CellData><Points><DataArray type="Float64" NumberOfComponents="3" format="ascii">{points}</DataArray></Points><Cells><DataArray type="Int64" Name="connectivity" format="ascii">0 1 2 3 4 5 6 7 1 8 9 2 5 10 11 6</DataArray><DataArray type="Int64" Name="offsets" format="ascii">8 16</DataArray></Cells></Piece></UnstructuredGrid></VTKFile>"#
+    );
+    let artifacts = vec![Artifact { name: "frame_0000.vtu".into(), text: String::new() }, Artifact { name: "frame_0001.vtu".into(), text }];
+    let ask = |spec: Value| value_of(&spec, &json!({}), &artifacts);
+    assert_eq!(ask(json!({"vtu": "frame_", "field": "t", "nearest": [1.6, 0.5, 0.5]})), Some(3.0));
+    assert_eq!(ask(json!({"vtu": "frame_", "field": "u", "component": 1, "nearest": [0.2, 0.5, 0.5]})), Some(2.0));
+    assert_eq!(ask(json!({"vtu": "frame_", "field": "t", "stat": "mean"})), Some(2.0));
+    assert_eq!(ask(json!({"vtu": "frame_", "field": "missing", "stat": "max"})), None);
 }

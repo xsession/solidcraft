@@ -1,0 +1,66 @@
+{
+  "title": "A cell discharged, then left to rest",
+  "domain": "Batteries",
+  "shows": "A cell discharged at 0.1 A for 15 minutes delivers exactly 0.025 Ah; left to rest for two hours, its voltage climbs back as the concentrations inside it even out, and settles.",
+  "source": "Charge conservation and the relaxation of a lithium-ion cell's overpotentials: M. Doyle, T. F. Fuller and J. Newman, J. Electrochem. Soc. 140 (1993) 1526; S. G. Marquis et al., J. Electrochem. Soc. 166 (2019) A3693 (the single-particle model with electrolyte).",
+  "case": {
+    "solver": "battery_cell",
+    "model": "spme",
+    "protocol": [
+      {
+        "current_a": 0.1,
+        "duration_s": 900.0
+      },
+      {
+        "current_a": 0.0,
+        "duration_s": 7200.0
+      }
+    ],
+    "dt_s": 1.0
+  },
+  "checks": [
+    {
+      "what": "charge delivered (Ah)",
+      "value": {
+        "metric": "net_discharge_Ah"
+      },
+      "expect": 0.025,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "recovery in the rest's last half hour (V): it has settled",
+      "value": {
+        "file": "cycle.csv",
+        "column": "terminal_voltage_V",
+        "row": "last",
+        "minus": {
+          "file": "cycle.csv",
+          "column": "terminal_voltage_V",
+          "at": {
+            "column": "time_s",
+            "value": 6300.0
+          }
+        }
+      },
+      "at_least": 0.0,
+      "at_most": 0.002
+    },
+    {
+      "what": "recovery over the whole rest (V): the voltage comes back up",
+      "value": {
+        "file": "cycle.csv",
+        "column": "terminal_voltage_V",
+        "row": "last",
+        "minus": {
+          "file": "cycle.csv",
+          "column": "terminal_voltage_V",
+          "at": {
+            "column": "time_s",
+            "value": 900.0
+          }
+        }
+      },
+      "at_least": 0.001
+    }
+  ]
+}
