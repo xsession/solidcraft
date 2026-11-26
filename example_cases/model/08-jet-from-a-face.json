@@ -1,0 +1,135 @@
+{
+  "title": "A jet blown from a face inside the domain",
+  "shows": "A condition on a face that is not on the domain's boundary: the downstream face of a block standing in a closed-ended duct blows air at 0.2 m/s, which leaves through the duct's far end. All of it leaves: 0.2 m/s over the 10 × 10 mm face.",
+  "capabilities": [
+    "body_face_conditions_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 100,
+        "width": 40,
+        "height": 40,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Duct"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 96,
+        "width": 32,
+        "height": 32,
+        "corner": [
+          4,
+          4,
+          4
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 10,
+        "width": 10,
+        "height": 10,
+        "corner": [
+          20,
+          14,
+          14
+        ],
+        "operation": "new",
+        "body_name": "Nozzle"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Jet",
+        "cell_mm": 2.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 1.0,
+          "converge_tolerance": 0.001
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Jet",
+        "face": {
+          "body": "Nozzle",
+          "point": [
+            30,
+            19,
+            19
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.2
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Duct",
+          "point": [
+            100,
+            20,
+            2
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "q",
+        "kind": "face_volume_flow",
+        "face": {
+          "body": "Duct",
+          "point": [
+            100,
+            20,
+            2
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "air out: the jet's 0.2 m/s over 10 × 10 mm (m³/s)",
+      "value": {
+        "metric": "goal_q",
+        "abs": true
+      },
+      "expect": 2e-05,
+      "tolerance": 0.02
+    }
+  ]
+}

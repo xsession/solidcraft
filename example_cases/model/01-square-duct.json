@@ -1,0 +1,151 @@
+{
+  "title": "Laminar flow in a square duct",
+  "shows": "A study of the model with air: inlet and outlet on the duct's end faces, point-pressure and global goals, and the momentum and pressure solved to tolerances relative to their size (scaled momentum). The developed pressure drop between two points is the exact laminar one: Δp = ρ·(f·Re)·ν·U·Δx / (2·a²) with f·Re = 56.91 for a square duct (Shah and London, 1978).",
+  "capabilities": [
+    "scaled_momentum_v1",
+    "piso_neighbour_update_v1",
+    "surface_bodies_v1",
+    "goals_v2",
+    "goals_v3"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 60,
+        "width": 11.2,
+        "height": 11.2,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Wall"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 70,
+        "width": 8,
+        "height": 8,
+        "corner": [
+          -5,
+          1.6,
+          1.6
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Square duct",
+        "cell_mm": 0.8,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 3.0,
+          "converge_tolerance": 0.0002
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            0,
+            0.8,
+            5.6
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.05
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            60,
+            0.8,
+            5.6
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "p0",
+        "kind": "point_pressure",
+        "point_mm": [
+          30,
+          5.6,
+          5.6
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "p1",
+        "kind": "point_pressure",
+        "point_mm": [
+          52,
+          5.6,
+          5.6
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "fastest",
+        "kind": "global_max_speed"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "pressure drop over 22 mm against the exact laminar value (Pa)",
+      "value": {
+        "metric": "goal_p0",
+        "minus": "goal_p1"
+      },
+      "expect": 0.008803265624999999,
+      "tolerance": 0.05
+    },
+    {
+      "what": "the fastest air, about twice the mean in a developed square duct (m/s)",
+      "value": {
+        "metric": "goal_fastest"
+      },
+      "at_least": 0.07500000000000001,
+      "at_most": 0.125
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "title": "A porous brick filling a duct",
+  "shows": "A body taken as a porous zone (Darcy coefficient 1e7 1/m², a catalyst-like brick) rather than a wall. The flow through it is even, so the pressure falls across its 15 mm by Darcy's μ·D·U·L = 0.27 Pa.",
+  "capabilities": [
+    "porous_blocks_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 150.0,
+        "width": 45.0,
+        "height": 35.0,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Wall"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 160.0,
+        "width": 40.0,
+        "height": 30.0,
+        "corner": [
+          -5,
+          2.5,
+          2.5
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 15,
+        "width": 40.0,
+        "height": 30.0,
+        "corner": [
+          67.5,
+          2.5,
+          2.5
+        ],
+        "operation": "new",
+        "body_name": "Brick"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Porous brick",
+        "cell_mm": 2.5,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 3.0,
+          "converge_tolerance": 0.0002
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.set",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "porous": [
+          {
+            "body": "Brick",
+            "viscous_resistance_per_m2": 10000000.0,
+            "inertial_resistance_per_m": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            0,
+            1.25,
+            17.5
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.1
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            150.0,
+            1.25,
+            17.5
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "before",
+        "kind": "point_pressure",
+        "point_mm": [
+          62.5,
+          22.5,
+          17.5
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "after",
+        "kind": "point_pressure",
+        "point_mm": [
+          87.5,
+          22.5,
+          17.5
+        ]
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "pressure drop across the brick against Darcy (Pa)",
+      "value": {
+        "metric": "goal_before",
+        "minus": "goal_after"
+      },
+      "expect": 0.27,
+      "tolerance": 0.05
+    }
+  ]
+}

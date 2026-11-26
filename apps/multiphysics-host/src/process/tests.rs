@@ -408,20 +408,46 @@ fn real_reference_runner_all_templates() {
     let host = ProcessHost::new(PathBuf::from(executable));
     let templates = templates().unwrap();
     assert!(templates.iter().any(|template| template.id == "flow-electronics-enclosure"));
+    // Every template is run; the failures are reported together at the end (and, with
+    // SOLIDCRAFT_TEST_OUTPUT_DIR, each in its folder's failed.txt).
+    let mut failures = Vec::new();
     for template in templates {
         let study = Project::default().create(&template.id, "Reference round trip").unwrap();
         let request = FrozenRun { id: format!("run-{}", template.id), case_hash: case_hash(&study.case).unwrap(), study };
         let mut job = host.start(request).unwrap();
-        match await_outcome_for(job.as_mut(), Duration::from_secs(300)) {
-            Outcome::Completed(evidence) => {
-                assert!(!evidence.artifacts.is_empty(), "{}", template.id);
-                assert_eq!(evidence.manifest["execution_completed"], true, "{}", template.id);
-                preserve_evidence(&template.id, &evidence);
+        // A template that takes over ten minutes is cancelled and counted as failed; the rest
+        // still run.
+        let deadline = Instant::now() + Duration::from_secs(600);
+        let outcome = loop {
+            if let Some(outcome) = job.poll() {
+                break Some(outcome);
             }
-            Outcome::Failed(error) => panic!("{} companion result refused: {error}", template.id),
-            Outcome::Cancelled => panic!("{} companion was cancelled", template.id),
+            if Instant::now() > deadline {
+                job.cancel();
+                break None;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        };
+        let failed = match outcome {
+            Some(Outcome::Completed(evidence)) if !evidence.artifacts.is_empty() && evidence.manifest["execution_completed"] == true => {
+                preserve_evidence(&template.id, &evidence);
+                None
+            }
+            Some(Outcome::Completed(_)) => Some("the run did not complete".to_string()),
+            Some(Outcome::Failed(error)) => Some(format!("companion result refused: {error}")),
+            Some(Outcome::Cancelled) => Some("cancelled".to_string()),
+            None => Some("took over ten minutes; cancelled".to_string()),
+        };
+        if let Some(why) = failed {
+            if let Some(root) = std::env::var_os("SOLIDCRAFT_TEST_OUTPUT_DIR") {
+                let directory = PathBuf::from(root).join(&template.id);
+                let _ = fs::create_dir_all(&directory);
+                let _ = fs::write(directory.join("failed.txt"), &why);
+            }
+            failures.push(format!("{}: {why}", template.id));
         }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]

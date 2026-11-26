@@ -1,0 +1,145 @@
+{
+  "title": "Cells split around a block in a duct",
+  "shows": "A local refinement splits the cells around a body (here twice as fine around a block standing in a duct), and the time step is fitted to the smaller cells. All the air that comes in leaves.",
+  "capabilities": [
+    "local_mesh_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 100,
+        "width": 40,
+        "height": 40,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Duct"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 110,
+        "width": 32,
+        "height": 32,
+        "corner": [
+          -5,
+          4,
+          4
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 8,
+        "width": 8,
+        "height": 16,
+        "corner": [
+          40,
+          16,
+          4
+        ],
+        "operation": "new",
+        "body_name": "Block"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Refined block",
+        "cell_mm": 4.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 1.0,
+          "converge_tolerance": 0.001
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.refine",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "around block",
+        "body": "Block",
+        "factor": 2,
+        "margin_cells": 1
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Duct",
+          "point": [
+            0,
+            20,
+            2
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.2
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Duct",
+          "point": [
+            100,
+            20,
+            2
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "q",
+        "kind": "face_volume_flow",
+        "face": {
+          "body": "Duct",
+          "point": [
+            100,
+            20,
+            2
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "air out through the outlet: all that comes in, 0.2 m/s over 32 × 32 mm (m³/s)",
+      "value": {
+        "metric": "goal_q"
+      },
+      "expect": 0.00020480000000000002,
+      "tolerance": 0.01
+    }
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "title": "A powered chip on a board in a duct",
+  "shows": "Conjugate heat transfer: the board and the chip conduct, the chip releases 0.5 W, the air carries it away. Partial cells place the power by the volume each cell holds. The heat that leaves equals the heat released.",
+  "capabilities": [
+    "conjugate_heat_v1",
+    "partial_cells_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 100,
+        "width": 40,
+        "height": 40,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Duct"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 110,
+        "width": 32,
+        "height": 32,
+        "corner": [
+          -5,
+          4,
+          4
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 60,
+        "width": 24,
+        "height": 2,
+        "corner": [
+          20,
+          8,
+          10
+        ],
+        "operation": "new",
+        "body_name": "Board"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 10,
+        "width": 10,
+        "height": 3,
+        "corner": [
+          45,
+          15,
+          12
+        ],
+        "operation": "new",
+        "body_name": "Chip"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Board",
+        "cell_mm": 2.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 1.0,
+          "converge_tolerance": 0.001
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Duct",
+          "point": [
+            0,
+            20,
+            2
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.3
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Duct",
+          "point": [
+            100,
+            20,
+            2
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.heat",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "enabled": true,
+        "inflow_temperature_k": 298.15
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Chip"
+        ],
+        "conductivity_w_per_m_k": 150,
+        "power_w": 0.5,
+        "max_temperature_k": 358.15
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Board"
+        ],
+        "conductivity_w_per_m_k": 10
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Duct"
+        ],
+        "conductivity_w_per_m_k": 0.2
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "power in the study (W)",
+      "value": {
+        "metric": "thermal_total_power_w"
+      },
+      "expect": 0.5,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "heat out less heat released, as a share of it",
+      "value": {
+        "metric": "thermal_relative_energy_imbalance"
+      },
+      "at_most": 1e-06
+    },
+    {
+      "what": "the chip is warmer than the inflow (K)",
+      "value": {
+        "metric": "thermal_max_solid_temperature_k"
+      },
+      "at_least": 298.2
+    }
+  ]
+}

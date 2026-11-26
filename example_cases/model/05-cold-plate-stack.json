@@ -1,0 +1,205 @@
+{
+  "title": "A heater on a stack, cooled by a cold plate",
+  "shows": "Heat released on a face (the heater's top, 5 W) flows down a copper stack with a thin, poorly conducting layer to a cold plate whose underside is held at 20 °C: a thermal condition on a side of the domain only solid touches. Still air around it. The energy balance closes, and the stack runs about 13 K above the plate (P·L/(k·A) across the 2 mm layer is 10.7 K).",
+  "capabilities": [
+    "conjugate_heat_v1",
+    "face_heat_sources_v1",
+    "partial_cells_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 100,
+        "width": 150,
+        "height": 20,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Cooler"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 25,
+        "width": 25,
+        "height": 35,
+        "corner": [
+          37.5,
+          62.5,
+          20
+        ],
+        "operation": "new",
+        "body_name": "Lower"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 25,
+        "width": 25,
+        "height": 2,
+        "corner": [
+          37.5,
+          62.5,
+          55
+        ],
+        "operation": "new",
+        "body_name": "Layer"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 25,
+        "width": 25,
+        "height": 35,
+        "corner": [
+          37.5,
+          62.5,
+          57
+        ],
+        "operation": "new",
+        "body_name": "Upper"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 100,
+        "width": 150,
+        "height": 20,
+        "corner": [
+          0,
+          0,
+          92
+        ],
+        "operation": "new",
+        "body_name": "Heater"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Stack",
+        "cell_mm": 5.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 0.05,
+          "converge_tolerance": null
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.heat",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "enabled": true,
+        "inflow_temperature_k": 293.15
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Cooler",
+          "Heater"
+        ],
+        "conductivity_w_per_m_k": 200
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Lower",
+          "Upper"
+        ],
+        "conductivity_w_per_m_k": 390
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Layer"
+        ],
+        "conductivity_w_per_m_k": 1.5
+      }
+    },
+    {
+      "command": "multiphysics.model.heat_source",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Heating",
+        "face": {
+          "body": "Heater",
+          "point": [
+            50,
+            75,
+            112
+          ]
+        },
+        "power_w": 5.0
+      }
+    },
+    {
+      "command": "multiphysics.model.thermal_face",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Cold side",
+        "face": {
+          "body": "Cooler",
+          "point": [
+            50,
+            75,
+            0
+          ]
+        },
+        "condition": {
+          "kind": "temperature",
+          "temperature_k": 293.15
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "power in the study (W)",
+      "value": {
+        "metric": "thermal_total_power_w"
+      },
+      "expect": 5.0,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "heat out less heat released, as a share of it",
+      "value": {
+        "metric": "thermal_relative_energy_imbalance"
+      },
+      "at_most": 1e-06
+    },
+    {
+      "what": "the heater, above the 20 °C plate by the stack's drop (K)",
+      "value": {
+        "metric": "thermal_max_solid_temperature_k"
+      },
+      "at_least": 303.84999999999997,
+      "at_most": 318.15
+    }
+  ]
+}

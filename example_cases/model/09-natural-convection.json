@@ -1,0 +1,139 @@
+{
+  "title": "Air rising off a heated block in a sealed box",
+  "shows": "Natural convection: a 2 W block in a sealed box warms the air around it, which grows lighter and rises (Boussinesq, gravity along −Z); the box's floor is held at 20 °C. No inlet: the air moves only because the heat drives it. The parts have no density or specific heat, so they warm at a stand-in rate: the example is about the flow the heat starts, not about how long the block takes to warm.",
+  "capabilities": [
+    "natural_convection_v1",
+    "conjugate_heat_v1",
+    "goals_v3"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 60,
+        "width": 60,
+        "height": 60,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Box"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 52,
+        "width": 52,
+        "height": 52,
+        "corner": [
+          4,
+          4,
+          4
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 12,
+        "width": 12,
+        "height": 12,
+        "corner": [
+          24,
+          24,
+          10
+        ],
+        "operation": "new",
+        "body_name": "Block"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Sealed box",
+        "cell_mm": 3.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 1.5,
+          "converge_tolerance": null
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.heat",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "enabled": true,
+        "inflow_temperature_k": 293.15,
+        "buoyancy": true
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Block"
+        ],
+        "conductivity_w_per_m_k": 200,
+        "power_w": 2.0
+      }
+    },
+    {
+      "command": "multiphysics.model.material",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "bodies": [
+          "Box"
+        ],
+        "conductivity_w_per_m_k": 0.2
+      }
+    },
+    {
+      "command": "multiphysics.model.thermal_face",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Floor",
+        "face": {
+          "body": "Box",
+          "point": [
+            30,
+            30,
+            0
+          ]
+        },
+        "condition": {
+          "kind": "temperature",
+          "temperature_k": 293.15
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "fastest",
+        "kind": "global_max_speed"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "the air moves, driven only by the heat (m/s)",
+      "value": {
+        "metric": "goal_fastest"
+      },
+      "at_least": 0.0001
+    }
+  ]
+}

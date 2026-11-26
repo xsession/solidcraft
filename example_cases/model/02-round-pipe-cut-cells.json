@@ -1,0 +1,157 @@
+{
+  "title": "A round pipe on a box grid, with cut cells",
+  "shows": "Cut cells keep the fluid part of the cells the pipe wall cuts, instead of a staircase. The pressure drop per unit of flow is Hagen–Poiseuille's: Δp/Q = 128·ρ·ν·Δx / (π·D⁴).",
+  "capabilities": [
+    "cut_cells_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 120,
+        "width": 24,
+        "height": 24,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Wall"
+      }
+    },
+    {
+      "command": "solid.cylinder",
+      "params": {
+        "diameter": 16,
+        "height": 130,
+        "base": [
+          -5,
+          12,
+          12
+        ],
+        "axis": "X",
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Round pipe",
+        "cell_mm": 1.5,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 4.0,
+          "converge_tolerance": 0.0002
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.set",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "cut_cells": true
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            0,
+            1,
+            12
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.05
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            120,
+            1,
+            12
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "p0",
+        "kind": "point_pressure",
+        "point_mm": [
+          70,
+          12,
+          12
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "p1",
+        "kind": "point_pressure",
+        "point_mm": [
+          110,
+          12,
+          12
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "q",
+        "kind": "face_volume_flow",
+        "face": {
+          "body": "Wall",
+          "point": [
+            120,
+            1,
+            12
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "pressure drop per unit of flow against Hagen–Poiseuille (Pa·s/m³)",
+      "value": {
+        "metric": "goal_p0",
+        "minus": "goal_p1",
+        "divide": "goal_q"
+      },
+      "expect": 447.6232774459555,
+      "tolerance": 0.12
+    }
+  ]
+}
