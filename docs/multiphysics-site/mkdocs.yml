@@ -76,5 +76,6 @@ nav:
       - Training cases: theory/training-cases.md
   - Reference:
       - Commands: reference/commands.md
+      - Example cases: reference/example-cases.md
       - Glossary: reference/glossary.md
       - Making this site: reference/making-this-site.md
