@@ -1518,7 +1518,9 @@ mod tests {
         .expect("trajectory request");
         let QueryResult::Trajectories { lines } = ask(request).expect("trajectories") else { panic!("trajectories expected") };
         assert_eq!(lines.len(), 3);
-        assert!(lines.iter().all(|l| l.end == crate::flowpost::TrajectoryEnd::LeftMesh && (l.residence_time - 0.9).abs() < 1e-9));
+        // Each line ends where it crosses x = 1, 0.9 s after its seed at x = 0.1; the cell
+        // lookup takes points within 1e-9 of a cell as inside, so the crossing is that close.
+        assert!(lines.iter().all(|l| l.end == crate::flowpost::TrajectoryEnd::LeftMesh && (l.residence_time - 0.9).abs() < 1e-8));
         let iso = Query::Isosurface { artifact: "flow.vtu".into(), field: "t".into(), level: 0.5, color_field: None };
         let QueryResult::Isosurface(iso) = ask(iso).expect("isosurface") else { panic!("isosurface expected") };
         assert!((iso.area - 1.0).abs() < 1e-12);

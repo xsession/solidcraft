@@ -289,6 +289,26 @@ impl Tracer<'_> {
         Some((cell, vector(&v)?))
     }
 
+    /// Where a step from `x` (inside the mesh) along `moved` over `dt` leaves the mesh: the
+    /// furthest share of the straight step still inside, found by halving, and its time.
+    fn exit(&self, x: [f64; 3], moved: [f64; 3], dt: f64) -> Option<([f64; 3], f64, f64)> {
+        let (mut inside, mut outside) = (0.0, 1.0);
+        for _ in 0..50 {
+            let mid = 0.5 * (inside + outside);
+            if self.velocity(add(x, scale(moved, mid))).is_some() {
+                inside = mid;
+            } else {
+                outside = mid;
+            }
+        }
+        if inside <= 0.0 {
+            return None;
+        }
+        let at = add(x, scale(moved, inside));
+        let (_, u) = self.velocity(at)?;
+        Some((at, inside * dt, norm(u)))
+    }
+
     /// One fluid-tracer pass from `seed` in direction `sign` (+1 downstream, −1 upstream).
     fn streamline(&self, seed: [f64; 3], sign: f64, steps: usize, step_cells: f64, budget: &mut usize) -> (Vec<([f64; 3], f64, f64)>, TrajectoryEnd) {
         let mut out = Vec::new();
@@ -314,8 +334,21 @@ impl Tracer<'_> {
                 let slope = scale(add(add(k1, scale(k2, 2.0)), add(scale(k3, 2.0), k4)), 1.0 / 6.0);
                 Some(add(x, scale(slope, dt)))
             })();
-            let Some(next) = next else { return (out, TrajectoryEnd::LeftMesh) };
-            let Some((next_cell, u)) = self.velocity(next) else { return (out, TrajectoryEnd::LeftMesh) };
+            // A step that leaves the mesh ends the line where it crosses the boundary.
+            let left = |out: &mut Vec<([f64; 3], f64, f64)>| {
+                if let Some((at, dt_in, speed)) = self.exit(x, scale(k1, dt), dt) {
+                    out.push((at, t + dt_in, speed));
+                }
+                TrajectoryEnd::LeftMesh
+            };
+            let Some(next) = next else {
+                let end = left(&mut out);
+                return (out, end);
+            };
+            let Some((next_cell, u)) = self.velocity(next) else {
+                let end = left(&mut out);
+                return (out, end);
+            };
             (x, t, cell) = (next, t + dt, next_cell);
             out.push((x, t, norm(u)));
             *budget -= 1;
@@ -355,7 +388,12 @@ impl Tracer<'_> {
             let moved = add(scale(terminal, dt), scale(lag, tau * (1.0 - decay)));
             let next = add(x, moved);
             v = add(terminal, scale(lag, decay));
-            let Some((next_cell, _)) = self.velocity(next) else { return (out, TrajectoryEnd::LeftMesh) };
+            let Some((next_cell, _)) = self.velocity(next) else {
+                if let Some((at, dt_in, _)) = self.exit(x, moved, dt) {
+                    out.push((at, t + dt_in, norm(v)));
+                }
+                return (out, TrajectoryEnd::LeftMesh);
+            };
             (x, t, cell) = (next, t + dt, next_cell);
             out.push((x, t, norm(v)));
             *budget -= 1;
