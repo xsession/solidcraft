@@ -1,11 +1,14 @@
 # Example cases
 
 Cases that show what SolidCraft Multiphysics and its solver companion (cfd-solvers-rs) can do,
-each one checked by a test. Two kinds:
+each one checked by a test. Three kinds:
 
 - [`model/`](model/): **studies of the model**, built from SolidCraft geometry with SolidCraft
   commands. One example for each capability of the 3-D flow solver a study of the model uses,
   and, where there is one, an exact or textbook answer its run must match.
+- [`benchmarks/`](benchmarks/README.md): **benchmarks**, published problems with known answers
+  for the companion's domains (stiff chemistry, a shock tube, a cavity resonance, a thin dipole,
+  natural convection in a square cavity and more), each judged against its reference.
 - [`templates/`](templates/README.md): **case templates**, one small complete case for each of
   the companion's solvers (56 of them: flow, heat, structures, electromagnetics, plasma,
   chemistry, batteries, circuits and more), run as they come.

@@ -1,0 +1,150 @@
+{
+  "title": "Robertson's stiff reactions",
+  "domain": "Chemistry",
+  "shows": "A → B (0.04/s), B + B → B + C (3e7), B + C → A + C (1e4): rates eleven orders of magnitude apart. At t = 40 s: A = 0.7158271, B = 9.185535e-06, C = 0.2841637, the published reference (computed again here with an independent stiff solver to 1e-12).",
+  "source": "H. H. Robertson, in Numerical Analysis: An Introduction (1966) 178–182; reference values: E. Hairer and G. Wanner, Solving Ordinary Differential Equations II (1996), and the IVP test set report ROBER (archimede.uniba.it/~testset).",
+  "case": {
+    "solver": "chemistry_batch",
+    "species": [
+      {
+        "name": "A",
+        "molar_mass": 0.01,
+        "charge": 0
+      },
+      {
+        "name": "B",
+        "molar_mass": 0.01,
+        "charge": 0
+      },
+      {
+        "name": "C",
+        "molar_mass": 0.01,
+        "charge": 0
+      }
+    ],
+    "reactions": [
+      {
+        "reactants": [
+          {
+            "species": 0,
+            "coefficient": 1.0
+          }
+        ],
+        "products": [
+          {
+            "species": 1,
+            "coefficient": 1.0
+          }
+        ],
+        "forward": {
+          "pre_exponential": 0.04,
+          "temperature_exponent": 0.0,
+          "activation_energy": 0.0
+        }
+      },
+      {
+        "reactants": [
+          {
+            "species": 1,
+            "coefficient": 2.0
+          }
+        ],
+        "products": [
+          {
+            "species": 1,
+            "coefficient": 1.0
+          },
+          {
+            "species": 2,
+            "coefficient": 1.0
+          }
+        ],
+        "forward": {
+          "pre_exponential": 30000000.0,
+          "temperature_exponent": 0.0,
+          "activation_energy": 0.0
+        }
+      },
+      {
+        "reactants": [
+          {
+            "species": 1,
+            "coefficient": 1.0
+          },
+          {
+            "species": 2,
+            "coefficient": 1.0
+          }
+        ],
+        "products": [
+          {
+            "species": 0,
+            "coefficient": 1.0
+          },
+          {
+            "species": 2,
+            "coefficient": 1.0
+          }
+        ],
+        "forward": {
+          "pre_exponential": 10000.0,
+          "temperature_exponent": 0.0,
+          "activation_energy": 0.0
+        }
+      }
+    ],
+    "concentrations": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "temperature": 300.0,
+    "duration": 40.0,
+    "config": {
+      "initial_step": 1e-06,
+      "minimum_step": 1e-16,
+      "relative_tolerance": 1e-07,
+      "absolute_tolerance": 1e-13,
+      "max_steps": 20000,
+      "newton_iterations": 8
+    }
+  },
+  "checks": [
+    {
+      "what": "A at 40 s",
+      "value": {
+        "json": "concentrations.json",
+        "path": [
+          "final",
+          0
+        ]
+      },
+      "expect": 0.7158270687194176,
+      "tolerance": 0.0001
+    },
+    {
+      "what": "B at 40 s",
+      "value": {
+        "json": "concentrations.json",
+        "path": [
+          "final",
+          1
+        ]
+      },
+      "expect": 9.185534764558088e-06,
+      "tolerance": 0.001
+    },
+    {
+      "what": "C at 40 s",
+      "value": {
+        "json": "concentrations.json",
+        "path": [
+          "final",
+          2
+        ]
+      },
+      "expect": 0.2841637457458216,
+      "tolerance": 0.0001
+    }
+  ]
+}

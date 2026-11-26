@@ -1,0 +1,30 @@
+{
+  "title": "Decay of the Taylor–Green vortex",
+  "domain": "Flow",
+  "shows": "A periodic array of vortices decays by viscosity alone: its kinetic energy falls as exp(−4νk²t), ν = (τ − ½)/3 in lattice units, so to 0.2139 of its start after 400 steps.",
+  "source": "G. I. Taylor and A. E. Green, Proc. R. Soc. Lond. A 158 (1937) 499; for the lattice Boltzmann method: T. Krüger et al., The Lattice Boltzmann Method (2017), §5.5.",
+  "case": {
+    "solver": "lbm_d2q9",
+    "config": {
+      "nx": 64,
+      "ny": 64,
+      "tau": 0.8
+    },
+    "steps": 400,
+    "initial": {
+      "type": "taylor_green",
+      "amplitude": 0.02
+    }
+  },
+  "checks": [
+    {
+      "what": "energy left, as a share of the start",
+      "value": {
+        "metric": "kinetic_energy_lattice",
+        "divide_by": 0.4096
+      },
+      "expect": 0.21392587816559738,
+      "tolerance": 0.02
+    }
+  ]
+}

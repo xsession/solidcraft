@@ -1,0 +1,76 @@
+{
+  "title": "A 75 Ω line between 50 Ω ports",
+  "domain": "RF",
+  "shows": "A 30 mm lossy 75 Ω line measured from 50 Ω ports: its transmission S21 = 2/(A + B/Z₀ + C·Z₀ + D) from the line's ABCD matrix, with the reflections at both ends.",
+  "source": "Transmission lines and ABCD parameters: D. M. Pozar, Microwave Engineering, 4th ed. (2012), §2.3 and §4.4.",
+  "case": {
+    "solver": "rf_tem",
+    "line": {
+      "characteristic_impedance": 75.0,
+      "phase_velocity": 200000000.0,
+      "attenuation_nepers_per_m": 0.05,
+      "length": 0.03
+    },
+    "frequencies_hz": [
+      100000000.0,
+      500000000.0,
+      1000000000.0,
+      2000000000.0
+    ],
+    "reference_impedance": 50.0
+  },
+  "checks": [
+    {
+      "what": "S21 real at 500 MHz",
+      "value": {
+        "file": "s21.csv",
+        "column": "S21_real",
+        "at": {
+          "column": "frequency_Hz",
+          "value": 500000000.0
+        }
+      },
+      "expect": 0.85892518464954,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "S21 imag at 500 MHz",
+      "value": {
+        "file": "s21.csv",
+        "column": "S21_imag",
+        "at": {
+          "column": "frequency_Hz",
+          "value": 500000000.0
+        }
+      },
+      "expect": -0.4740008093212397,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "S21 real at 2000 MHz",
+      "value": {
+        "file": "s21.csv",
+        "column": "S21_real",
+        "at": {
+          "column": "frequency_Hz",
+          "value": 2000000000.0
+        }
+      },
+      "expect": -0.2667610076145974,
+      "tolerance": 1e-06
+    },
+    {
+      "what": "S21 imag at 2000 MHz",
+      "value": {
+        "file": "s21.csv",
+        "column": "S21_imag",
+        "at": {
+          "column": "frequency_Hz",
+          "value": 2000000000.0
+        }
+      },
+      "expect": -0.8892096683449818,
+      "tolerance": 1e-06
+    }
+  ]
+}

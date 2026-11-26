@@ -1,0 +1,49 @@
+{
+  "title": "Axial modes of a fixed–free aluminium bar",
+  "domain": "Structures",
+  "shows": "A 0.5 m aluminium bar fixed at one end vibrates along its length at f_n = (2n − 1)·c/(4L), c = √(E/ρ): the first four modes on 200 elements.",
+  "source": "Fixed–free rod, longitudinal vibration: S. S. Rao, Mechanical Vibrations, 6th ed. (2017), §8.4.",
+  "case": {
+    "solver": "bar_modes1d",
+    "length_m": 0.5,
+    "area_m2": 0.0001,
+    "youngs_modulus_pa": 70000000000.0,
+    "density_kg_m3": 2700.0,
+    "elements": 200,
+    "modes": 4
+  },
+  "checks": [
+    {
+      "what": "mode 1 (Hz)",
+      "value": {
+        "metric": "mode_1_Hz"
+      },
+      "expect": 2545.8753860865777,
+      "tolerance": 0.002
+    },
+    {
+      "what": "mode 2 (Hz)",
+      "value": {
+        "metric": "mode_2_Hz"
+      },
+      "expect": 7637.626158259733,
+      "tolerance": 0.002
+    },
+    {
+      "what": "mode 3 (Hz)",
+      "value": {
+        "metric": "mode_3_Hz"
+      },
+      "expect": 12729.376930432889,
+      "tolerance": 0.002
+    },
+    {
+      "what": "mode 4 (Hz)",
+      "value": {
+        "metric": "mode_4_Hz"
+      },
+      "expect": 17821.127702606045,
+      "tolerance": 0.002
+    }
+  ]
+}

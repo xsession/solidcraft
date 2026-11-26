@@ -1,0 +1,38 @@
+{
+  "title": "A steel cantilever under its own weight",
+  "domain": "Structures",
+  "shows": "A 1 m × 0.1 m steel plate (plane stress) clamped along one end sags under gravity: q·L⁴/(8EI) = 57.76 µm from bending and q·L²/(2κGA) = 0.60 µm from shear at its free end.",
+  "source": "Cantilever with a uniform load, with the shear term: S. P. Timoshenko and J. M. Gere, Mechanics of Materials (1972), §9.11.",
+  "case": {
+    "solver": "elasticity2d",
+    "width_m": 1.0,
+    "height_m": 0.1,
+    "nx": 160,
+    "ny": 16,
+    "youngs_modulus_pa": 200000000000.0,
+    "poisson_ratio": 0.3,
+    "mode": "plane_stress",
+    "density_kg_m3": 7850.0,
+    "gravity_m_s2": [
+      0,
+      -9.81
+    ],
+    "supports": [
+      {
+        "edge": "left",
+        "ux_m": 0,
+        "uy_m": 0
+      }
+    ]
+  },
+  "checks": [
+    {
+      "what": "largest displacement, at the free end (m)",
+      "value": {
+        "metric": "max_displacement_m"
+      },
+      "expect": 5.83570413e-05,
+      "tolerance": 0.03
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "title": "Natural convection in a square cavity, Ra = 1e5",
+  "domain": "Heat",
+  "shows": "A square cavity of air, its left wall hot and its right wall cold, the others adiabatic: at Rayleigh number 1e5 the air turns in one cell, and the heat crossing it gives a mean Nusselt number of 4.519 (64 × 64 cells, two-dimensional).",
+  "source": "G. de Vahl Davis, Natural convection of air in a square cavity: a bench mark numerical solution, Int. J. Numer. Methods Fluids 3 (1983) 249–264.",
+  "case": {
+    "solver": "collocated_flow3d",
+    "method": "piso",
+    "mesh": {
+      "dimensions": [
+        64,
+        64,
+        1
+      ],
+      "lengths": {
+        "x": 0.1,
+        "y": 0.1,
+        "z": 0.0015625
+      }
+    },
+    "config": {
+      "dt": 0.01,
+      "density": 1.2,
+      "kinematic_viscosity": 1.5e-05,
+      "pressure_preconditioner": "jacobi",
+      "pressure_iterations": 4000,
+      "pressure_tolerance": 1e-13,
+      "scaled_momentum": true,
+      "piso_neighbour_update": true
+    },
+    "output": {
+      "steps": 12000,
+      "output_interval": 12000
+    },
+    "velocity_boundaries": [
+      {
+        "patch": "left",
+        "kind": "fixed_value"
+      },
+      {
+        "patch": "right",
+        "kind": "fixed_value"
+      },
+      {
+        "patch": "bottom",
+        "kind": "fixed_value"
+      },
+      {
+        "patch": "top",
+        "kind": "fixed_value"
+      },
+      {
+        "patch": "front",
+        "kind": "slip"
+      },
+      {
+        "patch": "back",
+        "kind": "slip"
+      }
+    ],
+    "pressure_boundaries": [],
+    "thermal": {
+      "fluid": {
+        "specific_heat_j_per_kg_k": 1025.5555555555554,
+        "conductivity_w_per_m_k": 0.026
+      },
+      "inflow_temperature_k": 300.0,
+      "solids": [],
+      "boundaries": [
+        {
+          "patch": "left",
+          "condition": {
+            "kind": "temperature",
+            "temperature_k": 300.48455872851787
+          }
+        },
+        {
+          "patch": "right",
+          "condition": {
+            "kind": "temperature",
+            "temperature_k": 299.51544127148213
+          }
+        }
+      ],
+      "buoyancy": {
+        "gravity_m_per_s2": [
+          0.0,
+          -9.81,
+          0.0
+        ],
+        "expansion_per_k": 0.0033333333333333335,
+        "reference_temperature_k": 300.0
+      }
+    },
+    "goals": [
+      {
+        "name": "hot",
+        "kind": "patch_heat_out",
+        "target": "left"
+      },
+      {
+        "name": "cold",
+        "kind": "patch_heat_out",
+        "target": "right"
+      }
+    ],
+    "goal_control": {
+      "window_steps": 200,
+      "relative_tolerance": 0.0001,
+      "stop_when_converged": true,
+      "min_steps": 1000
+    }
+  },
+  "checks": [
+    {
+      "what": "mean Nusselt number on the hot wall",
+      "value": {
+        "metric": "goal_hot",
+        "divide_by": -3.9370396692079065e-05
+      },
+      "expect": 4.519,
+      "tolerance": 0.03
+    },
+    {
+      "what": "heat out of the cold wall over heat into the hot one",
+      "value": {
+        "metric": "goal_cold",
+        "over": {
+          "metric": "goal_hot"
+        }
+      },
+      "expect": -1.0,
+      "tolerance": 0.0001
+    }
+  ]
+}

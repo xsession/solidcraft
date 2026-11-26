@@ -1,0 +1,97 @@
+{
+  "title": "Spherical aberration of a refracting sphere",
+  "domain": "Optics",
+  "shows": "Rays parallel to the axis at 0, ±2 and ±4 mm meet a glass sphere of 50 mm radius (n = 1.5); at the paraxial focus, n₂R/(n₂ − n₁) = 150 mm behind the vertex, the outer rays have already crossed the axis: their rms spot radius is 3.64 µm, from Snell's law traced exactly.",
+  "source": "Refraction at a spherical surface and spherical aberration: E. Hecht, Optics, 5th ed. (2017), §5.2 and §6.3.",
+  "case": {
+    "solver": "optics_sequential",
+    "object_space_index": 1.0,
+    "surfaces": [
+      {
+        "surface_type": "sphere",
+        "vertex_z": 0.01,
+        "radius": 0.05,
+        "aperture_radius": 0.01,
+        "refractive_index_after": 1.5
+      }
+    ],
+    "rays": [
+      {
+        "origin": {
+          "x": -0.004,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "direction": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "wavelength_nm": 550.0
+      },
+      {
+        "origin": {
+          "x": -0.002,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "direction": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "wavelength_nm": 550.0
+      },
+      {
+        "origin": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "direction": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "wavelength_nm": 550.0
+      },
+      {
+        "origin": {
+          "x": 0.002,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "direction": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "wavelength_nm": 550.0
+      },
+      {
+        "origin": {
+          "x": 0.004,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "direction": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "wavelength_nm": 550.0
+      }
+    ],
+    "image_z": 0.16
+  },
+  "checks": [
+    {
+      "what": "rms spot radius at the paraxial focus (m)",
+      "value": {
+        "metric": "rms_spot_radius_m"
+      },
+      "expect": 3.6394087354892702e-06,
+      "tolerance": 0.001
+    }
+  ]
+}

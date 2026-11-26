@@ -358,6 +358,8 @@ fn read_evidence(output: &Path, request: &FrozenRun) -> Result<RunEvidence, Stri
 }
 
 #[cfg(test)]
+mod benchmarks;
+#[cfg(test)]
 mod example_cases;
 #[cfg(test)]
 mod tests;

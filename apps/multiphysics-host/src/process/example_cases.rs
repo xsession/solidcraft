@@ -77,7 +77,7 @@ fn value_of(check: &Value, metrics: &Value) -> Option<f64> {
 
 /// Whether `value` passes `check`: within `tolerance` (a share) of `expect`, and between
 /// `at_least` and `at_most`.
-fn judge(check: &Value, value: f64) -> Result<(), String> {
+pub(super) fn judge(check: &Value, value: f64) -> Result<(), String> {
     if let Some(expect) = check["expect"].as_f64() {
         let tolerance = check["tolerance"].as_f64().unwrap_or(0.05);
         if !((value - expect).abs() <= tolerance * expect.abs().max(f64::MIN_POSITIVE)) {

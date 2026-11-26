@@ -1,0 +1,67 @@
+{
+  "title": "Sod's shock tube",
+  "domain": "Compressible flow",
+  "shows": "A diaphragm at the middle of a tube bursts (ρ, p = 1, 1 left of it and 0.125, 0.1 right, γ = 1.4). At t = 0.2 the exact solution has p* = 0.30313 and u* = 0.92745 between the rarefaction and the shock, density 0.42632 left of the contact and 0.26557 right of it.",
+  "source": "G. A. Sod, J. Comput. Phys. 27 (1978) 1–31; the exact Riemann solution: E. F. Toro, Riemann Solvers and Numerical Methods for Fluid Dynamics, 3rd ed. (2009), ch. 4.",
+  "case": {
+    "solver": "euler1d",
+    "config": {
+      "cells": 400,
+      "reconstruction": "characteristic_weno5",
+      "time_integrator": "ssprk3"
+    },
+    "duration": 0.2,
+    "left": {
+      "density": 1.0,
+      "velocity": 0.0,
+      "pressure": 1.0
+    },
+    "right": {
+      "density": 0.125,
+      "velocity": 0.0,
+      "pressure": 0.1
+    },
+    "interface_fraction": 0.5
+  },
+  "checks": [
+    {
+      "what": "pressure between the rarefaction and the shock, x = 0.6",
+      "value": {
+        "file": "flow.csv",
+        "column": "pressure",
+        "at": {
+          "column": "x",
+          "value": 0.6
+        }
+      },
+      "expect": 0.3031301780506468,
+      "tolerance": 0.01
+    },
+    {
+      "what": "density left of the contact, x = 0.6",
+      "value": {
+        "file": "flow.csv",
+        "column": "density",
+        "at": {
+          "column": "x",
+          "value": 0.6
+        }
+      },
+      "expect": 0.42631942817849516,
+      "tolerance": 0.01
+    },
+    {
+      "what": "density between the contact and the shock",
+      "value": {
+        "file": "flow.csv",
+        "column": "density",
+        "at": {
+          "column": "x",
+          "value": 0.7679608352079128
+        }
+      },
+      "expect": 0.265573711705307,
+      "tolerance": 0.01
+    }
+  ]
+}

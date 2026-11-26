@@ -1,0 +1,28 @@
+{
+  "title": "The strength of a phase-field (AT2) bar",
+  "domain": "Fracture",
+  "shows": "A bar with no notch, pulled at its end: its damage grows evenly, and the stress peaks at σ_c = (3√3/16)·√(E·G_c/ℓ) before the bar softens.",
+  "source": "Homogeneous response of the AT2 model: K. Pham, H. Amor, J.-J. Marigo and C. Maurini, Int. J. Damage Mech. 20 (2011) 618–652; E. Tanné et al., J. Mech. Phys. Solids 110 (2018) 80–99.",
+  "case": {
+    "solver": "phase_field_fracture1d",
+    "cells": 200,
+    "length_m": 1.0,
+    "youngs_modulus_pa": 1.0,
+    "fracture_energy_j_m2": 0.001,
+    "length_scale_m": 0.02,
+    "notch_cell": 100,
+    "notch_damage": 0.0,
+    "max_end_displacement_m": 0.25,
+    "load_steps": 1000
+  },
+  "checks": [
+    {
+      "what": "peak stress (Pa, on a unit section)",
+      "value": {
+        "metric": "peak_force_N"
+      },
+      "expect": 0.07261843774138907,
+      "tolerance": 0.002
+    }
+  ]
+}

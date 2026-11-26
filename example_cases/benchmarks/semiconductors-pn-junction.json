@@ -1,0 +1,51 @@
+{
+  "title": "An abrupt silicon PN junction",
+  "domain": "Semiconductors",
+  "shows": "Acceptors 2e21 and donors 1e21 per m³ in silicon (n_i = 1e16 per m³, 300 K): the built-in potential is V_T·ln(N_A·N_D/n_i²) = 0.6132 V. Forward biased, the current grows as exp(V/(n·V_T)) with an ideality n near 1: from 0.3 to 0.4 V by between e^(0.1/(1.1·V_T)) and e^(0.1/V_T) = 47.9 times.",
+  "source": "Abrupt junction and the ideal diode law: S. M. Sze and K. K. Ng, Physics of Semiconductor Devices, 3rd ed. (2007), §2.2 and §2.3.",
+  "case": {
+    "solver": "tcad_diode1d",
+    "length_m": 2e-06,
+    "nodes": 101,
+    "area_m2": 1e-12,
+    "acceptor_m3": 2e+21,
+    "donor_m3": 1e+21,
+    "temperature_k": 300.0,
+    "iv": {
+      "start_v": 0.0,
+      "stop_v": 0.5,
+      "points": 11
+    }
+  },
+  "checks": [
+    {
+      "what": "built-in potential (V)",
+      "value": {
+        "metric": "built_in_potential_V"
+      },
+      "expect": 0.6131835340871212,
+      "tolerance": 0.0001
+    },
+    {
+      "what": "current at 0.4 V over the current at 0.3 V",
+      "value": {
+        "file": "iv.csv",
+        "column": "anode_current_A",
+        "at": {
+          "column": "anode_voltage_V",
+          "value": 0.4
+        },
+        "over": {
+          "file": "iv.csv",
+          "column": "anode_current_A",
+          "at": {
+            "column": "anode_voltage_V",
+            "value": 0.3
+          }
+        }
+      },
+      "at_least": 33.66708463152854,
+      "at_most": 47.85486129418194
+    }
+  ]
+}

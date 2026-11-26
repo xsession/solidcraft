@@ -1,0 +1,25 @@
+{
+  "title": "Linear Landau damping at k = 0.5",
+  "domain": "Kinetic",
+  "shows": "A small density wave (k·λ_D = 0.5) in a Maxwellian plasma damps without collisions; the electric field decays at γ = −0.1533 ω_p. The solver's first-order upwind steps add damping that falls with the cell size: on 512 cells across the wave it is within 4 %.",
+  "source": "Root of the Vlasov–Poisson dispersion relation: J. Canosa, J. Comput. Phys. 13 (1973) 158; used as the standard test in E. Sonnendrücker, Numerical Methods for the Vlasov–Maxwell Equations (lecture notes, 2015).",
+  "case": {
+    "solver": "landau_damping1d",
+    "spatial_cells": 512,
+    "velocity_cells": 128,
+    "wavenumber": 0.5,
+    "amplitude": 0.01,
+    "dt": 0.0025,
+    "steps": 12000
+  },
+  "checks": [
+    {
+      "what": "damping rate of the field (1/ω_p)",
+      "value": {
+        "metric": "measured_damping_rate"
+      },
+      "expect": -0.1533,
+      "tolerance": 0.05
+    }
+  ]
+}

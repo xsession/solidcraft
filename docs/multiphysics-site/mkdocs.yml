@@ -75,6 +75,7 @@ nav:
       - What it does not do: theory/limits.md
       - Training cases: theory/training-cases.md
   - Reference:
+      - Benchmarks: reference/benchmarks.md
       - Commands: reference/commands.md
       - Example cases: reference/example-cases.md
       - Glossary: reference/glossary.md

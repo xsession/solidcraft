@@ -1,0 +1,52 @@
+{
+  "title": "Droplets evaporating by the d² law",
+  "domain": "Spray",
+  "shows": "50 µm droplets injected for 50 ms into hot air shrink as d² = d₀² − K·t (K = 1e-8 m²/s, a 250 ms lifetime). 100 ms after the injection stops, 64.47 % of the liquid has evaporated: the mass of each parcel, (1 − K·t/d₀²)^(3/2), averaged over the injection.",
+  "source": "The d² law of droplet evaporation: G. A. E. Godsave, Proc. Combust. Inst. 4 (1953) 818; S. R. Turns, An Introduction to Combustion, 3rd ed. (2012), ch. 3 and 10.",
+  "case": {
+    "solver": "spray_injection",
+    "size_m": [
+      0.4,
+      0.1,
+      0.1
+    ],
+    "cells": [
+      20,
+      5,
+      5
+    ],
+    "carrier_velocity_m_s": [
+      2,
+      0,
+      0
+    ],
+    "carrier_temperature_k": 400,
+    "nozzle_m": [
+      0.02,
+      0.05,
+      0.05
+    ],
+    "injection_velocity_m_s": [
+      10,
+      0,
+      0
+    ],
+    "droplet_diameter_m": 5e-05,
+    "mass_flow_rate_kg_s": 0.0001,
+    "injection_duration_s": 0.05,
+    "evaporation_constant_m2_s": 1e-08,
+    "dt_s": 0.0001,
+    "steps": 1500,
+    "frames": 5
+  },
+  "checks": [
+    {
+      "what": "evaporated share of the injected liquid",
+      "value": {
+        "metric": "evaporated_fraction"
+      },
+      "expect": 0.6446761683969081,
+      "tolerance": 0.01
+    }
+  ]
+}

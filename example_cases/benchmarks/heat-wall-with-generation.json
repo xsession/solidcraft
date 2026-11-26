@@ -1,0 +1,58 @@
+{
+  "title": "A copper wall releasing heat, held at 300 K on both faces",
+  "domain": "Heat",
+  "shows": "10 MW/m³ released evenly in a 40 mm copper wall whose faces are held at 300 K: in the steady state the temperature is a parabola, q·L²/(8k) = 5.26 K above the faces in the middle and q·L²/(12k) = 3.51 K above them on average.",
+  "source": "Plane wall with uniform generation: T. L. Bergman, A. S. Lavine, F. P. Incropera and D. P. DeWitt, Fundamentals of Heat and Mass Transfer, 7th ed. (2011), §3.5.",
+  "case": {
+    "solver": "solid_heat3d",
+    "mesh": {
+      "dimensions": [
+        40,
+        1,
+        1
+      ],
+      "lengths": {
+        "x": 0.04,
+        "y": 0.03,
+        "z": 0.01
+      }
+    },
+    "config": {
+      "dt": 0.05,
+      "density": 8900.0,
+      "heat_capacity": 385.0,
+      "conductivity": 380.0,
+      "temporal_scheme": "backward_bdf2"
+    },
+    "output": {
+      "steps": 400,
+      "output_interval": 400
+    },
+    "initial": 300.0,
+    "source": 10000000.0,
+    "boundaries": [
+      {
+        "patch": "left",
+        "kind": "fixed_value",
+        "value": 300.0
+      },
+      {
+        "patch": "right",
+        "kind": "fixed_value",
+        "value": 300.0
+      }
+    ]
+  },
+  "checks": [
+    {
+      "what": "mean rise above the faces (K)",
+      "value": {
+        "metric": "sensible_energy_J",
+        "add": -12335.399999999998,
+        "divide_by": 41.117999999999995
+      },
+      "expect": 3.508771929824561,
+      "tolerance": 0.01
+    }
+  ]
+}

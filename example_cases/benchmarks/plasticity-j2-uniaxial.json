@@ -1,0 +1,35 @@
+{
+  "title": "Uniaxial loading past yield with linear hardening",
+  "domain": "Plasticity",
+  "shows": "Steel stretched to 0.4 % strain: elastic to its 250 MPa yield, then σ = σ_y + H·ε_p with ε_p = (ε − σ_y/E)·E/(E + H).",
+  "source": "Return mapping for J2 plasticity with linear hardening: J. C. Simo and T. J. R. Hughes, Computational Inelasticity (1998), §2.2 (the one-dimensional case).",
+  "case": {
+    "solver": "j2_uniaxial",
+    "youngs_modulus_pa": 200000000000.0,
+    "poisson_ratio": 0.3,
+    "yield_stress_pa": 250000000.0,
+    "hardening_modulus_pa": 2000000000.0,
+    "strain_path": [
+      0.004
+    ],
+    "increments_per_segment": 80
+  },
+  "checks": [
+    {
+      "what": "stress at 0.4 % strain (Pa)",
+      "value": {
+        "metric": "max_axial_stress_Pa"
+      },
+      "expect": 255445544.55445546,
+      "tolerance": 0.001
+    },
+    {
+      "what": "equivalent plastic strain",
+      "value": {
+        "metric": "final_equivalent_plastic_strain"
+      },
+      "expect": 0.0027227722772277226,
+      "tolerance": 0.001
+    }
+  ]
+}

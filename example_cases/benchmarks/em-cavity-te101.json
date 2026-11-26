@@ -1,0 +1,40 @@
+{
+  "title": "The TE101 resonance of a rectangular cavity",
+  "domain": "EM",
+  "shows": "A 100 × 80 × 50 mm box with perfectly conducting walls, driven by a current along its height, resonates in TE101 at (c/2)·√((1/a)² + (1/d)²) = 3.352 GHz. The box is cut into 10 mm cubes, each split into six tetrahedra: long, flat boxes converge far more slowly.",
+  "source": "Rectangular cavity resonators: D. M. Pozar, Microwave Engineering, 4th ed. (2012), §6.3.",
+  "case": {
+    "solver": "edge_cavity3d",
+    "width_m": 0.1,
+    "height_m": 0.08,
+    "depth_m": 0.05,
+    "nx": 10,
+    "ny": 8,
+    "nz": 5,
+    "port_a_m": [
+      0.05,
+      0.04,
+      0.02
+    ],
+    "port_b_m": [
+      0.05,
+      0.05,
+      0.02
+    ],
+    "sweep": {
+      "start_hz": 3000000000.0,
+      "stop_hz": 3600000000.0,
+      "points": 25
+    }
+  },
+  "checks": [
+    {
+      "what": "first resonance (Hz)",
+      "value": {
+        "metric": "first_resonance_frequency_Hz"
+      },
+      "expect": 3351781576.148753,
+      "tolerance": 0.01
+    }
+  ]
+}

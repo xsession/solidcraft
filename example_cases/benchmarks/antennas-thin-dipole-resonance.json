@@ -1,0 +1,37 @@
+{
+  "title": "A thin dipole at its resonance",
+  "domain": "Antennas",
+  "shows": "A 0.5 m dipole of 0.1 mm wire (length 5 000 radii) fed at its centre and swept through half a wavelength: a thin dipole's reactance vanishes when it is about 0.48 wavelengths long, where its input resistance is about 70 Ω (73 + j42.5 Ω at exactly half a wavelength is the induced-EMF estimate for a sinusoidal current, which a real wire does not carry).",
+  "source": "Thin-dipole resonance: C. A. Balanis, Antenna Theory, 4th ed. (2016), §4.6 and §8.5; R. W. P. King, The Theory of Linear Antennas (1956).",
+  "case": {
+    "solver": "wire_antenna",
+    "length_m": 0.5,
+    "radius_m": 0.0001,
+    "segments": 201,
+    "sweep": {
+      "start_hz": 269813212.2,
+      "stop_hz": 314782080.90000004,
+      "points": 61
+    },
+    "reference_impedance_ohm": 70
+  },
+  "checks": [
+    {
+      "what": "length at resonance, in wavelengths",
+      "value": {
+        "metric": "resonant_frequency_Hz",
+        "divide_by": 599584916.0
+      },
+      "expect": 0.48,
+      "tolerance": 0.015
+    },
+    {
+      "what": "input resistance at resonance (Ω)",
+      "value": {
+        "metric": "resonant_resistance_ohm"
+      },
+      "expect": 70.0,
+      "tolerance": 0.05
+    }
+  ]
+}
