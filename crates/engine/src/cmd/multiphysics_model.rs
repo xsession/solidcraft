@@ -61,8 +61,9 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
             low[a] = low[a].min(lo);
             high[a] = high[a].max(hi);
         }
-        // What the grid should hold as solid: porous bodies are fluid with a resistance.
-        if !link.porous.iter().any(|p| p.body == body.name) {
+        // What the grid should hold as solid: porous bodies are fluid with a resistance, and a
+        // fan inside the domain is fluid it drives.
+        if !link.porous.iter().any(|p| p.body == body.name) && !link.internal_fans.iter().any(|f| f.body == body.name) {
             volume += body.measure()?.volume;
         }
     }
@@ -75,6 +76,13 @@ fn input(session: &Session, link: &ModelLink) -> Result<ModelInput> {
     }
     if let Some(missing) = link.porous.iter().find(|p| !porous_boxes.iter().any(|(name, _)| *name == p.body)) {
         return Err(bad("porous", format!("{} is porous but not one of the study's bodies", missing.body)));
+    }
+    let named = |name: &str| chosen.iter().any(|b| b.name == name);
+    if let Some(fan) = link.internal_fans.iter().find(|f| !named(&f.body)) {
+        return Err(bad("internal_fans", format!("{} stands for a fan but is not one of the study's bodies", fan.body)));
+    }
+    if let Some(body) = link.rotating.iter().flat_map(|r| &r.bodies).find(|b| !named(b)) {
+        return Err(bad("rotating", format!("{body} turns but is not one of the study's bodies")));
     }
     let names: Vec<String> = chosen.iter().filter(|b| !porous.contains(b.name.as_str())).map(|b| b.name.clone()).collect();
     if names.is_empty() {
@@ -231,6 +239,12 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     }
     if let Some(porous) = input.porous {
         link.porous = porous;
+    }
+    if let Some(fans) = input.internal_fans {
+        link.internal_fans = fans;
+    }
+    if let Some(rotating) = input.rotating {
+        link.rotating = rotating;
     }
     commit(session, &input.id, input.expected_revision, link)
 }

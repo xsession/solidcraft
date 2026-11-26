@@ -160,6 +160,9 @@ own tests:
   triangle was searched for; it is now taken from the tessellation.
 - **Porous zones and natural convection** were in the solver but not in a study of the model;
   both are now ([design to case](design-to-case.md#porous-bodies), [the solver](solver.md)).
+- **Fans inside the domain and rotating regions** were in the solver but not in a study of the
+  model; both are now ([design to case](design-to-case.md#fans-inside-the-domain)), and the
+  *Magnus effect* case, a cylinder turning in a stream, runs as an example case.
 
 ## Cases out of reach today
 
@@ -167,14 +170,13 @@ own tests:
 |---|---|---|
 | Falling droplets, fluidic oscillator, sneezing simulation | Two-phase flow (a free surface, droplets) | Single-phase flow only |
 | Kaplan turbine, vertical-axis wind turbine | A rotor turned by the flow (six degrees of freedom) | Rotating regions exist in the solver; flow-driven motion does not |
-| Fan rotation and AMI, rotating rotor, 2-D AMI, rotating inlet, water pump, complex mesh motion | Sliding or moving meshes between rotating and fixed parts | A box grid; a rotating region is not yet offered in a study of the model |
+| Fan rotation and AMI, rotating rotor, 2-D AMI, rotating inlet, water pump, complex mesh motion | Sliding or moving meshes between rotating and fixed parts | A box grid: a rotating region (a turning frame) and a fan inside the domain stand in for steady turning, not for blades passing |
 | ACMI heat transfer | Heat across a moving, connecting and disconnecting interface | Fixed geometry |
 | Tank with safety valve | A baffle that opens at a pressure | Fixed geometry |
 | Combustion chamber (cold flow) | Mixing of a passive scalar | No scalar transport in the 3-D flow |
 | Catalyst heat-up | Porous zones in a heated flow, on the case's housing | Porous bodies, yes (run above on our own duct); no heat exchange inside them; the housing is past the conversion limit as an STL and open as a STEP shell |
 | Solar chimney | Natural convection over a 9.9 m collector and up a 20 m chimney | Natural convection, yes; but under the 32 768-cell limit the cells on that box are 0.39 m, so the 0.4 m chimney would be one cell wide |
 | Gin and tonic | Natural convection and melting ice | Natural convection, yes; no melting |
-| Magnus effect | A cylinder whose wall turns | No moving walls in a study of the model |
 | 2-D adaptive mesh refinement (blastFoam) | Compressible, shock-capturing flow | Incompressible flow |
 | Pitot tube | Compressible flow up to 50 m/s, transient | Incompressible flow |
 | Geometric variation, Tesla valve (DAKOTA) | An optimiser driving the geometry | Sweeps over one value; no optimiser |

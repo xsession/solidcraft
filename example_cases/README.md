@@ -35,6 +35,8 @@ Each file in `model/` is JSON:
 | [07 Porous brick](model/07-porous-brick.json) | a porous body | pressure drop against Darcy |
 | [08 Jet from a face](model/08-jet-from-a-face.json) | a condition on a face inside the domain | the jet's flow leaves |
 | [09 Natural convection](model/09-natural-convection.json) | buoyancy | the heat sets the air moving |
+| [10 Fan inside a duct](model/10-internal-fan.json) | a fan inside the domain | the operating point against the duct's laminar curve; all its flow leaves |
+| [11 Turning cylinder](model/11-turning-cylinder.json) | a rotating region (the Magnus effect) | higher pressure where the surface moves against the stream |
 
 Run them:
 
@@ -66,7 +68,7 @@ python3 example_cases/templates/make_index.py /tmp/templates.json
 
 The 3-D flow is laminar (the companion's turbulence models run on their own, in the `rans-*`
 templates), single-phase in a study of the model (two-phase flow is in the `multiphase-*`
-templates), and on a box grid of at most 32 768 cells. Rotating regions, internal fans and
-thermal devices (heat pipes, thermoelectric coolers) are in the solver but not yet offered in
-a study of the model. See the Multiphysics documentation's *What it does not do* and *Training
+templates), and on a box grid of at most 32 768 cells. A rotating region is a turning frame for
+steady turning, not a mesh that slides. Thermal devices (heat pipes, thermoelectric coolers) are
+in the solver but not yet offered in a study of the model. See the Multiphysics documentation's *What it does not do* and *Training
 cases* pages.

@@ -1,0 +1,178 @@
+{
+  "title": "A turning cylinder in a stream (the Magnus effect)",
+  "shows": "A 12 mm cylinder across a channel turns about its axis (+z, 159 rpm: its surface moves at twice the 0.05 m/s stream) inside a rotating region, whose walls turn with it. On the side where the surface moves against the stream (+y) the air slows and the pressure rises; on the other side it speeds up and the pressure falls, so the cylinder is pushed sideways, towards −y.",
+  "capabilities": [
+    "rotating_regions_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 120.0,
+        "width": 68.0,
+        "height": 20.0,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Wall"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 130.0,
+        "width": 60.0,
+        "height": 12.0,
+        "corner": [
+          -5,
+          4,
+          4
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.cylinder",
+      "params": {
+        "radius": 6.0,
+        "height": 12.0,
+        "base": [
+          40,
+          34,
+          4
+        ],
+        "operation": "new",
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Turning cylinder",
+        "cell_mm": 2.0,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 3.0,
+          "converge_tolerance": null
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Inlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            0,
+            2,
+            10
+          ]
+        },
+        "role": {
+          "kind": "inlet",
+          "speed_m_per_s": 0.05
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Outlet",
+        "face": {
+          "body": "Wall",
+          "point": [
+            120,
+            2,
+            10
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.set",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "rotating": [
+          {
+            "name": "spin",
+            "bodies": [
+              "Cylinder"
+            ],
+            "axis": 2,
+            "rpm": 159.15494309189535
+          }
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "above",
+        "kind": "point_pressure",
+        "point_mm": [
+          40,
+          44,
+          10
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "below",
+        "kind": "point_pressure",
+        "point_mm": [
+          40,
+          24,
+          10
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "fastest",
+        "kind": "global_max_speed"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "the pressure 4 mm above the cylinder less that 4 mm below it: higher where the surface moves against the stream (Pa)",
+      "value": {
+        "metric": "goal_above",
+        "minus": "goal_below"
+      },
+      "at_least": 1e-05
+    },
+    {
+      "what": "the fastest air: the turning surface drags it past the stream's speed (m/s)",
+      "value": {
+        "metric": "goal_fastest"
+      },
+      "at_least": 0.05,
+      "at_most": 0.2
+    }
+  ]
+}

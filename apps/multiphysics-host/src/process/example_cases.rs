@@ -102,7 +102,7 @@ fn judge(check: &Value, value: f64) -> Result<(), String> {
 #[test]
 fn every_model_example_builds_and_asks_for_what_it_shows() {
     let all = examples();
-    assert!(all.len() >= 9, "{} examples", all.len());
+    assert!(all.len() >= 11, "{} examples", all.len());
     for (name, example) in &all {
         assert!(example["title"].as_str().is_some_and(|t| !t.is_empty()) && example["shows"].as_str().is_some(), "{name}: title and shows");
         assert!(example["checks"].as_array().is_some_and(|c| !c.is_empty()), "{name}: no checks");

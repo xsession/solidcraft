@@ -1,6 +1,6 @@
 # Results of the last run
 
-Every example in this folder, run by cfd-solvers-rs 0.18.0 through `real_model_examples_meet_their_checks`
+Every example in this folder (10 and 11 run on their own the same day), run by cfd-solvers-rs 0.18.0 through `real_model_examples_meet_their_checks`
 (26 November 2026, laminar air at 20 °C). Each check's value, what it was held against, and
 whether it passed.
 
@@ -20,3 +20,7 @@ whether it passed.
 | A porous brick filling a duct | pressure drop across the brick against Darcy (Pa) | 0.2634 | 0.27 | -2.4 % | yes | 111 |
 | A jet blown from a face inside the domain | air out: the jet's 0.2 m/s over 10 × 10 mm (m³/s) | 2e-05 | 2e-05 | -0.0 % | yes | 100 |
 | Air rising off a heated block in a sealed box | the air moves, driven only by the heat (m/s) | 0.2455 | bound | – | yes | 373 |
+| A fan inside a duct | the fan's flow against its curve crossing the duct's laminar curve (m³/s) | 8.169e-06 | 7.998e-06 | +2.1 % | yes | 436 |
+|  | the air out of the far end less the fan's flow, as a share of it | 1.103e-09 | bound | – | yes |  |
+| A turning cylinder in a stream (the Magnus effect) | the pressure 4 mm above the cylinder less that 4 mm below it (Pa) | 0.001081 | bound | – | yes | 297 |
+|  | the fastest air: the turning surface drags it past the stream's speed (m/s) | 0.1043 | bound | – | yes |  |

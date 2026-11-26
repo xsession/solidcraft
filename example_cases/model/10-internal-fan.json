@@ -1,0 +1,169 @@
+{
+  "title": "A fan inside a duct",
+  "shows": "A body in the middle of an open duct stands for a fan: its cells push the air along +x by the fan's pressure–flow curve (0.1 Pa at no flow, none at 1.2 L/min), and both ends of the duct are open to still air. It settles where its curve crosses the duct's: with the duct's developed laminar resistance over its 60 mm that is 8.0e-6 m³/s; the air entering and leaving adds a little resistance, so a little less. All the air the fan moves leaves through the far end.",
+  "capabilities": [
+    "internal_fans_v1",
+    "scaled_momentum_v1"
+  ],
+  "steps": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 60.0,
+        "width": 11.2,
+        "height": 11.2,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "body_name": "Wall"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 70.0,
+        "width": 8.0,
+        "height": 8.0,
+        "corner": [
+          -5,
+          1.6,
+          1.6
+        ],
+        "operation": "cut"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 4.0,
+        "width": 8.0,
+        "height": 8.0,
+        "corner": [
+          28,
+          1.6,
+          1.6
+        ],
+        "operation": "new",
+        "body_name": "Fan"
+      }
+    },
+    {
+      "command": "multiphysics.model.create",
+      "params": {
+        "name": "Fan inside a duct",
+        "cell_mm": 0.8,
+        "flow": {
+          "kinematic_viscosity_m2_per_s": 1.5e-05,
+          "density_kg_per_m3": 1.2,
+          "end_time_s": 1.1,
+          "converge_tolerance": 0.0002
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Near end",
+        "face": {
+          "body": "Wall",
+          "point": [
+            0,
+            0.8,
+            5.6
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.condition",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "Far end",
+        "face": {
+          "body": "Wall",
+          "point": [
+            60,
+            0.8,
+            5.6
+          ]
+        },
+        "role": {
+          "kind": "outlet",
+          "pressure_m2_per_s2": 0
+        }
+      }
+    },
+    {
+      "command": "multiphysics.model.set",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "internal_fans": [
+          {
+            "name": "blower",
+            "body": "Fan",
+            "direction": "+x",
+            "curve": [
+              [
+                0.0,
+                0.1
+              ],
+              [
+                2e-05,
+                0.0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": "multiphysics.model.goal",
+      "params": {
+        "id": "$study",
+        "expected_revision": "$revision",
+        "name": "q",
+        "kind": "face_volume_flow",
+        "face": {
+          "body": "Wall",
+          "point": [
+            60,
+            0.8,
+            5.6
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "what": "the fan's flow against its curve crossing the duct's laminar curve (m³/s)",
+      "value": {
+        "metric": "internal_fan_blower_volume_flow_m3_per_s",
+        "abs": true
+      },
+      "expect": 7.998219146518158e-06,
+      "tolerance": 0.15
+    },
+    {
+      "what": "the air out of the far end less the fan's flow, as a share of it",
+      "value": {
+        "metric": "goal_q",
+        "minus": "internal_fan_blower_volume_flow_m3_per_s",
+        "divide": "internal_fan_blower_volume_flow_m3_per_s",
+        "abs": true
+      },
+      "at_most": 0.05
+    }
+  ]
+}

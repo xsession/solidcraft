@@ -469,6 +469,14 @@ pub struct ModelLink {
     /// A fan on a face of the model on the domain boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fan: Option<ModelFan>,
+    /// Bodies that stand for fans inside the domain: their cells blow along a direction by a
+    /// pressure–flow curve (companion 0.12.0, `internal_fans_v1`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub internal_fans: Vec<ModelInternalFan>,
+    /// Regions around bodies that turn (a rotating frame, MRF): the walls of the bodies inside
+    /// turn with them (companion 0.11.0, `rotating_regions_v1`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rotating: Vec<ModelRotating>,
     /// Bodies that are porous zones (a catalyst brick, a filter, a heat sink's fin block taken
     /// as a whole) rather than solid walls (companion 0.4.0, `porous_blocks_v1`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -481,6 +489,34 @@ pub struct ModelLink {
     /// the design changed since, and the case must be built again before a run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub built_from: Option<String>,
+}
+
+/// A body of the design that stands for a fan inside the domain: the cells covering it become
+/// fluid that the fan drives along `direction` (`+x` … `-z`) by `curve`, (volume flow m³/s,
+/// pressure rise Pa) points with rising flow and falling pressure.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelInternalFan {
+    /// Letters, digits and underscores.
+    pub name: String,
+    pub body: String,
+    pub direction: String,
+    pub curve: Vec<[f64; 2]>,
+}
+
+/// A region turning about an axis through the middle of its bodies' box: the cells covering
+/// the bodies and `margin_cells` more, kept a cell off the domain's boundary.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelRotating {
+    /// Letters, digits and underscores.
+    pub name: String,
+    pub bodies: Vec<String>,
+    /// 0: x, 1: y, 2: z; positive `rpm` turns by the right-hand rule.
+    pub axis: u8,
+    pub rpm: f64,
+    #[serde(default)]
+    pub margin_cells: usize,
 }
 
 /// A body of the design taken as a porous zone: the cells whose centres lie in its exact box
@@ -641,6 +677,20 @@ impl ModelLink {
         }
         if let Some(flow) = &self.flow {
             flow.validate()?;
+        }
+        if self.internal_fans.len() > MAX_OPENINGS || self.rotating.len() > MAX_OPENINGS {
+            return Err(Error::Limit(format!("a model study has at most {MAX_OPENINGS} internal fans and {MAX_OPENINGS} rotating regions")));
+        }
+        for fan in &self.internal_fans {
+            text(&fan.body, "an internal fan's body")?;
+        }
+        for region in &self.rotating {
+            if region.bodies.is_empty() || region.bodies.len() > MAX_BODIES {
+                return Err(Error::Invalid(format!("{}: a rotating region turns 1 to {MAX_BODIES} bodies", region.name)));
+            }
+            for body in &region.bodies {
+                text(body, "a rotating body")?;
+            }
         }
         if self.porous.len() > MAX_OPENINGS {
             return Err(Error::Limit(format!("a model study has at most {MAX_OPENINGS} porous bodies")));
@@ -1269,6 +1319,8 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         object.remove("thermal");
         object.remove("fan");
         object.remove("porous_blocks");
+        object.remove("internal_fans");
+        object.remove("rotating_regions");
         for key in ["velocity_boundaries", "pressure_boundaries"] {
             if let Some(rows) = object.get_mut(key).and_then(Value::as_array_mut) {
                 rows.retain(|row| row["patch"].as_str().is_some_and(|patch| PATCHES.contains(&patch)));
@@ -1508,6 +1560,13 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     {
         object.insert("goals".into(), Value::Array(goals));
     }
+    // Fans inside the domain, on the cells their bodies cover.
+    for fan in &link.internal_fans {
+        let curve: Vec<(f64, f64)> = fan.curve.iter().map(|p| (p[0], p[1])).collect();
+        case = case_scene::add_internal_fan(&case, &fan.name, &[case_scene::part_name(&fan.body)], &fan.direction, &curve)
+            .map_err(|e| bad(format!("internal fan {}: {e}", fan.name)))?
+            .case;
+    }
     // Porous bodies: the cells whose centres lie in each one's exact box.
     if !input.porous_boxes.is_empty() {
         let nodes = case_scene::nodes(&case)?;
@@ -1546,12 +1605,15 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
     if let Some(flow) = &link.flow {
         // A fan blows at most its curve's largest flow; through the domain's narrowest side that
         // is the fastest it can drive the fluid on average.
-        let fan_speed = link.fan.as_ref().map_or(0.0, |fan| {
-            let flow = fan.curve.iter().map(|p| p[0].abs()).fold(0.0, f64::max);
-            let size: Vec<f64> = (0..3).map(|a| (input.bounds_mm[1][a] - input.bounds_mm[0][a] + 2.0 * margin) / 1000.0).collect();
-            let narrowest = (size[0] * size[1]).min(size[1] * size[2]).min(size[0] * size[2]);
-            if narrowest > 0.0 { flow / narrowest } else { 1.0 }
-        });
+        let fan_speed = link.fan.as_ref().map(|f| f.curve.as_slice()).into_iter().chain(link.internal_fans.iter().map(|f| f.curve.as_slice())).fold(
+            0.0,
+            |most: f64, curve| {
+                let flow = curve.iter().map(|p| p[0].abs()).fold(0.0, f64::max);
+                let size: Vec<f64> = (0..3).map(|a| (input.bounds_mm[1][a] - input.bounds_mm[0][a] + 2.0 * margin) / 1000.0).collect();
+                let narrowest = (size[0] * size[1]).min(size[1] * size[2]).min(size[0] * size[2]);
+                most.max(if narrowest > 0.0 { flow / narrowest } else { 1.0 })
+            },
+        );
         // Natural convection moves the fluid at about √(g·β·ΔT·H) over the domain's height H;
         // with a rise of 50 K that is an upper bound for most electronics and rooms.
         let buoyant_speed = link.heat.as_ref().and_then(|h| h.buoyancy).map_or(0.0, |b| {
@@ -1570,6 +1632,28 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         // The template's time step no longer counts: say only what this one does.
         notes.retain(|n| !n.starts_with("the time step was cut"));
         apply_flow(&mut case, flow, speed, &mut notes)?;
+    }
+    // Rotating regions around their bodies, after the time step is set: a region shortens it to
+    // turn at most a tenth of a radian a step, with the run's steps to match.
+    for region in &link.rotating {
+        let parts: Vec<String> = region.bodies.iter().map(|b| case_scene::part_name(b)).collect();
+        case = case_scene::add_rotating_region(&case, &region.name, &parts, usize::from(region.axis), region.rpm, region.margin_cells)
+            .map_err(|e| bad(format!("rotating region {}: {e}", region.name)))?
+            .case;
+    }
+    if !link.rotating.is_empty() {
+        // The shorter step takes more steps: at most the run's step and work limits.
+        let cells = case_scene::nodes(&case)?.iter().map(|axis| axis.len().saturating_sub(1) as u64).product::<u64>().max(1);
+        let most = crate::MAX_STEPS.min(crate::MAX_WORK / cells).max(1);
+        let steps = case["output"]["steps"].as_u64().unwrap_or(most);
+        if steps > most {
+            let dt = case["config"]["dt"].as_f64().unwrap_or(0.0);
+            notes.push(format!(
+                "turning at most 0.1 rad a step, the run's step limit ({most} steps) reaches {:.3} s; use larger cells or a shorter end time",
+                most as f64 * dt
+            ));
+            case["output"] = serde_json::json!({"steps": most, "output_interval": most});
+        }
     }
     // How much of the model the grid keeps, and where the fluid is.
     let volume = crate::fluid_volume::fluid_volume(&case)?;
@@ -2124,6 +2208,79 @@ mod tests {
         porous.porous[0].viscous_resistance_per_m2 = 0.0;
         porous.porous[0].inertial_resistance_per_m = 0.0;
         assert!(porous.validate().is_err(), "no resistance at all");
+    }
+
+    /// The duct with a box `name` from `lo` to `hi` (mm) in its channel, as a second body.
+    fn duct_with_box(name: &str, lo: [f64; 3], hi: [f64; 3]) -> ModelInput {
+        let mut input = duct();
+        let offset = input.obj.lines().filter(|l| l.starts_with("v ")).count();
+        let mut obj = Obj::default();
+        for axis in 0..3 {
+            for (side, sign) in [(lo, -1.0), (hi, 1.0)] {
+                let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+                let corner = |a: f64, b: f64| {
+                    let mut p = [0.0; 3];
+                    p[axis] = side[axis];
+                    p[u] = a;
+                    p[v] = b;
+                    p
+                };
+                let mut normal = [0.0; 3];
+                normal[axis] = sign;
+                obj.quad([corner(lo[u], lo[v]), corner(hi[u], lo[v]), corner(hi[u], hi[v]), corner(lo[u], hi[v])], normal);
+            }
+        }
+        let mut text = format!("o {name}\n");
+        for p in &obj.points {
+            text.push_str(&format!("v {} {} {}\n", p[0], p[1], p[2]));
+        }
+        for line in obj.faces.lines() {
+            let ids: Vec<String> =
+                line.split_whitespace().skip(1).filter_map(|i| i.parse::<usize>().ok()).map(|i| (i + offset).to_string()).collect();
+            text.push_str(&format!("f {}\n", ids.join(" ")));
+        }
+        input.obj.push_str(&text);
+        input
+    }
+
+    /// A fan body inside the channel becomes an internal fan over the cells it covers, and its
+    /// curve's flow counts for the time step; a body that turns gets a rotating region a cell
+    /// clear of the domain's sides, and its time step turns it at most 0.1 rad a step.
+    #[test]
+    fn fans_and_rotating_regions_go_on_the_cells_their_bodies_cover() {
+        let inlet = OpeningRole::Inlet { speed_m_per_s: 0.01 };
+        let outlet = OpeningRole::Outlet { pressure_m2_per_s2: 0.0 };
+        let mut fan = link(&[("in", inlet), ("out", outlet)]);
+        fan.openings.clear();
+        fan.flow = Some(ModelFlow { kinematic_viscosity_m2_per_s: 1.5e-5, density_kg_per_m3: 1.2, end_time_s: 1.0, converge_tolerance: None });
+        fan.internal_fans =
+            vec![ModelInternalFan { name: "blower".into(), body: "Rotor".into(), direction: "+x".into(), curve: vec![[0.0, 1.0], [1e-4, 0.0]] }];
+        let input = duct_with_box("Rotor", [40.0, 12.0, 12.0], [60.0, 28.0, 28.0]);
+        let built = build(&channel(), &fan, &input).expect("an internal fan");
+        let row = &built.case["internal_fans"][0];
+        assert_eq!((row["name"].as_str(), row["direction"].as_str()), (Some("blower"), Some("+x")), "{row}");
+        assert_eq!((row["min"].clone(), row["max"].clone()), (serde_json::json!([10, 3, 3]), serde_json::json!([15, 7, 7])));
+        assert!(built.case["bodies"].as_array().into_iter().flatten().all(|b| b["name"] != "Rotor"), "the fan's body is fluid");
+        assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "internal_fans_v1"));
+        // 1e-4 m³/s through the domain's narrowest side, 0.1 × 0.04 m: 0.025 m/s, faster than the
+        // 0.05 m/s floor only when doubled, so the floor rules; the diffusion limit is larger.
+        let dt = built.case["config"]["dt"].as_f64().unwrap_or(0.0);
+        assert!(dt > 0.0 && dt <= 0.4 / (2.0 * 0.05 * 750.0) + 1e-12, "{dt}");
+
+        let mut turning = fan.clone();
+        turning.internal_fans.clear();
+        turning.rotating = vec![ModelRotating { name: "spin".into(), bodies: vec!["Rotor".into()], axis: 0, rpm: 600.0, margin_cells: 1 }];
+        let built = build(&channel(), &turning, &input).expect("a rotating region");
+        let row = &built.case["rotating_regions"][0];
+        assert_eq!((row["min"].clone(), row["max"].clone()), (serde_json::json!([9, 2, 2]), serde_json::json!([16, 8, 8])), "{row}");
+        assert_eq!(row["axis"], serde_json::json!({"x": 1.0, "y": 0.0, "z": 0.0}));
+        let omega = 600.0 * std::f64::consts::TAU / 60.0;
+        let dt = built.case["config"]["dt"].as_f64().unwrap_or(0.0);
+        assert!((dt - 0.1 / omega).abs() < 1e-12, "{dt}");
+        assert!(crate::airflow::requirements(&built.case).iter().any(|r| r.capability == "rotating_regions_v1"));
+        // A region of a body that is not in the study, or of none, is refused.
+        turning.rotating[0].bodies.clear();
+        assert!(turning.validate().is_err());
     }
 
     /// The duct's outer underside fills the domain's lowest side: no fluid touches that side,

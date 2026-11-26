@@ -111,6 +111,27 @@ them, the pressure falling by μ·D·u + ½·ρ·C·|u|·u per metre, with D the
 not a box is taken as its box, and one thinner than a cell along any axis is refused. Heat is not
 exchanged inside a porous zone: it is a resistance to the flow only.
 
+### Fans inside the domain
+
+A body can stand for a **fan inside the domain**, a fan in the middle of a duct or a cabinet
+(`multiphysics.model.set {"internal_fans": [{name, body, direction, curve}]}`). Its cells become
+fluid that the fan pushes along one grid direction (`+x` … `-z`): each step the solver measures
+the flow through the block and raises the pressure across it towards the curve's rise at that
+flow, as a force spread over the block. The block is the cells the body's box covers; swirl,
+blades and the fan's own losses are not modelled. The run reports each fan's flow and pressure
+rise (`internal_fan_<name>_volume_flow_m3_per_s`, `…_pressure_rise_pa`).
+
+### Rotating regions
+
+Bodies that turn, a rotor, an impeller, a spinning cylinder, go in a **rotating region**
+(`multiphysics.model.set {"rotating": [{name, bodies, axis, rpm, margin_cells}]}`): the cells
+covering the bodies, and `margin_cells` more, turn about the axis through the middle of their
+box (0: x, 1: y, 2: z; positive `rpm` by the right-hand rule). The fluid in them is solved in the
+turning frame (multiple reference frames, for steady turning) and the walls inside move with it,
+so the bodies' surfaces drag the air round. A region stays a cell clear of the domain's sides and
+of other regions, and the time step is shortened so it turns at most 0.1 rad a step, within the
+run's step limit.
+
 ## Conditions on faces
 
 Conditions are picked on faces of the model. A **flat face on the domain's boundary** opens

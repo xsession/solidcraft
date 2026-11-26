@@ -587,6 +587,12 @@ pub struct ModelSet {
     /// The bodies that are porous zones, with their resistances (replaces the list; [] for none).
     #[serde(default)]
     pub porous: Option<Vec<solidcraft_multiphysics::model::ModelPorous>>,
+    /// Bodies that stand for fans inside the domain (replaces the list; [] for none).
+    #[serde(default)]
+    pub internal_fans: Option<Vec<solidcraft_multiphysics::model::ModelInternalFan>>,
+    /// Regions turning about an axis around bodies (replaces the list; [] for none).
+    #[serde(default)]
+    pub rotating: Option<Vec<solidcraft_multiphysics::model::ModelRotating>>,
 }
 
 /// `multiphysics.model.fan`: a fan on a face of the model on the domain boundary, or remove it.
