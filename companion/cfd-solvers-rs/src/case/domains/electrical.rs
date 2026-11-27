@@ -271,8 +271,8 @@ impl TcadDiodeCase {
             nodes: self.nodes,
             area_m2: self.area_m2,
             max_gummel_iterations: 1000,
-            relative_tolerance: 2e-7,
-            under_relaxation: 0.05,
+            relative_tolerance: 1e-10,
+            under_relaxation: 1.0,
             ..Default::default()
         };
         let mut d = SemiconductorDevice1D::new(cfg)?;

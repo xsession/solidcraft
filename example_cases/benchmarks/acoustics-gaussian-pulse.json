@@ -1,7 +1,7 @@
 {
   "title": "A Gaussian pressure pulse in water",
   "domain": "Acoustics",
-  "shows": "A 1 kPa Gaussian pulse (σ = 0.3 mm) at rest in water spreads as a ring at 1500 m/s; after 2 µs the pressure at points on and near the ring is the exact solution of the 2-D wave equation, from its Hankel transform.",
+  "shows": "A 1 kPa Gaussian pulse (σ = 0.3 mm) at rest in water spreads as a ring at 1500 m/s; after 2 µs (100 steps at a Courant number of 0.3) the pressure at points on and near the ring is the exact solution of the 2-D wave equation, from its Hankel transform, to 1e-6: in a uniform medium the k-space step is exact in time and the spectral gradient in space.",
   "source": "The 2-D initial-value problem: A. D. Pierce, Acoustics (2019), §4.2; the same check is used for k-space methods by B. E. Treeby and B. T. Cox, J. Biomed. Opt. 15 (2010) 021314.",
   "case": {
     "solver": "acoustic_kspace2d",
@@ -10,12 +10,12 @@
       "ny": 128,
       "dx": 0.0001,
       "dy": 0.0001,
-      "dt": 5e-09,
+      "dt": 2e-08,
       "pml_cells": 12
     },
     "sound_speed": 1500.0,
     "density": 1000.0,
-    "steps": 400,
+    "steps": 100,
     "center_x_fraction": 0.5,
     "center_y_fraction": 0.5,
     "sigma": 0.0003,
@@ -37,7 +37,7 @@
         ]
       },
       "expect": 103.03660127648146,
-      "tolerance": 0.02
+      "tolerance": 1e-06
     },
     {
       "what": "pressure 3.25 mm from the centre (Pa)",
@@ -51,7 +51,7 @@
         ]
       },
       "expect": 107.27842880868796,
-      "tolerance": 0.02
+      "tolerance": 1e-06
     },
     {
       "what": "pressure 3.45 mm from the centre (Pa)",
@@ -65,7 +65,7 @@
         ]
       },
       "expect": 60.68416364868637,
-      "tolerance": 0.02
+      "tolerance": 1e-06
     }
   ]
 }

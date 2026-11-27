@@ -37,7 +37,7 @@ Nothing is taken from another product: each case is written from the problem's s
 | [Two-stream instability](plasma-two-stream.json) | Plasma | Birdsall and Langdon | the growth rate |
 | [J2 plasticity, uniaxial](plasticity-j2-uniaxial.json) | Plasticity | Simo and Hughes | stress and plastic strain at 0.4 % |
 | [Mismatched line](rf-mismatched-line.json) | RF | Pozar, ABCD parameters | S21 at two frequencies |
-| [PN junction](semiconductors-pn-junction.json) | Semiconductors | Sze and Ng | the built-in potential; the ideal-diode growth |
+| [PN junction](semiconductors-pn-junction.json) | Semiconductors | Sze and Ng | the built-in potential; the ideal-diode growth; the depletion capacitance |
 | [d² law](spray-d2-law.json) | Spray | Godsave (1953); Turns | the evaporated share |
 | [Bar modes](structures-bar-modes.json) | Structures | Rao, *Mechanical Vibrations* | four axial modes |
 | [Cantilever under its own weight](structures-cantilever-self-weight.json) | Structures | Timoshenko and Gere | the tip deflection |
@@ -76,11 +76,16 @@ python3 example_cases/benchmarks/run_benchmarks.py /path/to/cfd-solve /tmp/bench
 - **The cavity's tetrahedra need cubes.** Long, flat boxes split into tetrahedra converge far
   more slowly: boxes six times longer than wide put the TE101 resonance 6 % low; 10 mm cubes
   put it 0.3 % low.
-- **The diode solver fails on devices longer than 2 µm** (its Gummel iteration diverges and a
-  pivot vanishes), so the junction here is short, and its capacitance under reverse bias,
-  whose depletion would reach the contacts, is not checked.
-- **The acoustic solver is first-order in time**: its velocity starts at t = 0 rather than half a
-  step before, so a pulse is 3 % low at a Courant number of 0.3 and within 1 % at 0.075.
+- **The diode solver failed on devices longer than 2 µm**: its Gummel iteration solved Poisson's
+  equation with the carriers frozen, which diverges once a device is many Debye lengths long,
+  until a pivot vanished. Fixed in the companion: the carriers follow the potential at fixed
+  quasi-Fermi levels (Newton's method on the nonlinear Poisson equation), so the junction here
+  is 10 µm long. Its capacitance read the field at the contact, near zero behind a neutral
+  region; it now reads the charge between the contact and the junction, and matches the
+  depletion formula within 0.01 %.
+- **The acoustic solver was first-order in time**: its velocity started at t = 0 rather than half
+  a step before, so a pulse was 3 % low at a Courant number of 0.3. Fixed in the companion; the
+  k-space step is now exact in a uniform medium, and the pulse matches to 1e-11.
 - **The 3-D flow solver's convection is first-order upwind**, the only scheme its momentum
   equation offers: in the lid-driven cavity at Re = 100 on 65 × 65 cells the vortex core turns
   4 to 5 % slow (within 2 % on 129 × 129). Its tolerance there is 6 %.

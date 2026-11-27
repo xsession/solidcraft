@@ -12,11 +12,11 @@ right, and how close.
 
 ## The last run
 
-All 32 pass (solver companion 0.18.0, with the phase-field fix below).
+All 32 pass (solver companion 0.18.0, with the phase-field, diode and acoustic fixes below).
 
 | Benchmark | Reference | Result |
 |---|---|---|
-| Gaussian pulse in water | the 2-D wave's exact solution | within 1.5 % across the ring's crest |
+| Gaussian pulse in water | the 2-D wave's exact solution | exact (within 1e-11) across the ring's crest |
 | Cold Lennard-Jones chain | lattice sum and equipartition | −0.08 % |
 | Discharge and rest | charge conservation; relaxation | charge exact; the voltage recovers 24 mV and settles |
 | Uniform heating against perfusion | Pennes (1948) | −0.16 % after one time constant |
@@ -42,7 +42,7 @@ All 32 pass (solver companion 0.18.0, with the phase-field fix below).
 | Two-stream instability | Birdsall and Langdon | growth rate −7.3 % |
 | J2 plasticity, uniaxial | Simo and Hughes | exact |
 | Mismatched transmission line | Pozar | exact |
-| PN junction | Sze and Ng | built-in potential exact; ideality 1.03 |
+| PN junction | Sze and Ng | built-in potential exact; ideality 1.004; depletion capacitance within 0.01 % |
 | d² law | Godsave; Turns | +0.03 % |
 | Fixed–free bar modes | Rao | within 0.01 % |
 | Cantilever under its own weight | Timoshenko and Gere | −1.4 % |
@@ -56,10 +56,15 @@ All 32 pass (solver companion 0.18.0, with the phase-field fix below).
   on 64 cells across the wave and +3.5 % on 512.
 - **The cavity's tetrahedra need near-cubic boxes**: boxes six times longer than wide put the
   resonance 6 % low.
-- **The diode solver fails on devices longer than 2 µm**, so reverse-bias capacitance is not
-  yet checked.
-- **The acoustic solver is first-order in time**: it starts its velocity at t = 0 rather than
-  half a step before, so a pulse comes out 3 % low at a Courant number of 0.3, within 1 % at 0.075.
+- **The diode solver failed on devices longer than 2 µm**: its Poisson step held the carriers
+  fixed while the potential moved, which diverges once a device is many Debye lengths long.
+  Fixed: the carriers now follow the potential at fixed quasi-Fermi levels, and any length
+  converges, at equilibrium in two iterations instead of hundreds. Its capacitance read the
+  field at the contact, which stays near zero behind a neutral region; it now reads the charge
+  on the contact's side of the junction, and matches the depletion formula.
+- **The acoustic solver was first-order in time**: it started its velocity at t = 0 rather than
+  half a step before, so a pulse came out 3 % low at a Courant number of 0.3. Fixed: in a
+  uniform medium its k-space step is now exact, and the pulse matches the exact solution.
 - **The 3-D flow solver's convection is first-order upwind**, the only scheme its momentum
   equation offers: the lid-driven cavity's vortex core turns 4 to 5 % slow on 65 × 65 cells.
 - **The two-fluid (Euler–Euler) model has no pressure**: drag carries the liquid along with the

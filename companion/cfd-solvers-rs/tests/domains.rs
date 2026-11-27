@@ -237,6 +237,37 @@ fn acoustic_fractional_derivative_and_absorption_match_mode() {
     }
 }
 #[test]
+fn acoustic_standing_wave_is_exact_at_a_large_step() {
+    // p = cos(kx)·cos(ckt) in a uniform periodic medium. The k-space operator's sinc
+    // correction makes the staggered step exact for one mode once the velocity starts at
+    // −dt/2: u(−dt/2) = −sin(kx)·sin(ck·dt/2)/(ρc), which is what (dt/2)·∇p/ρ gives with
+    // the corrected gradient. Starting the velocity at zero errs by O(dt) instead.
+    let (nx, dx, c, rho) = (32, 1e-3, 1500.0, 1000.0);
+    let mut s = KSpaceAcoustic2D::new(KSpace2DConfig {
+        nx,
+        ny: 4,
+        dx,
+        dy: dx,
+        cfl: 0.5,
+        pml_cells: 0,
+        ..Default::default()
+    })
+    .unwrap();
+    s.set_uniform_medium(c, rho).unwrap();
+    let k = 2.0 * std::f64::consts::PI / (nx as f64 * dx);
+    let x = |q: usize| ((q % nx) as f64 + 0.5) * dx;
+    let p0: Vec<f64> = (0..nx * 4).map(|q| (k * x(q)).cos()).collect();
+    s.initialize_pressure(&p0).unwrap();
+    s.step(37).unwrap();
+    let phase = (c * k * s.time()).cos();
+    for (q, p) in s.pressure().iter().enumerate() {
+        assert!(
+            (p - (k * x(q)).cos() * phase).abs() < 1e-11,
+            "cell {q}: {p}"
+        );
+    }
+}
+#[test]
 fn acoustic_uniform_field_and_sensor_timing() {
     let mut s = KSpaceAcoustic2D::new(KSpace2DConfig {
         nx: 16,

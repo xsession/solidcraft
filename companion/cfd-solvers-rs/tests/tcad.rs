@@ -94,6 +94,50 @@ fn pn_built_in_voltage_and_ohmic_bar() {
 }
 
 #[test]
+fn long_pn_junction_converges_with_depletion_capacitance() {
+    // 10 µm, about 80 Debye lengths, where a Poisson step with frozen carriers diverged.
+    // Abrupt junction (Sze and Ng): V_bi = V_T·ln(N_A·N_D/nᵢ²) and
+    // C = A·√(q·ε·N_A·N_D / (2·(N_A + N_D)·(V_bi − V − 2V_T))); forward current grows
+    // as e^(V/V_T) at low injection.
+    let (na, nd, length) = (2e21, 1e21, 10e-6);
+    let cfg = Semiconductor1DConfig {
+        length_m: length,
+        nodes: 401,
+        max_gummel_iterations: 1000,
+        relative_tolerance: 1e-10,
+        under_relaxation: 1.0,
+        ..Default::default()
+    };
+    let mut d = SemiconductorDevice1D::new(cfg).unwrap();
+    d.set_net_doping(&pn_junction_doping(d.x(), 0.5 * length, na, nd).unwrap())
+        .unwrap();
+    let eq = d.solve_equilibrium().unwrap();
+    assert!(eq.converged && eq.iterations < 10);
+    let (vt, ni) = (
+        thermal_voltage(300.0).unwrap(),
+        cfg.material.intrinsic_density_m3,
+    );
+    let vbi = vt * (na * nd / (ni * ni)).ln();
+    assert!(near(d.potential()[400] - d.potential()[0], vbi, 1e-6));
+    let eps = VACUUM_PERMITTIVITY_F_PER_M * cfg.material.relative_permittivity;
+    let depletion = |v: f64| {
+        cfg.area_m2
+            * (ELEMENTARY_CHARGE_C * eps * na * nd / (2.0 * (na + nd) * (vbi - v - 2.0 * vt)))
+                .sqrt()
+    };
+    for p in d.sweep_cv(-2.0, -1.0, 2, 1e-3).unwrap() {
+        assert!(p.converged);
+        assert!(near(p.capacitance_f, depletion(p.voltage_v), 2e-3), "{p:?}");
+    }
+    // The p side is on the left; driving the right contact negative forward-biases it.
+    let iv = d.clone().sweep_right_contact(-0.3, -0.4, 3).unwrap();
+    assert!(iv.iter().all(|p| p.converged && p.current_a > 0.0));
+    let growth = (0.05 / vt).exp();
+    assert!(near(iv[1].current_a / iv[0].current_a, growth, 0.02));
+    assert!(near(iv[2].current_a / iv[1].current_a, growth, 0.02));
+}
+
+#[test]
 fn schottky_boundary_and_mos_capacitor() {
     let mut sc = Semiconductor1DConfig {
         nodes: 11,

@@ -261,6 +261,8 @@ pub struct Semiconductor1DConfig {
     pub right: Contact1D,
     pub max_gummel_iterations: usize,
     pub relative_tolerance: f64,
+    /// The share of each Gummel iteration's carriers kept in DC and transient solves;
+    /// equilibrium takes full steps.
     pub under_relaxation: f64,
     pub carrier_floor_m3: f64,
 }
@@ -623,8 +625,12 @@ impl SemiconductorDevice1D {
         self.apply_blocking_boundaries();
         Ok(())
     }
-    fn solve_poisson(&mut self) -> Result<()> {
+    /// Poisson's equation for the potential. `stiffness[i]` linearises the carriers about the
+    /// present potential: ρ(ψ) ≈ ρ(ψ₀) − stiffness·(ψ − ψ₀)·ε/Δx², so zero stiffness freezes
+    /// them.
+    fn solve_poisson(&mut self, stiffness: &[f64]) -> Result<()> {
         let n = self.config.nodes;
+        require(stiffness.len() == n, "Poisson stiffness size")?;
         let dx = self.dx();
         let eps = VACUUM_PERMITTIVITY_F_PER_M * self.config.material.relative_permittivity;
         let (l, r) = (self.config.left, self.config.right);
@@ -637,7 +643,8 @@ impl SemiconductorDevice1D {
             (vec![-1.0; n], vec![2.0; n], vec![-1.0; n], vec![0.0; n]);
         for i in 1..n - 1 {
             let rho = ELEMENTARY_CHARGE_C * (self.net_doping[i] + self.hole[i] - self.electron[i]);
-            rhs[i] = rho * dx * dx / eps;
+            rhs[i] = rho * dx * dx / eps + stiffness[i] * self.potential[i];
+            diag[i] += stiffness[i];
         }
         lo[0] = 0.0;
         match l.contact_type {
@@ -686,6 +693,59 @@ impl SemiconductorDevice1D {
             }
         }
         self.potential = solve_tridiagonal(&lo, diag, &hi, rhs)?;
+        self.check_finite_potential()
+    }
+    /// Poisson's equation with the carriers following the potential at fixed quasi-Fermi
+    /// levels, n = nᵢ·e^((ψ−φₙ)/V_T) and p = nᵢ·e^((φₚ−ψ)/V_T): the nonlinear step of Gummel's
+    /// method, solved by Newton's method with each update limited to about V_T·ln(1 + |δ|/V_T).
+    /// Freezing the carriers instead makes the iteration diverge once the device is many Debye
+    /// lengths long. `equilibrium` puts both levels at zero.
+    fn solve_poisson_nonlinear(&mut self, equilibrium: bool) -> Result<()> {
+        let n = self.config.nodes;
+        let vt = self.vt();
+        let ni = self.config.material.intrinsic_density_m3;
+        let floor = self.config.carrier_floor_m3;
+        let dx = self.dx();
+        let eps = VACUUM_PERMITTIVITY_F_PER_M * self.config.material.relative_permittivity;
+        let (phi_n, phi_p): (Vec<f64>, Vec<f64>) = if equilibrium {
+            (vec![0.0; n], vec![0.0; n])
+        } else {
+            (0..n)
+                .map(|i| {
+                    (
+                        self.potential[i] - vt * (self.electron[i] / ni).ln(),
+                        self.potential[i] + vt * (self.hole[i] / ni).ln(),
+                    )
+                })
+                .unzip()
+        };
+        let mut stiffness = vec![0.0; n];
+        for _ in 0..100 {
+            for i in 1..n - 1 {
+                self.electron[i] = (ni * safe_exp((self.potential[i] - phi_n[i]) / vt)).max(floor);
+                self.hole[i] = (ni * safe_exp((phi_p[i] - self.potential[i]) / vt)).max(floor);
+                stiffness[i] =
+                    ELEMENTARY_CHARGE_C * dx * dx * (self.electron[i] + self.hole[i]) / (eps * vt);
+            }
+            let old = self.potential.clone();
+            self.solve_poisson(&stiffness)?;
+            let mut largest: f64 = 0.0;
+            for (psi, before) in self.potential.iter_mut().zip(&old) {
+                let step = *psi - before;
+                let limited = step.signum() * vt * (step.abs() / vt).ln_1p();
+                *psi = before + limited;
+                largest = largest.max(limited.abs());
+            }
+            if largest < 1e-12 * vt.max(1.0) {
+                break;
+            }
+        }
+        for i in 1..n - 1 {
+            self.electron[i] = (ni * safe_exp((self.potential[i] - phi_n[i]) / vt)).max(floor);
+            self.hole[i] = (ni * safe_exp((phi_p[i] - self.potential[i]) / vt)).max(floor);
+        }
+        self.enforce_contact_carriers()?;
+        self.apply_blocking_boundaries();
         self.check_finite_potential()
     }
     /// Scharfetter-Gummel continuity solve for one carrier; `transient = Some((old, dt))`.
@@ -789,9 +849,6 @@ impl SemiconductorDevice1D {
     }
     fn equilibrium_inner(&mut self) -> Result<DcResult> {
         self.initialize_charge_neutral()?;
-        let vt = self.vt();
-        let ni = self.config.material.intrinsic_density_m3;
-        let (floor, w) = (self.config.carrier_floor_m3, self.config.under_relaxation);
         let mut change = f64::INFINITY;
         for it in 0..self.config.max_gummel_iterations {
             let (op, on, oh) = (
@@ -799,15 +856,7 @@ impl SemiconductorDevice1D {
                 self.electron.clone(),
                 self.hole.clone(),
             );
-            self.solve_poisson()?;
-            for i in 0..self.x.len() {
-                let nt = (ni * safe_exp(self.potential[i] / vt)).max(floor);
-                let pt = (ni * safe_exp(-self.potential[i] / vt)).max(floor);
-                self.electron[i] = (1.0 - w) * on[i] + w * nt;
-                self.hole[i] = (1.0 - w) * oh[i] + w * pt;
-            }
-            self.enforce_contact_carriers()?;
-            self.apply_blocking_boundaries();
+            self.solve_poisson_nonlinear(true)?;
             change = self.change(&op, &on, &oh);
             if change < self.config.relative_tolerance {
                 return Ok(DcResult {
@@ -842,7 +891,7 @@ impl SemiconductorDevice1D {
                 self.electron.clone(),
                 self.hole.clone(),
             );
-            self.solve_poisson()?;
+            self.solve_poisson_nonlinear(false)?;
             self.solve_continuity(Carrier::Electron, None)?;
             self.solve_continuity(Carrier::Hole, None)?;
             for i in 1..self.x.len() - 1 {
@@ -919,7 +968,7 @@ impl SemiconductorDevice1D {
                 self.electron.clone(),
                 self.hole.clone(),
             );
-            self.solve_poisson()?;
+            self.solve_poisson_nonlinear(false)?;
             self.solve_continuity(Carrier::Electron, Some((&old_e, dt)))?;
             self.solve_continuity(Carrier::Hole, Some((&old_h, dt)))?;
             for i in 1..self.x.len() - 1 {
@@ -1125,6 +1174,23 @@ impl SemiconductorDevice1D {
             }
             ContactType::Insulating => 0.0,
             _ => {
+                // With a junction, the contact supplies the charge on its side of it: the
+                // depletion charge reaches it by conduction, so the field at a contact behind
+                // a neutral region stays near zero whatever the bias. Integrate the net charge
+                // from the contact to the first node whose doping sign differs.
+                let left = self.net_doping[0].signum();
+                if let Some(j) = self
+                    .net_doping
+                    .iter()
+                    .position(|d| left != 0.0 && d.signum() != left)
+                {
+                    let mut integral = 0.0;
+                    for i in 0..=j {
+                        let w = if i == 0 || i == j { 0.5 } else { 1.0 };
+                        integral += w * (self.net_doping[i] + self.hole[i] - self.electron[i]);
+                    }
+                    return ELEMENTARY_CHARGE_C * self.config.area_m2 * self.dx() * integral;
+                }
                 VACUUM_PERMITTIVITY_F_PER_M
                     * self.config.material.relative_permittivity
                     * self.config.area_m2

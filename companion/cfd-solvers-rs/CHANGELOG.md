@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- `acoustic_kspace2d` (`KSpaceAcoustic2D::initialize_pressure`): the velocity starts half a step
+  back, at (Δt/2)·∇p₀/ρ₀ with the k-space gradient, instead of at zero, so the first step is
+  second-order like the rest. With the k-space correction a single wave in a uniform medium is
+  now exact at any stable step, and a Gaussian pulse matches the 2-D wave's exact solution to
+  1e-11 at a Courant number of 0.3 (it was 3 % low).
+- `tcad_diode1d` (`SemiconductorDevice1D`): Gummel's Poisson step lets the carriers follow the
+  potential at fixed quasi-Fermi levels, solved by damped Newton iterations, instead of holding
+  them fixed. Holding them fixed diverged once a device was many Debye lengths long (a junction
+  over 2 µm failed with a singular system); any length now converges, equilibrium in two
+  iterations. Equilibrium no longer uses `under_relaxation`, and the diode case takes full
+  steps (`under_relaxation` 1) to a relative change of 1e-10. A junction's capacitance reads
+  the charge between the left contact and the junction rather than the field at the contact,
+  which stays near zero behind a neutral region; reverse-bias capacitance now matches the
+  depletion formula.
 - `phase_field_fracture1d`: the ends of the bar have a zero damage gradient. The damage update
   counted an end cell's own damage as its missing neighbour without counting that neighbour in
   the diagonal, so the ends' damage jumped to 1 at once and the bar's peak force came out 4 to 6 %

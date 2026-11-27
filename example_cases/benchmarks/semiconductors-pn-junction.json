@@ -1,12 +1,12 @@
 {
   "title": "An abrupt silicon PN junction",
   "domain": "Semiconductors",
-  "shows": "Acceptors 2e21 and donors 1e21 per m³ in silicon (n_i = 1e16 per m³, 300 K): the built-in potential is V_T·ln(N_A·N_D/n_i²) = 0.6132 V. Forward biased, the current grows as exp(V/(n·V_T)) with an ideality n near 1: from 0.3 to 0.4 V by between e^(0.1/(1.1·V_T)) and e^(0.1/V_T) = 47.9 times.",
+  "shows": "Acceptors 2e21 and donors 1e21 per m³ in silicon (n_i = 1e16 per m³, 300 K): the built-in potential is V_T·ln(N_A·N_D/n_i²) = 0.6132 V. Forward biased, the current grows as exp(V/(n·V_T)) with an ideality n near 1: from 0.3 to 0.4 V by between e^(0.1/(1.02·V_T)) and e^(0.1/V_T) = 47.9 times. Reverse biased, its depletion capacitance is A·√(qεN_AN_D / (2(N_A+N_D)(V_bi − V − 2V_T))): 0.0465 fF at −2 V and 0.0595 fF at −1 V. 10 µm long on 401 nodes, so the depletion stays clear of the contacts.",
   "source": "Abrupt junction and the ideal diode law: S. M. Sze and K. K. Ng, Physics of Semiconductor Devices, 3rd ed. (2007), §2.2 and §2.3.",
   "case": {
     "solver": "tcad_diode1d",
-    "length_m": 2e-06,
-    "nodes": 101,
+    "length_m": 1e-05,
+    "nodes": 401,
     "area_m2": 1e-12,
     "acceptor_m3": 2e+21,
     "donor_m3": 1e+21,
@@ -15,6 +15,11 @@
       "start_v": 0.0,
       "stop_v": 0.5,
       "points": 11
+    },
+    "cv": {
+      "start_v": -2.0,
+      "stop_v": 0.0,
+      "points": 5
     }
   },
   "checks": [
@@ -44,8 +49,34 @@
           }
         }
       },
-      "at_least": 33.66708463152854,
+      "at_least": 44.35946861611488,
       "at_most": 47.85486129418194
+    },
+    {
+      "what": "capacitance at −2 V (F)",
+      "value": {
+        "file": "cv.csv",
+        "column": "capacitance_F",
+        "at": {
+          "column": "anode_voltage_V",
+          "value": -2.0
+        }
+      },
+      "expect": 4.647468128647331e-17,
+      "tolerance": 0.005
+    },
+    {
+      "what": "capacitance at −1 V (F)",
+      "value": {
+        "file": "cv.csv",
+        "column": "capacitance_F",
+        "at": {
+          "column": "anode_voltage_V",
+          "value": -1.0
+        }
+      },
+      "expect": 5.952422053414574e-17,
+      "tolerance": 0.005
     }
   ]
 }

@@ -18,12 +18,21 @@ fn close(name: &str, rust: &[f64], rel: f64, abs: f64) {
         .collect();
     assert_eq!(rust.len(), cpp.len(), "{name}: length");
     for (i, (r, c)) in rust.iter().zip(&cpp).enumerate() {
+        if r.is_nan() {
+            continue; // `SKIP`: not compared
+        }
         assert!(
             (r - c).abs() <= rel * c.abs() + abs,
             "{name}[{i}]: rust {r} vs C++ {c}"
         );
     }
 }
+
+/// Marks a value `close` does not compare. Gummel's Poisson step here keeps the carriers
+/// following the potential (the upstream freezes them), so it converges in a few iterations
+/// where the upstream takes hundreds: iteration counts and the last change differ, the
+/// converged state does not.
+const SKIP: f64 = f64::NAN;
 
 fn b(x: bool) -> f64 {
     if x {
@@ -91,8 +100,8 @@ fn drift_diffusion_device() {
         "pn_eq",
         &[
             b(eq.converged),
-            eq.iterations as f64,
-            eq.relative_change,
+            SKIP,
+            SKIP,
             eq.terminal_current_a,
             pn.total_mobile_charge_c(),
         ],
@@ -100,8 +109,22 @@ fn drift_diffusion_device() {
         1e-17,
     );
     close("pn_eq_phi", pn.potential(), 1e-9, 1e-12);
-    close("pn_n", pn.electron_density(), 1e-8, 1e-3);
-    close("pn_p", pn.hole_density(), 1e-8, 1e-3);
+    // The upstream blends its carriers in at 5 % an iteration and stops once they move by
+    // less than 2e-7 of themselves, about 2e-7 / 0.05 = 4e-6 short of its own fixed point;
+    // these follow the potential exactly (n = nᵢ·e^(ψ/V_T) at equilibrium), so they agree
+    // with it to that, and with the potential to rounding.
+    close("pn_n", pn.electron_density(), 1e-5, 1e-3);
+    close("pn_p", pn.hole_density(), 1e-5, 1e-3);
+    let (ni, vt) = (
+        pc.material.intrinsic_density_m3,
+        thermal_voltage(300.0).unwrap(),
+    );
+    for (psi, n) in pn.potential().iter().zip(pn.electron_density()) {
+        assert!(
+            (n - ni * (psi / vt).exp()).abs() <= 1e-12 * n,
+            "{n} at {psi} V"
+        );
+    }
 
     let mut rc = Semiconductor1DConfig {
         nodes: 41,
@@ -119,7 +142,7 @@ fn drift_diffusion_device() {
     let dc = bar.solve_dc().unwrap();
     let mut v = vec![
         b(dc.converged),
-        dc.iterations as f64,
+        SKIP,
         dc.terminal_current_a,
         bar.left_terminal_charge_c(),
     ];
@@ -127,7 +150,9 @@ fn drift_diffusion_device() {
         v.extend([p.voltage_v, p.current_a, b(p.converged)]);
     }
     close("bar", &v, 1e-7, 1e-24);
-    close("bar_phi", bar.potential(), 1e-10, 1e-14);
+    // The upstream stops once a 40 %-blended iteration moves less than 1e-9, which can leave
+    // it about 1e-9·0.6/0.4 = 1.5e-9 from its fixed point.
+    close("bar_phi", bar.potential(), 3e-9, 1e-14);
     close("bar_J", &bar.total_current_density_faces(), 1e-7, 1e-3);
     close("bar_heat", &bar.joule_heating_cells(), 1e-7, 1e-1);
     close("bar_E", &bar.electric_field_faces(), 1e-7, 1e-3);
@@ -144,7 +169,9 @@ fn drift_diffusion_device() {
             ss.impedance_ohm.im,
             b(ss.converged),
         ],
-        1e-5,
+        // A difference of two solves 2e-5 V apart, each up to ~1.5e-9 of the bar's 0.3 V
+        // from converged: 3e-10 / 2e-5 = 1.5e-5 of the capacitance.
+        5e-5,
         1e-20,
     );
     let mut cv = vec![];
@@ -163,12 +190,21 @@ fn drift_diffusion_device() {
         let t = bar.step_transient(1e-12).unwrap();
         tr.extend([
             b(t.converged),
-            t.iterations as f64,
+            SKIP,
             t.time_s,
             t.conduction_current_a,
             t.displacement_current_a,
             t.terminal_current_a,
         ]);
+    }
+    // After the first step the bias is steady, so the displacement current is zero; it is
+    // ε·A·ΔE/dt over a picosecond, where the change in E is convergence noise. Check it is
+    // negligible against the conduction current instead of comparing two noises.
+    for step in 1..3 {
+        let (conduction, displacement) = (tr[6 * step + 3], tr[6 * step + 4]);
+        assert!(displacement.abs() < 1e-6 * conduction.abs());
+        tr[6 * step + 4] = SKIP;
+        tr[6 * step + 5] = conduction;
     }
     close("bar_tr", &tr, 1e-6, 1e-16);
 

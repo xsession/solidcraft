@@ -518,17 +518,21 @@ fn nonlinear_lossy_acoustics_sensors_and_time_reversal_match_cpp() {
     s.add_pressure_source(100, |t| 2.0 * (1e6 * t).sin())
         .unwrap();
     s.step(4).unwrap();
-    let mut out = s.pressure().to_vec();
-    out.extend_from_slice(s.velocity_x());
-    out.extend_from_slice(s.velocity_y());
-    for sensor in s.sensors() {
-        out.extend_from_slice(&sensor.pressure);
-    }
-    compare(&g, "acoustics", &out, 2e-8, 2e-10);
-    let traces = vec![
-        s.sensors()[0].pressure.clone(),
-        s.sensors()[1].pressure.clone(),
-    ];
+    // The forward run no longer matches the upstream's: it starts the velocity at zero,
+    // which makes the first step first-order, where this starts it half a step back
+    // (`acoustic_standing_wave_is_exact_at_a_large_step` checks that against the exact
+    // wave). The run must still be finite, and time reversal, which starts from rest, is
+    // compared on the upstream's own sensor traces.
+    assert!(s.pressure().iter().all(|p| p.is_finite()));
+    let golden: Vec<f64> = g["acoustics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    let samples = s.sensors()[0].pressure.len();
+    let tail = &golden[golden.len() - 2 * samples..];
+    let traces = vec![tail[..samples].to_vec(), tail[samples..].to_vec()];
     let reverse = s
         .time_reversal_reconstruct(&[136, 140], &traces, true)
         .unwrap();

@@ -90,19 +90,33 @@ NA, ND, NI, T = 2e21, 1e21, 1e16, 300.0
 VT = KB * T / Q
 vbi = VT * math.log(NA * ND / NI**2)
 current = lambda v: at("iv.csv", "anode_current_A", "anode_voltage_V", v)
+EPS_SI = 11.7 * 8.8541878128e-12
+
+
+def depletion_capacitance(v, area=1e-12):
+    """Abrupt junction, depletion approximation with the majority-carrier tails:
+    C = A·√(q·ε·N_A·N_D / (2·(N_A + N_D)·(V_bi − V − 2V_T)))."""
+    return area * math.sqrt(Q * EPS_SI * NA * ND / (2 * (NA + ND) * (vbi - v - 2 * VT)))
+
+
+capacitance = lambda v: at("cv.csv", "capacitance_F", "anode_voltage_V", v)
 benchmark(
     "semiconductors-pn-junction", "An abrupt silicon PN junction", "Semiconductors",
     f"Acceptors 2e21 and donors 1e21 per m³ in silicon (n_i = 1e16 per m³, 300 K): the built-in "
     f"potential is V_T·ln(N_A·N_D/n_i²) = {vbi:.4f} V. Forward biased, the current grows as "
-    "exp(V/(n·V_T)) with an ideality n near 1: from 0.3 to 0.4 V by between e^(0.1/(1.1·V_T)) and "
-    "e^(0.1/V_T) = 47.9 times.",
+    "exp(V/(n·V_T)) with an ideality n near 1: from 0.3 to 0.4 V by between e^(0.1/(1.02·V_T)) and "
+    f"e^(0.1/V_T) = 47.9 times. Reverse biased, its depletion capacitance is "
+    f"A·√(qεN_AN_D / (2(N_A+N_D)(V_bi − V − 2V_T))): {depletion_capacitance(-2.0) * 1e15:.4f} fF at −2 V and "
+    f"{depletion_capacitance(-1.0) * 1e15:.4f} fF at −1 V. 10 µm long on 401 nodes, so the depletion stays clear of the contacts.",
     "Abrupt junction and the ideal diode law: S. M. Sze and K. K. Ng, Physics of Semiconductor "
     "Devices, 3rd ed. (2007), §2.2 and §2.3.",
-    {"solver": "tcad_diode1d", "length_m": 2e-6, "nodes": 101, "area_m2": 1e-12, "acceptor_m3": NA, "donor_m3": ND,
-     "temperature_k": T, "iv": {"start_v": 0.0, "stop_v": 0.5, "points": 11}},
+    {"solver": "tcad_diode1d", "length_m": 10e-6, "nodes": 401, "area_m2": 1e-12, "acceptor_m3": NA, "donor_m3": ND,
+     "temperature_k": T, "iv": {"start_v": 0.0, "stop_v": 0.5, "points": 11}, "cv": {"start_v": -2.0, "stop_v": 0.0, "points": 5}},
     [near("built-in potential (V)", metric("built_in_potential_V"), vbi, 1e-4),
      {"what": "current at 0.4 V over the current at 0.3 V", "value": {**current(0.4), "over": current(0.3)},
-      "at_least": math.exp(0.1 / (1.1 * VT)), "at_most": math.exp(0.1 / VT)}],
+      "at_least": math.exp(0.1 / (1.02 * VT)), "at_most": math.exp(0.1 / VT)},
+     near("capacitance at −2 V (F)", capacitance(-2.0), depletion_capacitance(-2.0), 0.005),
+     near("capacitance at −1 V (F)", capacitance(-1.0), depletion_capacitance(-1.0), 0.005)],
 )
 
 # --- Antennas: a thin dipole at resonance -----------------------------------------------
@@ -446,7 +460,7 @@ def pulse_2d(r, t, c, sigma, amplitude):
     return amplitude * sigma**2 * value
 
 
-NX, DX, C_SOUND, SIGMA, DT, STEPS = 128, 1e-4, 1500.0, 3e-4, 5e-9, 400
+NX, DX, C_SOUND, SIGMA, DT, STEPS = 128, 1e-4, 1500.0, 3e-4, 2e-8, 100
 centre = 0.5 * NX * DX
 probes = [(30, 0), (32, 0), (34, 0)]  # cells from the centre's lower-left cell, along x and y
 checks = []
@@ -454,12 +468,13 @@ for i, j in probes:
     x, y = centre + (i + 0.5) * DX, centre + (j + 0.5) * DX
     r = math.hypot(x - centre, y - centre)
     checks.append(near(f"pressure {r * 1e3:.2f} mm from the centre (Pa)", {"vtu": "acoustic", "field": "pressure_Pa", "nearest": [x, y, 0.0]},
-                       pulse_2d(r, DT * STEPS, C_SOUND, SIGMA, 1000.0), 0.02))
+                       pulse_2d(r, DT * STEPS, C_SOUND, SIGMA, 1000.0), 1e-6))
 benchmark(
     "acoustics-gaussian-pulse", "A Gaussian pressure pulse in water", "Acoustics",
     "A 1 kPa Gaussian pulse (σ = 0.3 mm) at rest in water spreads as a ring at 1500 m/s; after 2 µs "
-    "the pressure at points on and near the ring is the exact solution of the 2-D wave equation, "
-    "from its Hankel transform.",
+    "(100 steps at a Courant number of 0.3) the pressure at points on and near the ring is the "
+    "exact solution of the 2-D wave equation, from its Hankel transform, to 1e-6: in a uniform "
+    "medium the k-space step is exact in time and the spectral gradient in space.",
     "The 2-D initial-value problem: A. D. Pierce, Acoustics (2019), §4.2; the same check is used "
     "for k-space methods by B. E. Treeby and B. T. Cox, J. Biomed. Opt. 15 (2010) 021314.",
     {"solver": "acoustic_kspace2d", "config": {"nx": NX, "ny": NX, "dx": DX, "dy": DX, "dt": DT, "pml_cells": 12},

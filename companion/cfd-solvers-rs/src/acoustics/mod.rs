@@ -344,8 +344,14 @@ impl<'a> KSpaceAcoustic2D<'a> {
             self.rho_x[q] = 0.5 * self.rho[q];
             self.rho_y[q] = 0.5 * self.rho[q];
         }
-        self.ux.fill(0.0);
-        self.uy.fill(0.0);
+        // The velocity is staggered half a step behind the pressure, so a field at rest at
+        // t = 0 has the velocity it reaches going back half a step, ∂u/∂t = −∇p/ρ₀ run
+        // backwards; starting it at zero instead makes the first step first-order.
+        let (gx, gy) = self.gradient(p)?;
+        for q in 0..self.cells() {
+            self.ux[q] = 0.5 * self.dt * gx[q] / self.rho0[q];
+            self.uy[q] = 0.5 * self.dt * gy[q] / self.rho0[q];
+        }
         self.time = 0.0;
         self.record_sensors();
         Ok(())
