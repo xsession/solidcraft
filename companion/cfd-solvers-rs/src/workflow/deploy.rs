@@ -1760,7 +1760,8 @@ pub fn build_multiserver_controller_openapi_json(
     config: &RemoteControllerConfig,
 ) -> String {
     let mut out = format!(
-        "{{\n  \"openapi\": \"3.0.3\",\n  \"info\": {{\"title\": \"cfd_solvers multi-server controller\", \"version\": \"0.18.0\"}},\n  \"servers\": [{{\"url\": \"http://{}:{}\"}}],\n  \"paths\": {{\n",
+        "{{\n  \"openapi\": \"3.0.3\",\n  \"info\": {{\"title\": \"cfd_solvers multi-server controller\", \"version\": \"{}\"}},\n  \"servers\": [{{\"url\": \"http://{}:{}\"}}],\n  \"paths\": {{\n",
+        env!("CARGO_PKG_VERSION"),
         json_escape(&config.bind_host),
         config.port
     );

@@ -21,6 +21,14 @@ fn s(name: &str, rust: &str) {
     assert_eq!(rust, g()[name].as_str().unwrap(), "{name}");
 }
 
+/// The controller's OpenAPI document names this crate's version; the goldens were recorded
+/// at 0.12.0.
+fn upstream_version(openapi: &str) -> String {
+    let ours = format!("\"version\": \"{}\"", env!("CARGO_PKG_VERSION"));
+    assert!(openapi.contains(&ours), "{openapi}");
+    openapi.replace(&ours, "\"version\": \"0.12.0\"")
+}
+
 #[track_caller]
 fn ss(name: &str, rust: &[String]) {
     let cpp: Vec<String> = g()[name]
@@ -942,7 +950,7 @@ fn multiserver_deploy_controller_docker() {
         ..Default::default()
     };
     let cp = plan_multiserver_controller(&sp, &cc).unwrap();
-    s("ctl_openapi", &cp.openapi_json);
+    s("ctl_openapi", &upstream_version(&cp.openapi_json));
     s("ctl_script", &cp.controller_script);
     s("ctl_html", &cp.index_html);
     s("ctl_js", &cp.dashboard_js);
@@ -955,7 +963,7 @@ fn multiserver_deploy_controller_docker() {
         ..Default::default()
     };
     let p2 = plan_multiserver_controller(&sp, &c2).unwrap();
-    s("ctl_openapi2", &p2.openapi_json);
+    s("ctl_openapi2", &upstream_version(&p2.openapi_json));
     s("ctl_script2", &p2.controller_script);
     let cw = write_multiserver_controller_files(&ms, &cp, &Default::default()).unwrap();
     for (k, p) in [
