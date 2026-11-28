@@ -28,6 +28,8 @@ Command icons are original SVG masters compiled by the look crate (`crates/look/
 ## Text
 Every label, tooltip and message goes through the catalogs: `.agents/skills/solidcraft-ui-text/SKILL.md`. A new behaviour that is on by default: `.agents/skills/solidcraft-preferences/SKILL.md`.
 
+The Multiphysics UI lives in `crates/multiphysics-ui`.
+
 ## Drawing workspace
 Follow `docs/design/drawing-ui/README.md` and `docs/design/drawing-ui/decisions.md` for layout, ribbon, panel footers and state words. Cite the boards and decision numbers in the PR; explain deviations.
 

@@ -2342,7 +2342,11 @@ fn settings(app: &mut SolveApp, state: &mut State, study: &Study, node: shell::N
             let changed = match entry {
                 Some(pointer) => match value.pointer_mut(pointer) {
                     Some(slot) => {
-                        crate::multiphysics_property_grid::header(ui, &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_value")], &[0.46, 0.54]);
+                        crate::multiphysics_property_grid::header(
+                            ui,
+                            &[tr("multiphysics.wizard_col_parameter"), tr("multiphysics.wizard_col_value")],
+                            &[0.46, 0.54],
+                        );
                         case_row(ui, &entry_title(pointer, slot), slot, 0, pointer, &mut 0)
                     }
                     None => {

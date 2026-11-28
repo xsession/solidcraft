@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- 0.19.0: `dust_deposition_v1`, opt-in `dust` on `collocated_flow3d`: size classes of dust followed
+  through the settled flow to where they deposit (drag with slip correction, gravity,
+  thermophoresis, Brownian motion), released with the inflow, where air crosses into a box, or
+  through the fluid; `dust_deposition.json` and `dust_deposits.csv`. Lumped bodies close the grid
+  faces their surface crosses also where they hold cells, and small sealed fluid pockets are
+  filled with the solid around them; a disconnected-fluid refusal names each region's size and
+  place. The lumped plates' search bins triangles by their shadow, so closing a case of 20 000
+  triangles takes seconds instead of minutes (results unchanged).
+- `solid_max_temperature` and `solid_mean_temperature` goals on a lumped body read the cells its
+  volume lies in, as its component-table row does. They read no cells and gave NaN, which failed
+  the run when the goals were written (any study with a goal on a part thinner than a cell).
 - `acoustic_kspace2d` (`KSpaceAcoustic2D::initialize_pressure`): the velocity starts half a step
   back, at (Δt/2)·∇p₀/ρ₀ with the k-space gradient, instead of at zero, so the first step is
   second-order like the rest. With the k-space correction a single wave in a uniform medium is

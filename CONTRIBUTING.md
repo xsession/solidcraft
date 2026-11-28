@@ -136,6 +136,9 @@ The [architecture page](docs/architecture.md) has the layer table. The short ver
   commands.
 - `crates/ui-egui`: the desktop/web front end (egui + wgpu). It's swappable; nothing below it
   depends on egui.
+- `crates/multiphysics-ui`: the Multiphysics workspace, kept out of `ui-egui` so editing it
+  rebuilds only this crate. It depends on `ui-egui`, never the other way round; the apps call
+  `solidcraft_multiphysics_ui::register()` at start-up to install it.
 - `crates/mcp`, `apps/solidcraft`, `apps/solidcraft-cli`, `apps/solidcraft-web`.
 
 `cargo xtask layers` fails the build if a lower layer depends on a higher one.
@@ -509,8 +512,8 @@ The triage bot labels every new issue and PR (`.github/workflows/triage.yml`). I
 correct them freely and it won't put them back.
 
 - **PRs** get `area:*` from the paths they change (`crates/kernel` and `crates/geom` →
-  `area:kernel`, `crates/ui-egui` and the apps → `area:ui`, `.github/`, `scripts/`, `docs/` →
-  `area:infra`, and so on).
+  `area:kernel`, `crates/ui-egui`, `crates/multiphysics-ui` and the apps → `area:ui`,
+  `.github/`, `scripts/`, `docs/` → `area:infra`, and so on).
 - **Issues** get `bug` (in-app reports and the bug template), `enhancement` (feature requests),
   `priority:P1` for crashes, and an `area:*` from the title or the reported command. Until it has
   a priority, an issue carries `needs-triage`; setting a priority removes it.

@@ -227,6 +227,9 @@ pub(super) fn set(session: &mut Session, params: &Value) -> Result<Value> {
     if let Some(cell) = input.cell_mm {
         link.cell_mm = (cell != 0.0).then_some(cell);
     }
+    if let Some(close) = input.close_thin_walls {
+        link.close_thin_walls = close;
+    }
     if let Some(cut) = input.cut_cells {
         link.cut_cells = cut;
     }
@@ -327,18 +330,17 @@ pub(super) fn adapt(session: &mut Session, params: &Value) -> Result<Value> {
         None => run.artifacts.iter().filter(|a| a.name.starts_with("flow_") && a.name.ends_with(".vtu")).max_by(|a, b| a.name.cmp(&b.name)),
     }
     .ok_or_else(|| bad("artifact", "the run kept no such field file (flow_*.vtu)"))?;
-    let found = solidcraft_multiphysics::adapt::regions(
-        &artifact.text,
-        input.field.as_deref(),
-        input.fraction.unwrap_or(0.1),
-        input.regions.unwrap_or(4),
-    )
-    .map_err(|e| bad("", e.to_string()))?;
+    let found =
+        solidcraft_multiphysics::adapt::regions(&artifact.text, input.field.as_deref(), input.fraction.unwrap_or(0.1), input.regions.unwrap_or(4))
+            .map_err(|e| bad("", e.to_string()))?;
     // The run's coordinates are case metres from the domain's low corner.
     let (domain, _) = marks(session, &link)?;
     let origin = domain.map(|[low, _]| low).ok_or_else(|| bad("id", "the study's bodies have no extent"))?;
-    let regions_mm: Vec<[[f64; 3]; 2]> =
-        found.regions_m.iter().map(|(low, high)| [[0, 1, 2].map(|a| low[a] * 1000.0 + origin[a]), [0, 1, 2].map(|a| high[a] * 1000.0 + origin[a])]).collect();
+    let regions_mm: Vec<[[f64; 3]; 2]> = found
+        .regions_m
+        .iter()
+        .map(|(low, high)| [[0, 1, 2].map(|a| low[a] * 1000.0 + origin[a]), [0, 1, 2].map(|a| high[a] * 1000.0 + origin[a])])
+        .collect();
     for (index, [low, high]) in regions_mm.iter().enumerate() {
         link.refinements.push(model::Refinement {
             name: format!("{ADAPT}{}", index + 1),
@@ -542,7 +544,8 @@ pub(super) fn material(session: &mut Session, params: &Value) -> Result<Value> {
             let index = match heat.materials.iter().position(|m| &m.body == body) {
                 Some(index) => index,
                 None => {
-                    let conductivity = input.conductivity_w_per_m_k.ok_or_else(|| bad("conductivity_w_per_m_k", format!("give {body}'s conductivity")))?;
+                    let conductivity =
+                        input.conductivity_w_per_m_k.ok_or_else(|| bad("conductivity_w_per_m_k", format!("give {body}'s conductivity")))?;
                     heat.materials.push(model::BodyHeat {
                         body: body.clone(),
                         conductivity_w_per_m_k: conductivity,
@@ -905,4 +908,230 @@ pub(super) fn module_import(session: &mut Session, params: &Value) -> Result<Val
     let replaced = solidcraft_multiphysics::modules::save(&mut project.modules, module.clone()).map_err(|e| bad("", e.to_string()))?;
     session.doc_mut().multiphysics = Arc::new(project);
     reply(ModuleReply { module, replaced: Some(replaced), placements: vec![] })
+}
+
+pub(super) fn surroundings(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::environment::ModelSurroundings;
+    let input: ModelSurroundingsInput = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        link.surroundings = None;
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    if link.analysis != model::Analysis::External {
+        return Err(bad("id", "surroundings are for a study of the air around the model: set analysis external first"));
+    }
+    let mut s = link.surroundings.unwrap_or(ModelSurroundings { breeze_m_per_s: 0.0, breeze_from: Default::default(), floor: true });
+    if let Some(b) = input.breeze_m_per_s {
+        s.breeze_m_per_s = b;
+    }
+    if let Some(from) = input.breeze_from {
+        s.breeze_from = from;
+    }
+    if let Some(floor) = input.floor {
+        s.floor = floor;
+    }
+    s.validate().map_err(|e| bad("breeze_m_per_s", e.to_string()))?;
+    link.surroundings = Some(s);
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn dust(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::environment::{DustEntry, ModelDust, default_sizes};
+    let input: ModelDustInput = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        link.dust = None;
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let mut d = link.dust.clone().unwrap_or(ModelDust {
+        concentration_mg_per_m3: 0.1,
+        sizes: default_sizes(),
+        density_kg_per_m3: 2000.0,
+        particles_per_size: 1000,
+        entry: DustEntry::Air,
+        max_time_s: 3600.0,
+    });
+    if let Some(c) = input.concentration_mg_per_m3 {
+        d.concentration_mg_per_m3 = c;
+    }
+    if let Some(sizes) = input.sizes {
+        d.sizes = sizes;
+    }
+    if let Some(rho) = input.density_kg_per_m3 {
+        d.density_kg_per_m3 = rho;
+    }
+    if let Some(n) = input.particles_per_size {
+        d.particles_per_size = n;
+    }
+    if let Some(t) = input.max_time_s {
+        d.max_time_s = t;
+    }
+    match (input.entry, &input.inside_of) {
+        (Some(_), Some(_)) => return Err(bad("inside_of", "give the entry or inside_of, not both")),
+        (Some(entry), None) => d.entry = entry,
+        (None, Some(body)) => {
+            // The box the body's exact geometry bounds, shrunk by the wall.
+            let inset = input.inset_mm.unwrap_or(0.0);
+            if !(inset.is_finite() && inset >= 0.0) {
+                return Err(bad("inset_mm", "the inset is 0 mm or more"));
+            }
+            let state = session.world_state()?;
+            let found =
+                state.bodies.iter().find(|b| &b.name == body).ok_or_else(|| bad("inside_of", format!("the design has no body called {body}")))?;
+            let b = found.body.exact_bounds()?;
+            let low = [b.min.x + inset, b.min.y + inset, b.min.z + inset];
+            let high = [b.max.x - inset, b.max.y - inset, b.max.z - inset];
+            if (0..3).any(|a| low[a] >= high[a]) {
+                return Err(bad("inset_mm", format!("{body} is not that much larger than the inset on every side")));
+            }
+            d.entry = DustEntry::Box { low_mm: low, high_mm: high };
+        }
+        (None, None) => {}
+    }
+    d.validate().map_err(|e| bad("concentration_mg_per_m3", e.to_string()))?;
+    link.dust = Some(d);
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+pub(super) fn climate(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::environment::{ModelClimate, four_seasons};
+    let input: ModelClimateInput = parse(params)?;
+    let (_, mut link) = linked(session, &input.id)?;
+    if input.remove {
+        link.climate = None;
+        return commit(session, &input.id, input.expected_revision, link);
+    }
+    let conditions = match (input.conditions, input.seasons) {
+        (Some(_), Some(_)) => return Err(bad("seasons", "give conditions or seasons, not both")),
+        (Some(conditions), None) => Some(conditions),
+        (None, Some(seasons)) => {
+            let rows: Vec<(&str, f64, f64, f64, f64)> =
+                seasons.iter().map(|s| (s.name.as_str(), s.low_c, s.high_c, s.dew_point_c, s.dust_mg_per_m3)).collect();
+            Some(four_seasons(&rows))
+        }
+        (None, None) => None,
+    };
+    let mut c = link.climate.clone().unwrap_or(ModelClimate { conditions: Vec::new(), humid_limit_pct: 60.0 });
+    if let Some(conditions) = conditions {
+        c.conditions = conditions;
+    }
+    if let Some(limit) = input.humid_limit_pct {
+        c.humid_limit_pct = limit;
+    }
+    c.validate().map_err(|e| bad("conditions", e.to_string()))?;
+    link.climate = Some(c);
+    commit(session, &input.id, input.expected_revision, link)
+}
+
+/// One study per condition of a study's climate: clones named "<study> · <condition>", each
+/// with its condition, built, in one undo step; nothing runs. Clones made before for the same
+/// study are replaced.
+pub(super) fn climate_studies(session: &mut Session, params: &Value) -> Result<Value> {
+    let input: StudyId = parse(params)?;
+    let (study, link) = linked(session, &input.id)?;
+    let climate = link.climate.clone().ok_or_else(|| bad("id", "give the study a climate first (multiphysics.model.climate)"))?;
+    if link.condition.is_some() {
+        return Err(bad("id", "this study stands for one condition already; make the condition studies from its climate's study"));
+    }
+    let mut project = session.doc.multiphysics.as_ref().clone();
+    project.next_id = project.next_id.max(session.multiphysics_jobs.next_study);
+    // Earlier condition studies of this study go: their conditions may have changed.
+    project.studies.retain(|s| !s.model.as_ref().is_some_and(|m| m.condition.as_ref().is_some_and(|(of, _)| *of == input.id)));
+    let mut made = Vec::new();
+    for condition in &climate.conditions {
+        let clone = project.clone_study(&input.id, &format!("{} · {}", study.name, condition.name)).map_err(|e| bad("id", e.to_string()))?;
+        made.push((clone.id, condition.clone()));
+    }
+    let before = session.doc.multiphysics.clone();
+    session.multiphysics_jobs.next_study = project.next_id;
+    session.doc_mut().multiphysics = Arc::new(project);
+    let built = (|| -> Result<()> {
+        for (id, condition) in &made {
+            let (clone, mut clone_link) = linked(session, id)?;
+            clone_link.climate = None;
+            clone_link.condition = Some((input.id.clone(), condition.clone()));
+            commit(session, id, clone.revision, clone_link)?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = built {
+        session.doc_mut().multiphysics = before;
+        return Err(error);
+    }
+    reply(ClimateStudiesReply {
+        studies: made.iter().map(|(id, _)| id.clone()).collect(),
+        conditions: made.iter().map(|(_, c)| c.name.clone()).collect(),
+    })
+}
+
+/// The year added up from a study's condition studies: each one's kept run, else its latest
+/// finished run in this session, else a run folder given for it.
+pub(super) fn climate_result(session: &mut Session, params: &Value) -> Result<Value> {
+    use solidcraft_multiphysics::environment::{ConditionRun, parts_csv, summarize};
+    const FILES: [&str; 4] = ["manifest.json", "thermal_report.json", "dust_deposition.json", "dust_deposits.csv"];
+    let input: ClimateResultInput = parse(params)?;
+    let (_, link) = linked(session, &input.id)?;
+    let climate = link.climate.clone().ok_or_else(|| bad("id", "the study has no climate"))?;
+    session.poll_multiphysics_jobs();
+    let jobs = session.multiphysics_jobs();
+    let project = session.doc.multiphysics.clone();
+    let mut folders: Vec<(String, Vec<solidcraft_multiphysics::Artifact>)> = Vec::new();
+    for folder in &input.runs {
+        let texts =
+            solidcraft_io::multiphysics::read_run_texts(std::path::Path::new(&folder.directory), &FILES).map_err(|e| bad("runs", e.to_string()))?;
+        let artifacts = texts.into_iter().map(|(name, text)| solidcraft_multiphysics::Artifact { name, text }).collect();
+        folders.push((folder.study.clone(), artifacts));
+    }
+    // The condition studies, in the climate's order.
+    let mut found = Vec::new();
+    for condition in &climate.conditions {
+        let study = project
+            .studies
+            .iter()
+            .find(|s| s.model.as_ref().and_then(|m| m.condition.as_ref()).is_some_and(|(of, c)| *of == input.id && c.name == condition.name));
+        let Some(study) = study else {
+            return Err(bad(
+                "id",
+                format!("there is no study for {}: make the condition studies (multiphysics.model.climate_studies)", condition.name),
+            ));
+        };
+        let origin_mm = case_origin_mm(session, study)?;
+        let kept = study.runs.last().map(|r| (r.id.clone(), r.artifacts.clone()));
+        let job = jobs
+            .iter()
+            .rev()
+            .find(|j| j.study_id == study.id && j.state == "succeeded" && !j.stale)
+            .and_then(|j| j.evidence.as_ref().map(|e| (e.id.clone(), e.artifacts.clone())));
+        let folder = folders.iter().find(|(s, _)| *s == study.id || *s == study.name).map(|(_, a)| ("folder".to_string(), a.clone()));
+        found.push((condition.clone(), study.id.clone(), kept.or(job).or(folder), origin_mm));
+    }
+    let runs: Vec<ConditionRun<'_>> = found
+        .iter()
+        .map(|(condition, study, run, origin_mm)| ConditionRun {
+            condition,
+            study: study.clone(),
+            run: run.as_ref().map(|(id, files)| (id.clone(), files.as_slice())),
+            origin_mm: *origin_mm,
+        })
+        .collect();
+    let summary = summarize(&runs, climate.humid_limit_pct).map_err(|e| bad("id", e.to_string()))?;
+    let mut files = Vec::new();
+    if let Some(directory) = &input.directory {
+        let parts = parts_csv(&summary);
+        let json = serde_json::to_string_pretty(&summary).map_err(|e| bad("", e.to_string()))?;
+        files = solidcraft_io::multiphysics::write_texts(
+            std::path::Path::new(directory),
+            &[("climate-parts.csv", &parts), ("climate-deposits.csv", &summary.deposits_csv), ("climate.json", &json)],
+        )
+        .map_err(|e| bad("directory", e.to_string()))?;
+    }
+    reply(ClimateResultReply { summary, files })
+}
+
+/// The design point at a built study's domain origin, mm: the domain's low corner.
+fn case_origin_mm(session: &Session, study: &solidcraft_multiphysics::Study) -> Result<[f64; 3]> {
+    let link = study.model.as_ref().ok_or_else(|| bad("id", "not a study of the model"))?;
+    let (domain, _) = marks(session, link)?;
+    Ok(domain.map_or([0.0; 3], |[low, _]| low))
 }

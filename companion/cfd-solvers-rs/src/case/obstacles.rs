@@ -10,6 +10,85 @@ const EXTERIOR: [&str; 6] = ["left", "right", "bottom", "top", "front", "back"];
 pub(super) struct SolidLayout {
     pub cell_solid: Vec<Option<usize>>,
     pub names: Vec<String>,
+    /// Sealed air pockets the plates of lumped bodies closed off and that were filled with
+    /// the solid around them: their cells and that solid's index.
+    pub filled_pockets: Vec<(usize, usize)>,
+}
+
+/// The largest sealed pocket filled, as a share of the fluid cells.
+const MAX_POCKET_SHARE: f64 = 0.01;
+
+/// Fill the fluid pockets that lumped plates seal off from the rest of the air, so a thin wall
+/// a grid face cannot hold leaves no air cut off from everything (which has no pressure level).
+/// A pocket is filled when it touches no side of the domain and holds under 1 % of the fluid
+/// cells, with the solid of a neighbouring cell, else of a plate around it. Anything larger stays
+/// for the connectivity check to name.
+fn fill_sealed_pockets(
+    spec: &PolyMeshSpec,
+    bodies: &[super::bodies::SurfaceBody],
+    boxes: usize,
+    solid: &mut [Option<usize>],
+) -> Result<Vec<(usize, usize)>> {
+    if !bodies.iter().any(|b| b.lumped) {
+        return Ok(Vec::new());
+    }
+    let (base, _) = spec.build()?;
+    let plates = plate_faces(&base, bodies, boxes, solid);
+    let n = base.cell_count();
+    let mut region = vec![usize::MAX; n];
+    // Per region: its cells, whether it reaches the domain's side, a solid next to it.
+    let mut regions: Vec<(Vec<usize>, bool, Option<usize>)> = Vec::new();
+    for start in 0..n {
+        if solid.get(start) != Some(&None) || region[start] != usize::MAX {
+            continue;
+        }
+        let id = regions.len();
+        region[start] = id;
+        let mut pending = vec![start];
+        let (mut cells, mut open, mut next_to) = (Vec::new(), false, None);
+        while let Some(c) = pending.pop() {
+            cells.push(c);
+            for &fi in base.cell_faces().get(c).map_or(&[][..], Vec::as_slice) {
+                let Some(f) = base.faces().get(fi) else { continue };
+                let Some(nb) = f.neighbour else {
+                    open = true;
+                    continue;
+                };
+                let other = if f.owner == c { nb } else { f.owner };
+                match solid.get(other).copied().flatten() {
+                    Some(s) => {
+                        next_to.get_or_insert(s);
+                    }
+                    None => {
+                        if let Some(p) = plates.get(fi).copied().flatten() {
+                            next_to.get_or_insert(p);
+                        } else if region.get(other) == Some(&usize::MAX) {
+                            region[other] = id;
+                            pending.push(other);
+                        }
+                    }
+                }
+            }
+        }
+        regions.push((cells, open, next_to));
+    }
+    let fluid: usize = regions.iter().map(|r| r.0.len()).sum();
+    let largest = regions.iter().map(|r| r.0.len()).max().unwrap_or(0);
+    let mut filled = Vec::new();
+    for (cells, open, next_to) in regions {
+        let small = (cells.len() as f64) < MAX_POCKET_SHARE * fluid as f64 && cells.len() < largest;
+        if open || !small {
+            continue;
+        }
+        let Some(s) = next_to else { continue };
+        for c in &cells {
+            if let Some(slot) = solid.get_mut(*c) {
+                *slot = Some(s);
+            }
+        }
+        filled.push((cells.len(), s));
+    }
+    Ok(filled)
 }
 
 pub(super) fn layout(
@@ -90,6 +169,7 @@ pub(super) fn layout(
             }
         }
     }
+    let filled_pockets = fill_sealed_pockets(spec, bodies, obstacles.len(), &mut solid)?;
     let names = obstacles
         .iter()
         .map(|o| o.name.clone())
@@ -98,6 +178,7 @@ pub(super) fn layout(
     Ok(SolidLayout {
         cell_solid: solid,
         names,
+        filled_pockets,
     })
 }
 
@@ -121,6 +202,7 @@ pub(super) fn build(
     let SolidLayout {
         cell_solid: solid,
         names,
+        ..
     } = layout(spec, obstacles, bodies)?;
     let count = solid.len();
     let (base, full_export) = spec.build()?;
@@ -511,27 +593,18 @@ fn validate_topology(mesh: &PolyMesh) -> Result<()> {
             "obstacle cell is not closed",
         )?;
     }
-    let mut reached = vec![false; mesh.cell_count()];
-    let mut pending = vec![0];
-    if let Some(first) = reached.first_mut() {
-        *first = true;
-    }
-    while let Some(c) = pending.pop() {
-        for &fi in &mesh.cell_faces()[c] {
-            let f = mesh.faces()[fi];
-            if let Some(n) = f.neighbour {
-                let other = if f.owner == c { n } else { f.owner };
-                if !reached[other] {
-                    reached[other] = true;
-                    pending.push(other);
-                }
-            }
+    let regions = fluid_regions(mesh);
+    if regions.len() > 1 {
+        let mut text = format!("obstacles create disconnected fluid regions ({}):", regions.len());
+        for (cells, lo, hi) in regions.iter().take(6) {
+            text.push_str(&format!(
+                " {cells} cells from ({:.4}, {:.4}, {:.4}) to ({:.4}, {:.4}, {:.4}) m;",
+                lo.x, lo.y, lo.z, hi.x, hi.y, hi.z
+            ));
         }
+        return Err(crate::SolverError::InvalidInput(text.trim_end_matches(';').to_owned()));
     }
-    require(
-        reached.iter().all(|r| *r),
-        "obstacles create disconnected fluid regions",
-    )
+    Ok(())
 }
 
 pub(super) fn write_report(
@@ -645,6 +718,19 @@ pub(super) fn write_report(
             object.insert("surface_bodies".into(), serde_json::Value::Array(bodies));
         }
     }
+    if !case.cut_cells && case.bodies.iter().any(|b| b.lumped) {
+        let layout = layout(&case.mesh, &case.obstacles, &case.bodies)?;
+        let pockets: Vec<serde_json::Value> = layout
+            .filled_pockets
+            .iter()
+            .map(|(cells, s)| serde_json::json!({"cells": cells, "filled_with": layout.names.get(*s)}))
+            .collect();
+        let cells: usize = layout.filled_pockets.iter().map(|p| p.0).sum();
+        manifest.metrics.insert("sealed_pocket_cells_filled".into(), cells as f64);
+        if let Some(object) = report.as_object_mut() {
+            object.insert("sealed_pockets_filled".into(), serde_json::Value::Array(pockets));
+        }
+    }
     std::fs::write(
         out.join("mesh_report.json"),
         serde_json::to_vec_pretty(&report)?,
@@ -725,6 +811,9 @@ pub(super) fn plate_faces(
                 hi[a] = hi[a].max(v[a]);
             }
         }
+        // Per axis, the triangles binned by their shadow on the plane across it, so a face
+        // tests only the triangles over its centre.
+        let bins: [Bins; 3] = [0, 1, 2].map(|axis| Bins::new(body, axis, lo, hi));
         for (fi, f) in base.faces().iter().enumerate() {
             let Some(q) = f.neighbour else { continue };
             if out[fi].is_some() || cell_solid.get(f.owner) != Some(&None) || cell_solid.get(q) != Some(&None) {
@@ -744,7 +833,8 @@ pub(super) fn plate_faces(
             }
             // The surface crosses the line between the centres: some triangle covers (pb, pc)
             // at an axis coordinate between them.
-            let crosses = body.triangles.iter().any(|t| {
+            let crosses = bins[axis].near(pb, pc).iter().any(|&ti| {
+                let Some(t) = body.triangles.get(ti as usize) else { return false };
                 let [p0, p1, p2] = t.map(|i| body.vertices.get(i).copied().unwrap_or([f64::NAN; 3]));
                 let (x1, y1, x2, y2, x3, y3) = (p0[b], p0[c], p1[b], p1[c], p2[b], p2[c]);
                 let det = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
@@ -766,4 +856,96 @@ pub(super) fn plate_faces(
         }
     }
     out
+}
+
+/// The connected fluid regions of a mesh, largest first: cell count and the box of their centres.
+pub(super) fn fluid_regions(mesh: &PolyMesh) -> Vec<(usize, Vec3, Vec3)> {
+    let n = mesh.cell_count();
+    let mut region = vec![usize::MAX; n];
+    let mut out = Vec::new();
+    for start in 0..n {
+        if region[start] != usize::MAX {
+            continue;
+        }
+        let id = out.len();
+        region[start] = id;
+        let mut pending = vec![start];
+        let (mut count, mut lo, mut hi) = (0usize, Vec3::new(f64::MAX, f64::MAX, f64::MAX), Vec3::new(f64::MIN, f64::MIN, f64::MIN));
+        while let Some(c) = pending.pop() {
+            count += 1;
+            if let Some(cell) = mesh.cells().get(c) {
+                let p = cell.center;
+                lo = Vec3::new(lo.x.min(p.x), lo.y.min(p.y), lo.z.min(p.z));
+                hi = Vec3::new(hi.x.max(p.x), hi.y.max(p.y), hi.z.max(p.z));
+            }
+            for &fi in mesh.cell_faces().get(c).map_or(&[][..], Vec::as_slice) {
+                let Some(f) = mesh.faces().get(fi) else { continue };
+                if let Some(nb) = f.neighbour {
+                    let other = if f.owner == c { nb } else { f.owner };
+                    if region.get(other) == Some(&usize::MAX) {
+                        region[other] = id;
+                        pending.push(other);
+                    }
+                }
+            }
+        }
+        out.push((count, lo, hi));
+    }
+    out.sort_by(|a, b| b.0.cmp(&a.0));
+    out
+}
+
+/// A body's triangles binned by their shadow on the plane across one axis: a uniform grid over
+/// the body's box in that plane, each bin listing the triangles whose shadow's box overlaps it.
+struct Bins {
+    lo: [f64; 2],
+    step: [f64; 2],
+    n: [usize; 2],
+    cells: Vec<Vec<u32>>,
+}
+
+impl Bins {
+    const SIDE: usize = 128;
+
+    fn new(body: &super::bodies::SurfaceBody, axis: usize, lo: [f64; 3], hi: [f64; 3]) -> Self {
+        let [b, c] = [(axis + 1) % 3, (axis + 2) % 3];
+        let span = [hi[b] - lo[b], hi[c] - lo[c]];
+        let n = span.map(|s| if s > 0.0 && s.is_finite() { Self::SIDE } else { 1 });
+        let step = [0, 1].map(|k| if n[k] > 1 { span[k] / n[k] as f64 } else { 1.0 });
+        let mut bins = Self { lo: [lo[b], lo[c]], step, n, cells: vec![Vec::new(); n[0] * n[1]] };
+        for (ti, t) in body.triangles.iter().enumerate() {
+            let points = t.map(|i| body.vertices.get(i).copied().unwrap_or([f64::NAN; 3]));
+            let (mut l, mut h) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
+            for p in &points {
+                for (k, a) in [b, c].into_iter().enumerate() {
+                    l[k] = l[k].min(p[a]);
+                    h[k] = h[k].max(p[a]);
+                }
+            }
+            if !(l[0].is_finite() && l[1].is_finite() && h[0].is_finite() && h[1].is_finite()) {
+                continue;
+            }
+            let (i0, j0) = (bins.index(0, l[0]), bins.index(1, l[1]));
+            let (i1, j1) = (bins.index(0, h[0]), bins.index(1, h[1]));
+            for j in j0..=j1 {
+                for i in i0..=i1 {
+                    if let Some(cell) = bins.cells.get_mut(j * bins.n[0] + i) {
+                        cell.push(ti as u32);
+                    }
+                }
+            }
+        }
+        bins
+    }
+
+    /// The bin along `k` holding `x`, clamped to the grid (a point on the box's edge counts).
+    fn index(&self, k: usize, x: f64) -> usize {
+        let f = ((x - self.lo[k]) / self.step[k]).floor();
+        if f.is_nan() || f < 0.0 { 0 } else { (f as usize).min(self.n[k] - 1) }
+    }
+
+    /// The triangles that may cover the point.
+    fn near(&self, pb: f64, pc: f64) -> &[u32] {
+        self.cells.get(self.index(1, pc) * self.n[0] + self.index(0, pb)).map_or(&[], Vec::as_slice)
+    }
 }

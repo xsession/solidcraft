@@ -67,6 +67,54 @@ pub fn write_report(directory: &Path, csv: &str, html: &str, pictures: &[(String
     result
 }
 
+/// The named text files of a run folder that exist there (each at most 64 MiB), for reading
+/// results the design did not keep.
+pub fn read_run_texts(directory: &Path, names: &[&str]) -> Result<Vec<(String, String)>> {
+    crate::vfs::check(&directory.to_string_lossy()).map_err(invalid)?;
+    if !directory.join("manifest.json").is_file() {
+        return Err(invalid(format!("{} holds no run (no manifest.json)", directory.display())));
+    }
+    let mut out = Vec::new();
+    for name in names {
+        let path = directory.join(name);
+        let Ok(meta) = std::fs::metadata(&path) else { continue };
+        if !meta.is_file() || meta.len() > 64 << 20 {
+            continue;
+        }
+        out.push(((*name).to_string(), std::fs::read_to_string(&path).map_err(invalid)?));
+    }
+    Ok(out)
+}
+
+/// Text files (plain names) into a new directory, written atomically; the directory is removed
+/// again if any file fails.
+pub fn write_texts(directory: &Path, files: &[(&str, &str)]) -> Result<Vec<String>> {
+    crate::vfs::check(&directory.to_string_lossy()).map_err(invalid)?;
+    if cfg!(target_arch = "wasm32") {
+        return Err(invalid("Output directories require a native host"));
+    }
+    if directory.as_os_str().is_empty() {
+        return Err(invalid("Choose a new output directory"));
+    }
+    if files.iter().any(|(name, _)| name.contains(['/', '\\']) || name.starts_with('.') || name.is_empty() || name.len() > 64) {
+        return Err(invalid("An output file needs a plain file name"));
+    }
+    std::fs::create_dir(directory).map_err(invalid)?;
+    let write = || -> Result<Vec<String>> {
+        let mut written = Vec::new();
+        for (name, text) in files {
+            safe_write::create_atomic(&directory.join(name), text.as_bytes()).map_err(invalid)?;
+            written.push((*name).to_string());
+        }
+        Ok(written)
+    };
+    let result = write();
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(directory);
+    }
+    result
+}
+
 pub fn write_results(directory: &Path, study: &Study, run: &RunEvidence) -> Result<Vec<String>> {
     validate_record(run).map_err(invalid)?;
     crate::vfs::check(&directory.to_string_lossy()).map_err(invalid)?;

@@ -149,10 +149,12 @@ impl<'a> Bins<'a> {
         }
         let bin = self.cells.get((at[2] * self.count[1] + at[1]) * self.count[0] + at[0])?;
         bin.iter().map(|&c| c as usize).find(|&c| {
-            self.grid.cells.get(c).is_some_and(|cell| (0..3).all(|a| {
-                let slack = (cell[a][1] - cell[a][0]).abs() * 1e-9;
-                p[a] >= cell[a][0] - slack && p[a] <= cell[a][1] + slack
-            }))
+            self.grid.cells.get(c).is_some_and(|cell| {
+                (0..3).all(|a| {
+                    let slack = (cell[a][1] - cell[a][0]).abs() * 1e-9;
+                    p[a] >= cell[a][0] - slack && p[a] <= cell[a][1] + slack
+                })
+            })
         })
     }
 }
@@ -245,7 +247,15 @@ fn ray_hit(wet: &[(Triangle, usize)], o: [f64; 3], d: [f64; 3]) -> Option<(f64, 
 
 /// Draws `plot` over the model in `rect`, takes a click as a probe, and returns how many cells or
 /// faces it coloured.
-pub(super) fn show(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, grid: &BoxGrid, rect: egui::Rect, plot: Plot, (low, high): (f64, f64)) -> usize {
+pub(super) fn show(
+    app: &mut SolveApp,
+    ui: &mut egui::Ui,
+    view: &mut ViewState,
+    grid: &BoxGrid,
+    rect: egui::Rect,
+    plot: Plot,
+    (low, high): (f64, f64),
+) -> usize {
     let Some(id) = view.selected.clone() else { return 0 };
     let Some(origin) = origin(app, view, &id) else { return 0 };
     // Only the part of the view on screen: the model's picture is fitted to what is on screen,
@@ -288,10 +298,14 @@ pub(super) fn show(app: &mut SolveApp, ui: &mut egui::Ui, view: &mut ViewState, 
                     p[vertical] = b;
                     to_screen([0, 1, 2].map(|k| p[k] * 1000.0 + origin[k]))
                 };
-                let points: Option<Vec<egui::Pos2>> = [corner(x[0], y[0]), corner(x[1], y[0]), corner(x[1], y[1]), corner(x[0], y[1])].into_iter().collect();
+                let points: Option<Vec<egui::Pos2>> =
+                    [corner(x[0], y[0]), corner(x[1], y[0]), corner(x[1], y[1]), corner(x[0], y[1])].into_iter().collect();
                 let Some(points) = points else { continue };
                 let middle = points.iter().fold(egui::Vec2::ZERO, |sum, p| sum + p.to_vec2()) / points.len() as f32;
-                crate::scenario::publish_target("multiphysics:slice_probe_target", egui::Rect::from_center_size(middle.to_pos2(), egui::vec2(2.0, 2.0)));
+                crate::scenario::publish_target(
+                    "multiphysics:slice_probe_target",
+                    egui::Rect::from_center_size(middle.to_pos2(), egui::vec2(2.0, 2.0)),
+                );
                 for shape in crate::viewport::projected_polygon(&points, color.gamma_multiply(0.9), egui::Stroke::NONE) {
                     painter.add(shape);
                 }

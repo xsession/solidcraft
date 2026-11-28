@@ -60,7 +60,21 @@ pub(super) struct ModelUi {
     adapted: Option<(String, Value)>,
     /// The fan curve being typed: `flow pressure; flow pressure; …` (m³/s, Pa).
     fan_curve: String,
+    /// Environment: the breeze (m/s), the dust (mg/m³), the wall inset (mm) of a dust box made
+    /// from a body, the seasons being typed (low, high, dew point °C, dust mg/m³ each), the
+    /// folder a year summary goes to, and the last summary, for the study.
+    breeze: String,
+    dust_mg: String,
+    dust_inset: String,
+    seasons: Vec<[String; 4]>,
+    climate_folder: String,
+    climate: Option<(String, Value)>,
 }
+
+/// A temperate year to start from: winter, spring, summer, autumn (low, high, dew point °C,
+/// dust mg/m³ by day).
+const SEASONS: [(&str, [f64; 4]); 4] =
+    [("winter", [-4.0, 3.0, -5.0, 0.1]), ("spring", [4.0, 16.0, 3.0, 0.4]), ("summer", [14.0, 30.0, 13.0, 0.8]), ("autumn", [6.0, 16.0, 7.0, 0.5])];
 
 /// The goal kinds the panel offers, as `multiphysics.model.goal` names them; the temperature
 /// goals only with heat transfer on.
@@ -650,6 +664,20 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
         return;
     }
     ui.label(RichText::new(tr("multiphysics.model_cut_cells_hint")).small().color(t.text_dim));
+    let mut close = link.close_thin_walls;
+    let response = crate::ui_kit::checkbox(ui, tr("multiphysics.model_thin_walls"), &mut close);
+    crate::scenario::publish_target("multiphysics:model_thin_walls", response.rect);
+    if close != link.close_thin_walls {
+        model_command(
+            app,
+            state,
+            study,
+            "multiphysics.model.set",
+            json!({"id":study.id,"expected_revision":study.revision,"close_thin_walls":close}),
+        );
+        return;
+    }
+    ui.label(RichText::new(tr("multiphysics.model_thin_walls_hint")).small().color(t.text_dim));
     if button(ui, "multiphysics.model_apply_grid", "multiphysics:model_apply_grid", true).clicked() {
         let cell = state.model_ui.cell.trim().parse::<f64>().unwrap_or(0.0);
         let mut params = json!({"id":study.id,"expected_revision":study.revision,"cell_mm":cell});
@@ -819,6 +847,211 @@ pub(super) fn panel(app: &mut SolveApp, state: &mut State, study: &Study, ui: &m
         } else {
             ui.colored_label(t.form_success, tr("multiphysics.model_leak_sealed"));
         }
+    }
+    ui.separator();
+    environment_section(app, state, study, &link, ui);
+}
+
+/// Where the model stands and what it breathes: the air around it (external studies), the dust
+/// in that air, and the year of conditions it works through, with the year's summary.
+fn environment_section(
+    app: &mut SolveApp,
+    state: &mut State,
+    study: &Study,
+    link: &solidcraft_engine::multiphysics::model::ModelLink,
+    ui: &mut egui::Ui,
+) {
+    let t = Tokens::get();
+    let base = || json!({"id":study.id,"expected_revision":study.revision});
+    ui.strong(tr("multiphysics.model_environment"));
+    ui.label(RichText::new(tr("multiphysics.model_environment_hint")).small().color(t.text_dim));
+    // The air around the model.
+    if link.analysis == solidcraft_engine::multiphysics::model::Analysis::External {
+        if state.model_ui.breeze.is_empty() {
+            state.model_ui.breeze = link.surroundings.map_or_else(|| "0.1".into(), |s| s.breeze_m_per_s.to_string());
+        }
+        let mut apply = false;
+        crate::ui_kit::row(ui, tr("multiphysics.model_breeze"), |ui| {
+            field(ui, &mut state.model_ui.breeze, "0.1", "multiphysics:model_breeze");
+            let response = crate::ui_kit::button(ui, tr("multiphysics.model_apply"), crate::ui_kit::Button::Small);
+            crate::scenario::publish_target("multiphysics:model_apply_breeze", response.rect);
+            apply = response.clicked();
+        });
+        let mut floor = link.surroundings.is_none_or(|s| s.floor);
+        let floor_changed = crate::ui_kit::checkbox(ui, tr("multiphysics.model_floor"), &mut floor).changed();
+        ui.label(RichText::new(tr("multiphysics.model_breeze_hint")).small().color(t.text_dim));
+        if (apply || floor_changed)
+            && let Ok(breeze) = state.model_ui.breeze.trim().parse::<f64>()
+        {
+            let mut params = base();
+            params["breeze_m_per_s"] = json!(breeze);
+            params["floor"] = json!(floor);
+            model_command(app, state, study, "multiphysics.model.surroundings", params);
+            return;
+        }
+    }
+    // Dust.
+    if state.model_ui.dust_mg.is_empty() {
+        state.model_ui.dust_mg = link.dust.as_ref().map_or_else(|| "0.5".into(), |d| d.concentration_mg_per_m3.to_string());
+    }
+    if state.model_ui.dust_inset.is_empty() {
+        state.model_ui.dust_inset = "2".into();
+    }
+    let mut apply_dust = false;
+    crate::ui_kit::row(ui, tr("multiphysics.model_dust"), |ui| {
+        field(ui, &mut state.model_ui.dust_mg, "0.5", "multiphysics:model_dust");
+        let response = crate::ui_kit::button(ui, tr("multiphysics.model_apply"), crate::ui_kit::Button::Small);
+        crate::scenario::publish_target("multiphysics:model_apply_dust", response.rect);
+        apply_dust = response.clicked();
+    });
+    if apply_dust && let Ok(mg) = state.model_ui.dust_mg.trim().parse::<f64>() {
+        let mut params = base();
+        params["concentration_mg_per_m3"] = json!(mg);
+        model_command(app, state, study, "multiphysics.model.dust", params);
+        return;
+    }
+    if let Some(dust) = &link.dust {
+        let entry = match &dust.entry {
+            solidcraft_engine::multiphysics::environment::DustEntry::Air => tr("multiphysics.model_dust_from_air").to_string(),
+            solidcraft_engine::multiphysics::environment::DustEntry::Box { low_mm, high_mm } => solidcraft_ui_text::format(
+                "multiphysics.model_dust_from_box",
+                &[
+                    ("low", &format!("{:.1}, {:.1}, {:.1}", low_mm[0], low_mm[1], low_mm[2])),
+                    ("high", &format!("{:.1}, {:.1}, {:.1}", high_mm[0], high_mm[1], high_mm[2])),
+                ],
+            ),
+        };
+        ui.label(RichText::new(entry).small());
+        // Count the dust that comes into a picked body (an enclosure) through its openings.
+        let picked = selected_bodies(app);
+        crate::ui_kit::row(ui, tr("multiphysics.model_dust_inset"), |ui| {
+            field(ui, &mut state.model_ui.dust_inset, "2", "multiphysics:model_dust_inset");
+        });
+        if button(ui, "multiphysics.model_dust_inside", "multiphysics:model_dust_inside", picked.len() == 1).clicked()
+            && let Some(body) = picked.first()
+        {
+            let mut params = base();
+            params["inside_of"] = json!(body);
+            params["inset_mm"] = json!(state.model_ui.dust_inset.trim().parse::<f64>().unwrap_or(0.0));
+            model_command(app, state, study, "multiphysics.model.dust", params);
+            return;
+        }
+        let mut remove = false;
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(tr("multiphysics.model_dust_hint")).small().color(t.text_dim));
+            remove = remove_button(ui).clicked();
+        });
+        if remove {
+            let mut params = base();
+            params["remove"] = json!(true);
+            model_command(app, state, study, "multiphysics.model.dust", params);
+            return;
+        }
+    }
+    ui.separator();
+    // The year: four seasons, each a night, morning, afternoon and evening.
+    ui.strong(tr("multiphysics.model_climate"));
+    ui.label(RichText::new(tr("multiphysics.model_climate_hint")).small().color(t.text_dim));
+    if state.model_ui.seasons.len() != SEASONS.len() {
+        state.model_ui.seasons = SEASONS.iter().map(|(_, v)| v.map(|x| x.to_string())).collect();
+    }
+    egui::Grid::new(("multiphysics_seasons", &study.id)).num_columns(5).show(ui, |ui| {
+        for key in [
+            "multiphysics.model_season",
+            "multiphysics.model_season_low",
+            "multiphysics.model_season_high",
+            "multiphysics.model_season_dew",
+            "multiphysics.model_season_dust",
+        ] {
+            ui.label(RichText::new(tr(key)).small());
+        }
+        ui.end_row();
+        for (row, (name, _)) in state.model_ui.seasons.iter_mut().zip(SEASONS) {
+            ui.label(name);
+            for (k, value) in row.iter_mut().enumerate() {
+                field(ui, value, "", &format!("multiphysics:model_season:{name}:{k}"));
+            }
+            ui.end_row();
+        }
+    });
+    if button(ui, "multiphysics.model_climate_set", "multiphysics:model_climate_set", true).clicked() {
+        let seasons: Option<Vec<Value>> = state
+            .model_ui
+            .seasons
+            .iter()
+            .zip(SEASONS)
+            .map(|(row, (name, _))| {
+                let v: Option<Vec<f64>> = row.iter().map(|x| x.trim().parse::<f64>().ok()).collect();
+                v.map(|v| json!({"name": name, "low_c": v[0], "high_c": v[1], "dew_point_c": v[2], "dust_mg_per_m3": v[3]}))
+            })
+            .collect();
+        if let Some(seasons) = seasons {
+            let mut params = base();
+            params["seasons"] = json!(seasons);
+            model_command(app, state, study, "multiphysics.model.climate", params);
+            return;
+        }
+    }
+    let Some(climate) = &link.climate else { return };
+    egui::Grid::new(("multiphysics_conditions", &study.id)).num_columns(4).striped(true).show(ui, |ui| {
+        for c in &climate.conditions {
+            ui.label(&c.name);
+            ui.label(format!("{:.0} h", c.hours_per_year));
+            ui.label(format!("{:.1} °C", c.ambient_c));
+            ui.label(format!("{:.0} % RH", c.relative_humidity_pct()));
+            ui.end_row();
+        }
+    });
+    if button(ui, "multiphysics.model_climate_studies", "multiphysics:model_climate_studies", true).clicked() {
+        command(app, state, "multiphysics.model.climate_studies", json!({"id":study.id}));
+        return;
+    }
+    ui.label(RichText::new(tr("multiphysics.model_climate_studies_hint")).small().color(t.text_dim));
+    crate::ui_kit::row(ui, tr("multiphysics.model_climate_folder"), |ui| {
+        field(ui, &mut state.model_ui.climate_folder, "", "multiphysics:model_climate_folder");
+    });
+    if button(ui, "multiphysics.model_climate_summary", "multiphysics:model_climate_summary", true).clicked() {
+        let mut params = json!({"id":study.id});
+        let folder = state.model_ui.climate_folder.trim();
+        if !folder.is_empty() {
+            params["directory"] = json!(folder);
+        }
+        if let Some(reply) = command(app, state, "multiphysics.result.climate", params) {
+            state.model_ui.climate = Some((study.id.clone(), reply));
+        }
+    }
+    if let Some((id, summary)) = &state.model_ui.climate
+        && *id == study.id
+    {
+        ui.label(solidcraft_ui_text::format(
+            "multiphysics.model_climate_totals",
+            &[
+                ("in", &format!("{:.3}", summary["dust_in_g_per_year"].as_f64().unwrap_or(0.0))),
+                ("deposited", &format!("{:.3}", summary["deposited_g_per_year"].as_f64().unwrap_or(0.0))),
+                ("hours", &format!("{:.0}", summary["hours_covered"].as_f64().unwrap_or(0.0))),
+            ],
+        ));
+        for missing in summary["missing"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            ui.colored_label(t.warning, solidcraft_ui_text::format("multiphysics.model_climate_missing", &[("condition", missing)]));
+        }
+        egui::Grid::new(("multiphysics_climate_parts", &study.id)).num_columns(4).striped(true).show(ui, |ui| {
+            for key in [
+                "multiphysics.model_climate_part",
+                "multiphysics.model_climate_dust",
+                "multiphysics.model_climate_humid",
+                "multiphysics.model_climate_wet",
+            ] {
+                ui.label(RichText::new(tr(key)).small());
+            }
+            ui.end_row();
+            for part in summary["parts"].as_array().into_iter().flatten().take(24) {
+                ui.label(part["body"].as_str().unwrap_or_default());
+                ui.label(format!("{:.4} g", part["dust_g_per_year"].as_f64().unwrap_or(0.0)));
+                ui.label(format!("{:.0} h", part["humid_dust_hours"].as_f64().unwrap_or(0.0)));
+                ui.label(format!("{:.0} h", part["condensing_hours"].as_f64().unwrap_or(0.0)));
+                ui.end_row();
+            }
+        });
     }
 }
 

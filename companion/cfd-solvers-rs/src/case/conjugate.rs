@@ -929,6 +929,11 @@ impl EnergyState {
             .collect()
     }
 
+    /// Temperatures of every background-grid cell, fluid and solid, K.
+    pub fn cell_temperature(&self, inflow_k: f64) -> Vec<f64> {
+        self.rise.iter().map(|r| r + inflow_k).collect()
+    }
+
     /// Body acceleration per fluid cell, `base - beta (T - T_ref) g`.
     pub fn buoyancy(&self, b: &Buoyancy, base: Vec3, inflow_k: f64) -> Vec<Vec3> {
         let g = Vec3::new(
@@ -1195,10 +1200,10 @@ impl EnergyState {
 
     /// Max and volume-mean temperature of a named solid, K.
     pub fn solid_temperature(&self, name: &str, inflow_k: f64) -> Option<(f64, f64)> {
-        let index = self.names.iter().position(|n| n == name)? + 1;
-        let cells: Vec<usize> = (0..self.region.len())
-            .filter(|c| self.region[*c] == index)
-            .collect();
+        // The cells its temperature is read from: its own, or for a lumped part the cells its
+        // volume lies in, as the component table reads it.
+        let index = self.names.iter().position(|n| n == name)?;
+        let cells = self.readout.get(index).filter(|c| !c.is_empty())?;
         let volume: f64 = cells.iter().map(|c| self.mesh.cells()[*c].volume).sum();
         let max = cells.iter().map(|c| self.rise[*c]).fold(f64::MIN, f64::max) + inflow_k;
         let mean = cells

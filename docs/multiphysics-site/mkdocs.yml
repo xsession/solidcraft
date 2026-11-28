@@ -64,6 +64,7 @@ nav:
       - 4. Comparing runs: tutorials/comparing-runs.md
       - 5. Imported assemblies: tutorials/imported-assemblies.md
       - 6. Scripting a study: tutorials/scripting.md
+      - 7. Climate, humidity and dust: tutorials/climate-and-dust.md
   - Theory of operation:
       - theory/index.md
       - Architecture: theory/architecture.md

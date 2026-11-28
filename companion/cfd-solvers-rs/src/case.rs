@@ -19,6 +19,7 @@ mod bodies;
 pub mod conjugate;
 mod cut_cells;
 pub mod domains;
+pub mod dust;
 mod fan;
 pub mod goals;
 pub mod internal_fan;
@@ -482,6 +483,7 @@ impl Case {
                 "balanced_body_force_v1".into(),
                 "body_face_conditions_v1".into(),
                 "cut_cells_v1".into(),
+                "dust_deposition_v1".into(),
                 "face_heat_sources_v1".into(),
                 "goals_v3".into(),
                 "partial_cells_v1".into(),

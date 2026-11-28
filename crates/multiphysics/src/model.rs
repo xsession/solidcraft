@@ -485,6 +485,23 @@ pub struct ModelLink {
     /// it existed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<ModelFlow>,
+    /// Close every grid face a body's surface crosses between two fluid cells, so walls thinner
+    /// than a cell stay walls (lumped plates) and an enclosure keeps only its real openings.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub close_thin_walls: bool,
+    /// The air around an external study: a breeze, open sides and a floor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surroundings: Option<crate::environment::ModelSurroundings>,
+    /// Dust in the air, followed to where it settles (companion 0.19.0, `dust_deposition_v1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dust: Option<crate::environment::ModelDust>,
+    /// The year of conditions the study works through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub climate: Option<crate::environment::ModelClimate>,
+    /// A study made for one condition of another study's climate: that study's id and the
+    /// condition, which sets the air's temperature, the breeze and the dust here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<(String, crate::environment::ClimateCondition)>,
     /// The digest of the model input the case was last built from. Another digest now means
     /// the design changed since, and the case must be built again before a run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -645,6 +662,28 @@ fn text(value: &str, what: &str) -> Result<()> {
 }
 
 impl ModelLink {
+    /// The link as one condition of a climate sets it: the air's temperature (the inflow, and
+    /// the buoyancy's reference and expansion for air), the breeze and the dust.
+    pub fn conditioned(&self) -> ModelLink {
+        let mut link = self.clone();
+        let Some((_, c)) = &self.condition else { return link };
+        let air_k = c.ambient_c + 273.15;
+        if let Some(heat) = link.heat.as_mut() {
+            heat.inflow_temperature_k = air_k;
+            if let Some(b) = heat.buoyancy.as_mut() {
+                b.reference_temperature_k = None;
+                b.expansion_per_k = 1.0 / air_k;
+            }
+        }
+        if let (Some(s), Some(breeze)) = (link.surroundings.as_mut(), c.breeze_m_per_s) {
+            s.breeze_m_per_s = breeze;
+        }
+        if let (Some(d), Some(dust)) = (link.dust.as_mut(), c.dust_mg_per_m3) {
+            d.concentration_mg_per_m3 = dust;
+        }
+        link
+    }
+
     /// Every face the link names, in one order: the conditions', the refinements', the goals',
     /// the heat sources', the thermal conditions' and the fan's. [`ModelInput::faces`] resolves them in this order.
     pub fn face_refs(&self) -> Vec<&FaceRef> {
@@ -713,6 +752,22 @@ impl ModelLink {
         }
         if self.cell_mm.is_some_and(|cell| !(cell.is_finite() && cell > 0.0 && cell <= 1e6)) {
             return Err(Error::Invalid("the cell size must be positive and at most 1e6 mm".into()));
+        }
+        if let Some(surroundings) = &self.surroundings {
+            surroundings.validate()?;
+            if self.analysis != Analysis::External {
+                return Err(Error::Invalid("surroundings are for a study of the air around the model (external)".into()));
+            }
+        }
+        if let Some(dust) = &self.dust {
+            dust.validate()?;
+        }
+        if let Some(climate) = &self.climate {
+            climate.validate()?;
+        }
+        if let Some((of, condition)) = &self.condition {
+            text(of, "a climate's study")?;
+            condition.validate()?;
         }
         if self.openings.len() > MAX_OPENINGS {
             return Err(Error::Limit(format!("a model study has at most {MAX_OPENINGS} face conditions")));
@@ -1274,6 +1329,8 @@ fn heat_on_faces(
 /// thermal records) and the model as `input` describes it now.
 pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built> {
     link.validate()?;
+    let conditioned = link.conditioned();
+    let link = &conditioned;
     if base.get("solver").and_then(Value::as_str) != Some("collocated_flow3d") {
         return Err(bad("a model study needs a 3-D flow case (collocated_flow3d)"));
     }
@@ -1321,6 +1378,7 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         object.remove("porous_blocks");
         object.remove("internal_fans");
         object.remove("rotating_regions");
+        object.remove("dust");
         for key in ["velocity_boundaries", "pressure_boundaries"] {
             if let Some(rows) = object.get_mut(key).and_then(Value::as_array_mut) {
                 rows.retain(|row| row["patch"].as_str().is_some_and(|patch| PATCHES.contains(&patch)));
@@ -1474,6 +1532,29 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
             }
         }
     }
+    if let Some(surroundings) = &link.surroundings {
+        // The air around the model; conditions on faces of the model come after and win.
+        for (patch, role) in surroundings.roles().into_iter().enumerate() {
+            if wetted[patch] && case.pointer("/fan/patch").and_then(Value::as_str) != Some(PATCHES[patch]) {
+                case = case_scene::set_patch_role(&case, patch, role)?.case;
+            }
+        }
+        if let Some(object) = case.as_object_mut() {
+            let [x, y, z] = surroundings.initial_velocity();
+            object.insert("initial_velocity".into(), serde_json::json!({"x": x, "y": y, "z": z}));
+        }
+    }
+    if link.close_thin_walls
+        && let Some(bodies) = case.get_mut("bodies").and_then(Value::as_array_mut)
+    {
+        for body in bodies {
+            body["lumped"] = Value::Bool(true);
+        }
+        notes.push(
+            "thin walls are closed: every grid face a body's surface crosses between two fluid cells is its wall, and air they seal off is filled"
+                .into(),
+        );
+    }
     let mut placed: Vec<(String, String)> = Vec::new();
     let mut given: [Option<(String, OpeningRole)>; 6] = Default::default();
     let objects = case_scene::parse_obj(&input.obj)?;
@@ -1559,6 +1640,13 @@ pub fn build(base: &Value, link: &ModelLink, input: &ModelInput) -> Result<Built
         && let Some(object) = case.as_object_mut()
     {
         object.insert("goals".into(), Value::Array(goals));
+    }
+    if let Some(dust) = &link.dust {
+        let gravity = link.heat.as_ref().and_then(|h| h.buoyancy).map_or([0.0, 0.0, -9.81], |b| b.gravity_m_per_s2);
+        let air_k = link.heat.as_ref().map_or(293.15, |h| h.inflow_temperature_k);
+        if let Some(object) = case.as_object_mut() {
+            object.insert("dust".into(), dust.case_block(imported.origin_mm, gravity, air_k));
+        }
     }
     // Fans inside the domain, on the cells their bodies cover.
     for fan in &link.internal_fans {
@@ -1776,6 +1864,75 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    /// The environment of an external study: the air around the duct (a breeze from -x, open
+    /// downwind and above, a floor), thin walls closed, dust counted where it enters the duct's
+    /// inside, and a climate condition setting the air's temperature, the breeze and the dust.
+    #[test]
+    fn environment_and_a_climate_condition_go_into_the_case() {
+        use crate::environment::{BreezeFrom, ClimateCondition, DustEntry, ModelDust, ModelSurroundings, default_sizes};
+        let mut study = ModelLink {
+            analysis: Analysis::External,
+            margin_mm: 8.0,
+            cell_mm: Some(4.0),
+            close_thin_walls: true,
+            surroundings: Some(ModelSurroundings { breeze_m_per_s: 0.2, breeze_from: BreezeFrom::MinusX, floor: true }),
+            dust: Some(ModelDust {
+                concentration_mg_per_m3: 0.5,
+                sizes: default_sizes(),
+                density_kg_per_m3: 2000.0,
+                particles_per_size: 100,
+                entry: DustEntry::Box { low_mm: [0.0, 4.0, 4.0], high_mm: [100.0, 36.0, 36.0] },
+                max_time_s: 600.0,
+            }),
+            heat: Some(ModelHeat { buoyancy: Some(ModelBuoyancy::AIR), ..Default::default() }),
+            ..Default::default()
+        };
+        let built = build(&channel(), &study, &duct()).unwrap();
+        let case = &built.case;
+        let role = |key: &str, patch: &str| {
+            case[key].as_array().into_iter().flatten().find(|r| r["patch"] == patch).map(|r| r["kind"].as_str().unwrap_or_default().to_string())
+        };
+        assert_eq!(role("velocity_boundaries", "left").as_deref(), Some("fixed_value"));
+        assert_eq!(case["velocity_boundaries"].as_array().unwrap().iter().find(|r| r["patch"] == "left").unwrap()["value"]["x"], 0.2);
+        assert_eq!(role("pressure_boundaries", "right").as_deref(), Some("fixed_value"));
+        assert_eq!(role("pressure_boundaries", "back").as_deref(), Some("fixed_value"), "open above");
+        assert_eq!(role("velocity_boundaries", "bottom").as_deref(), Some("slip"));
+        assert_eq!(role("velocity_boundaries", "front").as_deref(), Some("fixed_value"), "the floor");
+        assert!(case["bodies"].as_array().unwrap().iter().all(|b| b["lumped"] == true));
+        // The dust box in the domain's metres: the design's box less the domain's origin.
+        let origin = built.origin_mm;
+        assert_eq!(case["dust"]["release"], "box");
+        let low = case["dust"]["release_box"]["min_m"][1].as_f64().unwrap();
+        assert!((low - (4.0 - origin[1]) / 1000.0).abs() < 1e-12, "{low}");
+        let total: f64 = case["dust"]["classes"].as_array().unwrap().iter().map(|c| c["concentration_kg_per_m3"].as_f64().unwrap()).sum();
+        assert!((total - 0.5e-6).abs() < 1e-15);
+        assert!(crate::airflow::requirements(case).iter().any(|r| r.capability == "dust_deposition_v1"));
+        // A condition: 30 °C air, a stronger breeze and more dust.
+        study.condition = Some((
+            "mp-study-1".into(),
+            ClimateCondition {
+                name: "summer afternoon".into(),
+                hours_per_year: 547.5,
+                ambient_c: 30.0,
+                dew_point_c: 13.0,
+                breeze_m_per_s: Some(0.4),
+                dust_mg_per_m3: Some(1.2),
+            },
+        ));
+        let built = build(&channel(), &study, &duct()).unwrap();
+        let case = &built.case;
+        assert!((case["thermal"]["inflow_temperature_k"].as_f64().unwrap() - 303.15).abs() < 1e-9);
+        assert!((case["thermal"]["buoyancy"]["reference_temperature_k"].as_f64().unwrap() - 303.15).abs() < 1e-9);
+        assert!((case["thermal"]["buoyancy"]["expansion_per_k"].as_f64().unwrap() - 1.0 / 303.15).abs() < 1e-12);
+        assert_eq!(case["velocity_boundaries"].as_array().unwrap().iter().find(|r| r["patch"] == "left").unwrap()["value"]["x"], 0.4);
+        let total: f64 = case["dust"]["classes"].as_array().unwrap().iter().map(|c| c["concentration_kg_per_m3"].as_f64().unwrap()).sum();
+        assert!((total - 1.2e-6).abs() < 1e-15);
+        assert!((case["dust"]["temperature_k"].as_f64().unwrap() - 303.15).abs() < 1e-9);
+        // Surroundings belong to studies of the air around the model.
+        study.analysis = Analysis::Internal;
+        assert!(build(&channel(), &study, &duct()).is_err());
     }
 
     /// Heat transfer in a study of the model: the duct conducts with its material and power,

@@ -22,93 +22,106 @@ pub const GRID_OBSTACLES: Requirement = Requirement {
     capability: "grid_obstacles_v1",
     versions: &[
         "0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0",
-        "0.17.0", "0.18.0",
+        "0.17.0", "0.18.0", "0.19.0",
     ],
 };
 pub const FAN_CURVE: Requirement = Requirement {
     capability: "fan_curve_v1",
     versions: &[
         "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0",
-        "0.18.0",
+        "0.18.0", "0.19.0",
     ],
 };
 pub const POROUS_BLOCKS: Requirement = Requirement {
     capability: "porous_blocks_v1",
     versions: &[
         "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0",
-        "0.18.0",
+        "0.18.0", "0.19.0",
     ],
 };
 pub const CONJUGATE_HEAT: Requirement = Requirement {
     capability: "conjugate_heat_v1",
     versions: &[
         "0.5.0", "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0",
+        "0.19.0",
     ],
 };
 pub const SURFACE_BODIES: Requirement = Requirement {
     capability: "surface_bodies_v1",
-    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &[
+        "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0",
+    ],
 };
 pub const GOALS: Requirement = Requirement {
     capability: "goals_v1",
-    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &[
+        "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0",
+    ],
 };
 pub const NATURAL_CONVECTION: Requirement = Requirement {
     capability: "natural_convection_v1",
-    versions: &["0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &[
+        "0.6.0", "0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0",
+    ],
 };
 /// Electrical, mechanics, particle, kinetic and coupled domain cases added in 0.7.0.
 pub const DOMAIN_CASES: Requirement = Requirement {
     capability: "domain_cases_v1",
-    versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.7.0", "0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 /// Contact resistance, two-resistor junctions, heat pipes and thermoelectric coolers (0.8.0).
 pub const THERMAL_DEVICES: Requirement = Requirement {
     capability: "thermal_devices_v1",
-    versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 /// Global, point and equation goals (0.8.0).
 /// Explicit rectilinear mesh coordinates (local mesh refinement, 0.9.0).
 pub const LOCAL_MESH: Requirement = Requirement {
     capability: "local_mesh_v1",
-    versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 /// Per-face transferred boundary profiles (zoom-in from a parent run, 0.10.0).
 pub const TRANSFERRED: Requirement = Requirement {
     capability: "transferred_bc_v1",
-    versions: &["0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 /// Rotating regions, the multiple reference frame model (0.11.0).
-pub const ROTATING: Requirement =
-    Requirement { capability: "rotating_regions_v1", versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+pub const ROTATING: Requirement = Requirement {
+    capability: "rotating_regions_v1",
+    versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
+};
 /// PISO correctors that rebuild H(u)/a_P (stable at larger time steps, 0.11.0).
 pub const PISO_UPDATE: Requirement = Requirement {
     capability: "piso_neighbour_update_v1",
-    versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 /// Internal fans: actuator blocks following a pressure-flow curve (0.12.0).
 pub const INTERNAL_FANS: Requirement =
-    Requirement { capability: "internal_fans_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+    Requirement { capability: "internal_fans_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Balanced-force pressure and body-force coupling (0.12.0).
 pub const BALANCED_FORCES: Requirement =
-    Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+    Requirement { capability: "balanced_body_force_v1", versions: &["0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Boundary patches on parts of surface bodies: conditions on model faces (0.13.0).
 pub const BODY_FACE_CONDITIONS: Requirement =
-    Requirement { capability: "body_face_conditions_v1", versions: &["0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+    Requirement { capability: "body_face_conditions_v1", versions: &["0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Cut cells for surface bodies (0.14.0).
-pub const CUT_CELLS: Requirement = Requirement { capability: "cut_cells_v1", versions: &["0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+pub const CUT_CELLS: Requirement =
+    Requirement { capability: "cut_cells_v1", versions: &["0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Power on parts of surface bodies, and heat transfer with closed body face conditions (0.15.0).
-pub const FACE_HEAT_SOURCES: Requirement = Requirement { capability: "face_heat_sources_v1", versions: &["0.15.0", "0.16.0", "0.17.0", "0.18.0"] };
+pub const FACE_HEAT_SOURCES: Requirement =
+    Requirement { capability: "face_heat_sources_v1", versions: &["0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Global flow goals: the fluid's largest and mean speed and pressure (0.16.0).
-pub const GOALS_V3: Requirement = Requirement { capability: "goals_v3", versions: &["0.16.0", "0.17.0", "0.18.0"] };
+pub const GOALS_V3: Requirement = Requirement { capability: "goals_v3", versions: &["0.16.0", "0.17.0", "0.18.0", "0.19.0"] };
 /// Partial cells for heat: power, heat capacity and conductivity by what each cell holds, and
 /// lumped bodies with no cell of their own (0.17.0).
-pub const PARTIAL_CELLS: Requirement = Requirement { capability: "partial_cells_v1", versions: &["0.17.0", "0.18.0"] };
+pub const PARTIAL_CELLS: Requirement = Requirement { capability: "partial_cells_v1", versions: &["0.17.0", "0.18.0", "0.19.0"] };
 /// Momentum solved to a tolerance relative to its own size, for small and slow flows.
-pub const SCALED_MOMENTUM: Requirement = Requirement { capability: "scaled_momentum_v1", versions: &["0.18.0"] };
+pub const SCALED_MOMENTUM: Requirement = Requirement { capability: "scaled_momentum_v1", versions: &["0.18.0", "0.19.0"] };
+/// Dust followed through the settled flow to where it deposits (0.19.0).
+pub const DUST: Requirement = Requirement { capability: "dust_deposition_v1", versions: &["0.19.0"] };
 pub const GOALS_V2: Requirement = Requirement {
     capability: "goals_v2",
-    versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0"],
+    versions: &["0.8.0", "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0", "0.14.0", "0.15.0", "0.16.0", "0.17.0", "0.18.0", "0.19.0"],
 };
 
 /// Goal kinds added with `goals_v3`.
@@ -230,6 +243,9 @@ pub fn requirements(case: &Value) -> Vec<Requirement> {
     }
     if nonempty_array(case, "internal_fans") {
         out.push(INTERNAL_FANS);
+    }
+    if case.get("dust").is_some_and(|dust| !dust.is_null()) {
+        out.push(DUST);
     }
     if case.pointer("/config/balanced_body_force").and_then(Value::as_bool) == Some(true) {
         out.push(BALANCED_FORCES);

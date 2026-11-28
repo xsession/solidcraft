@@ -79,7 +79,8 @@ pub(crate) fn row<R>(ui: &mut egui::Ui, depth: usize, label: &str, stripe: bool,
         ui.painter().rect_filled(rect, 0.0, t.panel);
     }
     let split = rect.left() + rect.width() * LABEL_SHARE;
-    let label_rect = Rect::from_min_max(pos2(rect.left() + t.space_8 + depth as f32 * t.space_14, rect.top()), pos2(split - t.space_4, rect.bottom()));
+    let label_rect =
+        Rect::from_min_max(pos2(rect.left() + t.space_8 + depth as f32 * t.space_14, rect.top()), pos2(split - t.space_4, rect.bottom()));
     text_in(ui.painter(), label_rect, label, egui::FontId::proportional(t.font_body), t.text);
     ui.painter().vline(split, rect.y_range(), egui::Stroke::new(1.0, t.dialog_rule));
     rule(ui.painter(), rect);
@@ -140,7 +141,16 @@ pub(crate) fn disclosure_left(depth: usize) -> f32 {
 /// One tree row: indent, an optional disclosure triangle, the icon and the label. `bold` marks
 /// the active project, as flow-analysis trees do.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn tree_row(ui: &mut egui::Ui, depth: usize, open: Option<bool>, icon: &str, text: &str, selected: bool, enabled: bool, bold: bool) -> egui::Response {
+pub(crate) fn tree_row(
+    ui: &mut egui::Ui,
+    depth: usize,
+    open: Option<bool>,
+    icon: &str,
+    text: &str,
+    selected: bool,
+    enabled: bool,
+    bold: bool,
+) -> egui::Response {
     let t = Tokens::get();
     let height = crate::ui_kit::row_height();
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), height), if enabled { Sense::click() } else { Sense::hover() });

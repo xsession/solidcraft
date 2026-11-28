@@ -109,7 +109,8 @@ pub fn regions(vtu: &str, field: Option<&str>, fraction: f64, max_regions: usize
             for dx in -1isize..=1 {
                 for dy in -1isize..=1 {
                     for dz in -1isize..=1 {
-                        let (Some(x), Some(y), Some(z)) = (k[0].checked_add_signed(dx), k[1].checked_add_signed(dy), k[2].checked_add_signed(dz)) else {
+                        let (Some(x), Some(y), Some(z)) = (k[0].checked_add_signed(dx), k[1].checked_add_signed(dy), k[2].checked_add_signed(dz))
+                        else {
                             continue;
                         };
                         let n = [x, y, z];
@@ -177,7 +178,15 @@ mod tests {
         let narrow = regions(&step, Some("f"), 0.5, 4).expect("adapt");
         assert_eq!(narrow.flagged, 8);
         // Two steps far apart are two clusters.
-        let two = vtu([20, 1, 1], |i, _, _| if i < 3 { 0.0 } else if i < 15 { 1.0 } else { 3.0 });
+        let two = vtu([20, 1, 1], |i, _, _| {
+            if i < 3 {
+                0.0
+            } else if i < 15 {
+                1.0
+            } else {
+                3.0
+            }
+        });
         let adapted = regions(&two, None, 0.2, 4).expect("adapt");
         assert_eq!(adapted.field, "f");
         assert_eq!(adapted.regions_m.len(), 2);

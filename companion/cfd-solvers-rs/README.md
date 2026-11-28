@@ -1,4 +1,28 @@
-# cfd-solvers-rs 0.18.0
+# cfd-solvers-rs 0.19.0
+
+## Dust (0.19.0)
+
+`collocated_flow3d` accepts `dust` (`dust_deposition_v1`). After the flow and heat are solved,
+particles of each size class are followed through the final velocity field until they reach a
+wall, leave through an open boundary or run out of time (`max_time_s`). Each obeys Stokes drag
+with Cunningham's slip correction, gravity less buoyancy, thermophoresis (Talbot, Cheng, Schefer
+and Willis, 1980; needs heat transfer) and Brownian motion, integrated exactly over each
+sub-step with the air's velocity held fixed; the air's velocity is interpolated between cell
+centres, mirrored behind walls (slip walls turn only the normal part). Particles start where air
+flows in at open boundary faces (`release: inflow`), where air crosses into `release_box`
+(`release: box`: with its sides inside an enclosure's walls, the dust coming in through the
+openings), or spread through the fluid (`release: volume`). The run writes
+`dust_deposition.json` (per size: what was released, deposited per solid or wall, escaped and
+still airborne, and the mass: concentration times the inflowing volume, kg/s, or times the air's
+volume, kg) and `dust_deposits.csv` (each deposit's place, target, amount and the surface
+temperature there). Checked against still-air settling, the laminar settling chamber
+(Hinds, *Aerosol Technology*) and thermophoretic drift between two walls.
+
+Lumped bodies close every grid face their surface crosses between two fluid cells, also where
+they hold cells of their own, so a wall thinner than a cell stays a wall. A fluid pocket such
+walls seal off, touching no side of the domain and holding under 1 % of the fluid cells, is
+filled with the solid around it (`mesh_report.json` lists them); a larger cut-off region is
+refused, naming each region's size and place.
 
 ## Scaled momentum solves (0.18.0)
 

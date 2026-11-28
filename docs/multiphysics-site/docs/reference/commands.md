@@ -12,7 +12,7 @@ is shown (not saved); *none* reads or writes files only.
 | Command | Does | Undo |
 |---|---|---|
 | `multiphysics.model.create` | A new study of the model: name, internal or external, bodies or a selection, margin, cell size | one step |
-| `multiphysics.model.set` | Change its analysis, bodies or selection, margin, cell size, mesh level, cut cells | one step |
+| `multiphysics.model.set` | Change its analysis, bodies or selection, margin, cell size, mesh level, cut cells, closed thin walls | one step |
 | `multiphysics.model.condition` | Inlet, outlet, wall or symmetry on a face of the model | one step |
 | `multiphysics.model.fan` | A fan curve on a face at the domain's boundary | one step |
 | `multiphysics.model.heat` | Heat transfer on or off, inflow temperature, fluid properties | one step |
@@ -27,6 +27,11 @@ is shown (not saved); *none* reads or writes files only.
 | `multiphysics.model.status` | Is the case built from the design as it is now; the domain | none |
 | `multiphysics.model.mesh_study` | Two coarser copies of a study, for a mesh study | one step |
 | `multiphysics.model.leak` | The shortest path through the fluid between two faces, if any | none |
+| `multiphysics.model.surroundings` | The air around an external study: a breeze, open sides and top, a floor | one step |
+| `multiphysics.model.dust` | Dust in the air: concentration, sizes, density, where it is counted from | one step |
+| `multiphysics.model.climate` | A year of conditions: air temperature, dew point, breeze, dust, hours | one step |
+| `multiphysics.model.climate_studies` | One study per condition of the climate | one step |
+| `multiphysics.result.climate` | The year added up: dust per part, humid and wet hours, deposits as CSV | none |
 
 ## Parts
 

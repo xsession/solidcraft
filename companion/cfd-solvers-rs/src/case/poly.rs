@@ -252,6 +252,9 @@ pub struct CollocatedFlowCase {
     /// Internal fans, actuator blocks driven by a pressure-flow curve (`internal_fans_v1`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub internal_fans: Vec<super::internal_fan::InternalFan>,
+    /// Dust followed through the settled flow to where it deposits (`dust_deposition_v1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dust: Option<super::dust::Dust>,
 }
 
 /// Values for each background-grid face of one exterior patch, taken from another run
@@ -364,6 +367,7 @@ impl Default for CollocatedFlowCase {
             transferred: vec![],
             rotating_regions: vec![],
             internal_fans: vec![],
+            dust: None,
         }
     }
 }
@@ -588,6 +592,11 @@ impl CollocatedFlowCase {
             ] {
                 require(!unsupported, format!("cut cells are not supported with {what} yet"))?;
             }
+        }
+        if let Some(dust) = &self.dust {
+            dust.validate()?;
+            require(!self.cut_cells, "dust is not supported with cut cells yet")?;
+            require(self.rotating_regions.is_empty(), "dust is not supported with rotating regions yet")?;
         }
         let (mesh, export) = self.build_mesh()?;
         positive(self.steady_velocity_tolerance, "steady velocity tolerance")?;
@@ -829,11 +838,27 @@ impl CollocatedFlowCase {
         if let Some(goals) = &monitor {
             goals.write(out, m)?;
         }
+        let mut background_temperature_k = None;
         if let (Some(mut state), Some(heat)) = (energy, &self.thermal) {
             if heat.buoyancy.is_none() {
                 state.steady(&s.convective_flux(), heat.inflow_temperature_k)?;
             }
+            if self.dust.is_some() {
+                background_temperature_k = Some(state.cell_temperature(heat.inflow_temperature_k));
+            }
             state.finish(self, heat, s.face_flux(), out, m)?;
+        }
+        if let Some(dust) = &self.dust {
+            let fields = super::dust::DustFields {
+                velocity: s.velocity(),
+                face_flux: s.face_flux(),
+                background_temperature_k,
+                gas_conductivity_w_per_m_k: self
+                    .thermal
+                    .as_ref()
+                    .map_or(0.026, |t| t.fluid.conductivity_w_per_m_k),
+            };
+            super::dust::run(self, dust, &mesh, &fields, out, m)?;
         }
         Ok(())
     }

@@ -223,7 +223,10 @@ fn database_tree(app: &SolveApp, state: &mut State, ui: &mut egui::Ui, rect: egu
     let grid = crate::multiphysics_property_grid::tree_row;
     crate::multiphysics_property_grid::pane(ui, rect, tr("multiphysics.materials_tree"), |ui| {
         egui::ScrollArea::vertical().id_salt("multiphysics_material_tree").show(ui, |ui| {
-            let all = solidcraft_ui_text::format("multiphysics.materials_tree_count", &[("name", tr("multiphysics.materials_references")), ("count", &state.total.to_string())]);
+            let all = solidcraft_ui_text::format(
+                "multiphysics.materials_tree_count",
+                &[("name", tr("multiphysics.materials_references")), ("count", &state.total.to_string())],
+            );
             let response = grid(ui, 0, Some(true), "material", &all, !state.design && state.family.is_none(), true, false);
             crate::scenario::publish_target("multiphysics:materials_references", response.rect);
             if response.clicked() {
@@ -233,7 +236,10 @@ fn database_tree(app: &SolveApp, state: &mut State, ui: &mut egui::Ui, rect: egu
                 state.error = None;
             }
             for (family, count) in families(&state.entries) {
-                let text = solidcraft_ui_text::format("multiphysics.materials_tree_count", &[("name", &family_label(&family)), ("count", &count.to_string())]);
+                let text = solidcraft_ui_text::format(
+                    "multiphysics.materials_tree_count",
+                    &[("name", &family_label(&family)), ("count", &count.to_string())],
+                );
                 let selected = !state.design && state.family.as_deref() == Some(family.as_str());
                 let response = grid(ui, 1, None, "material", &text, selected, true, false);
                 crate::scenario::publish_target(&format!("multiphysics:materials_family:{family}"), response.rect);
@@ -245,7 +251,10 @@ fn database_tree(app: &SolveApp, state: &mut State, ui: &mut egui::Ui, rect: egu
                 }
             }
             let names = app.session.doc.material_names().len();
-            let text = solidcraft_ui_text::format("multiphysics.materials_tree_count", &[("name", tr("multiphysics.materials_design")), ("count", &names.to_string())]);
+            let text = solidcraft_ui_text::format(
+                "multiphysics.materials_tree_count",
+                &[("name", tr("multiphysics.materials_design")), ("count", &names.to_string())],
+            );
             let response = grid(ui, 0, None, "material", &text, state.design, true, false);
             crate::scenario::publish_target("multiphysics:materials_design", response.rect);
             if response.clicked() {
@@ -265,7 +274,8 @@ fn references(app: &mut SolveApp, state: &mut State, ui: &mut egui::Ui) {
         if response.clicked() {
             state.properties = false;
         }
-        let response = crate::ui_kit::choice_chip(ui, "multiphysics_materials_properties", tr("multiphysics.materials_item_properties"), state.properties);
+        let response =
+            crate::ui_kit::choice_chip(ui, "multiphysics_materials_properties", tr("multiphysics.materials_item_properties"), state.properties);
         crate::scenario::publish_target("multiphysics:materials_properties", response.rect);
         if response.clicked() && state.detail.is_some() {
             state.properties = true;
@@ -348,9 +358,19 @@ fn design_items(app: &SolveApp, state: &mut State, ui: &mut egui::Ui) {
     let height = (ui.available_height() * 0.35).clamp(crate::ui_kit::row_height() * 3.0, crate::ui_kit::row_height() * 8.0);
     egui::ScrollArea::vertical().id_salt("multiphysics_material_design_items").max_height(height).auto_shrink([false, true]).show(ui, |ui| {
         for (index, name) in names.iter().enumerate().take(512) {
-            let origin = if doc.user_material(name).is_some() { tr("multiphysics.materials_origin_design") } else { tr("multiphysics.materials_origin_builtin") };
+            let origin = if doc.user_material(name).is_some() {
+                tr("multiphysics.materials_origin_design")
+            } else {
+                tr("multiphysics.materials_origin_builtin")
+            };
             let density = doc.material_density(name).map(|d| format!("{d:.3}")).unwrap_or_default();
-            let response = crate::multiphysics_property_grid::item(ui, &[name, origin, &density], &shares, state.design_index == index, !index.is_multiple_of(2));
+            let response = crate::multiphysics_property_grid::item(
+                ui,
+                &[name, origin, &density],
+                &shares,
+                state.design_index == index,
+                !index.is_multiple_of(2),
+            );
             if ui.clip_rect().contains_rect(response.rect) {
                 crate::scenario::publish_target(&format!("multiphysics:materials_design_item:{name}"), response.rect);
             }
@@ -389,8 +409,11 @@ fn copy_bar(app: &mut SolveApp, state: &mut State, ui: &mut egui::Ui) {
         let response = ui_kit::checkbox(ui, tr("multiphysics.materials_acknowledge"), &mut state.acknowledged);
         crate::scenario::publish_target("multiphysics:materials_acknowledge", response.rect);
         let valid_name = !state.name.trim().is_empty() && state.name.trim().len() <= 128 && !state.name.chars().any(char::is_control);
-        let response =
-            ui_kit::button(ui, tr("multiphysics.materials_create"), ui_kit::Button::Enabled(state.acknowledged && valid_name && !state.editor.editing()));
+        let response = ui_kit::button(
+            ui,
+            tr("multiphysics.materials_create"),
+            ui_kit::Button::Enabled(state.acknowledged && valid_name && !state.editor.editing()),
+        );
         crate::scenario::publish_target("multiphysics:materials_create", response.rect);
         if response.clicked()
             && let Err(error) = create(app, state)
@@ -431,7 +454,13 @@ fn details(ui: &mut egui::Ui, detail: &Value) {
                 other => other.to_string(),
             };
             let row = ui.push_id(("multiphysics_material_property", index), |ui| {
-                grid(ui, &[&quantity, &value, property["unit"].as_str().unwrap_or(""), property["qualifier"].as_str().unwrap_or("")], &shares, false, !index.is_multiple_of(2))
+                grid(
+                    ui,
+                    &[&quantity, &value, property["unit"].as_str().unwrap_or(""), property["qualifier"].as_str().unwrap_or("")],
+                    &shares,
+                    false,
+                    !index.is_multiple_of(2),
+                )
             });
             row.inner.on_hover_ui(|ui| {
                 json_line(ui, tr("multiphysics.materials_conditions"), &property["conditions"]);

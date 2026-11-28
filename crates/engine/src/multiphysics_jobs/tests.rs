@@ -729,9 +729,7 @@ fn a_study_of_the_model_takes_a_mesh_level_and_adapts_to_a_run() {
     let mut project = s.doc.multiphysics.as_ref().clone();
     project.attach_evidence(&id, hotter).unwrap();
     s.doc_mut().multiphysics = Arc::new(project);
-    let compared = s
-        .execute("multiphysics.result.compare", &json!({"first":{"id":id,"run_id":"hot"},"second":{"id":id},"csv":true}))
-        .unwrap();
+    let compared = s.execute("multiphysics.result.compare", &json!({"first":{"id":id,"run_id":"hot"},"second":{"id":id},"csv":true})).unwrap();
     let comparison = &compared["comparison"];
     assert_eq!((comparison["first"]["run"].clone(), comparison["second"]["run"].clone()), (json!("hot"), json!("hotter")), "{compared}");
     assert_eq!(comparison["rows"][0]["body"], "Duct");
@@ -1138,4 +1136,89 @@ fn a_body_made_porous_is_a_block_of_cells_not_a_wall() {
     assert!(reply["study"]["case"]["bodies"].as_array().unwrap().iter().any(|b| b["name"] == "Brick"));
     let unknown = json!([{"body":"Nothing","viscous_resistance_per_m2":1.0,"inertial_resistance_per_m":0.0}]);
     assert!(s.execute("multiphysics.model.set", &json!({"id":id,"expected_revision":revision(&s),"porous":unknown})).is_err());
+}
+
+/// The environment of a study of the model, end to end by commands: the air around the duct,
+/// dust counted inside it, a year of two seasons, one study per condition, and the year added up
+/// from run folders on disk.
+#[test]
+fn a_climate_year_is_set_up_split_into_studies_and_added_up() {
+    let mut s = duct_session();
+    let reply = s.execute("multiphysics.model.create", &json!({"name":"Duct year","cell_mm":4.0})).unwrap();
+    let id = reply["study"]["id"].as_str().unwrap().to_string();
+    let revision = |s: &Session, id: &str| s.doc.multiphysics.study(id).unwrap().revision;
+    // Surroundings belong to studies of the air around the model.
+    let breeze = json!({"id":id,"expected_revision":revision(&s, &id),"breeze_m_per_s":0.2});
+    assert!(s.execute("multiphysics.model.surroundings", &breeze).unwrap_err().to_string().contains("external"));
+    s.execute(
+        "multiphysics.model.set",
+        &json!({"id":id,"expected_revision":revision(&s, &id),"analysis":"external","margin_mm":8.0,"close_thin_walls":true}),
+    )
+    .unwrap();
+    s.execute("multiphysics.model.heat", &json!({"id":id,"expected_revision":revision(&s, &id),"enabled":true,"buoyancy":true})).unwrap();
+    let reply = s.execute("multiphysics.model.surroundings", &json!({"id":id,"expected_revision":revision(&s, &id),"breeze_m_per_s":0.2})).unwrap();
+    assert_eq!(reply["study"]["model"]["surroundings"]["breeze_from"], "-x", "{reply}");
+    // Dust counted where it comes into the duct: its box less its 4 mm walls.
+    let reply = s
+        .execute(
+            "multiphysics.model.dust",
+            &json!({"id":id,"expected_revision":revision(&s, &id),"concentration_mg_per_m3":0.5,"inside_of":"Duct","inset_mm":4.0}),
+        )
+        .unwrap();
+    assert_eq!(reply["study"]["model"]["dust"]["entry"], json!({"kind":"box","low_mm":[4.0,4.0,4.0],"high_mm":[96.0,36.0,36.0]}), "{reply}");
+    assert_eq!(reply["study"]["case"]["dust"]["release"], "box");
+    let too_thick = json!({"id":id,"expected_revision":revision(&s, &id),"inside_of":"Duct","inset_mm":30.0});
+    assert!(s.execute("multiphysics.model.dust", &too_thick).is_err());
+    // No condition studies before a climate, and no summary before them.
+    assert!(s.execute("multiphysics.model.climate_studies", &json!({"id":id})).is_err());
+    let seasons = json!([
+        {"name":"winter","low_c":-4.0,"high_c":3.0,"dew_point_c":-5.0,"dust_mg_per_m3":0.1},
+        {"name":"summer","low_c":14.0,"high_c":30.0,"dew_point_c":13.0,"dust_mg_per_m3":0.8}]);
+    let reply = s.execute("multiphysics.model.climate", &json!({"id":id,"expected_revision":revision(&s, &id),"seasons":seasons})).unwrap();
+    let conditions = reply["study"]["model"]["climate"]["conditions"].as_array().unwrap().clone();
+    assert_eq!(conditions.len(), 8);
+    assert!(s.execute("multiphysics.result.climate", &json!({"id":id})).unwrap_err().to_string().contains("condition studies"));
+    let made = s.execute("multiphysics.model.climate_studies", &json!({"id":id})).unwrap();
+    let studies: Vec<String> = made["studies"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert_eq!(studies.len(), 8);
+    // The summer afternoon's study: 30 °C air, its breeze and dust.
+    let afternoon = studies[6].clone();
+    let study = s.doc.multiphysics.study(&afternoon).unwrap().clone();
+    assert_eq!(study.name, "Duct year · summer afternoon");
+    assert!((study.case["thermal"]["inflow_temperature_k"].as_f64().unwrap() - 303.15).abs() < 1e-9);
+    assert_eq!(study.case["velocity_boundaries"].as_array().unwrap().iter().find(|r| r["patch"] == "left").unwrap()["value"]["x"], 0.25);
+    // Making them again replaces them rather than adding more.
+    s.execute("multiphysics.model.climate_studies", &json!({"id":id})).unwrap();
+    assert_eq!(s.doc.multiphysics.studies.len(), 9);
+    let studies: Vec<String> = s.doc.multiphysics.studies.iter().skip(1).map(|st| st.id.clone()).collect();
+    // One run folder, for the summer afternoon: a deposit on the duct at 1e-12 kg/s, the duct's
+    // coldest point at 31 °C.
+    let folder = std::env::temp_dir().join(format!("solidcraft-climate-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("manifest.json"), "{}").unwrap();
+    std::fs::write(folder.join("thermal_report.json"), r#"{"components":[{"name":"Duct","min_temperature_k":304.15,"max_temperature_k":305.15}]}"#)
+        .unwrap();
+    std::fs::write(folder.join("dust_deposition.json"), r#"{"amount_unit":"kg/s","entering":2e-12,"deposited":1e-12}"#).unwrap();
+    std::fs::write(
+        folder.join("dust_deposits.csv"),
+        "class,diameter_m,x_m,y_m,z_m,target,amount,surface_temperature_k,time_s\n0,1e-5,0.01,0.01,0.01,Duct,1e-12,304.15,3\n",
+    )
+    .unwrap();
+    let out = folder.join("summary");
+    let summer = s.doc.multiphysics.study(&studies[6]).unwrap().name.clone();
+    let runs = json!([{"study": summer, "directory": folder.to_string_lossy()}]);
+    let reply = s.execute("multiphysics.result.climate", &json!({"id":id,"runs":runs,"directory":out.to_string_lossy()})).unwrap();
+    let hours = 365.0 / 2.0 * 6.0;
+    assert!((reply["dust_in_g_per_year"].as_f64().unwrap() - 2e-12 * hours * 3.6e6).abs() < 1e-15, "{reply}");
+    assert_eq!(reply["missing"].as_array().unwrap().len(), 7);
+    let duct = reply["parts"].as_array().unwrap().iter().find(|p| p["body"] == "Duct").unwrap();
+    assert!((duct["dust_g_per_year"].as_f64().unwrap() - 1e-12 * hours * 3.6e6).abs() < 1e-15);
+    // 13 °C dew point on a 31 °C surface: 33 %, not humid.
+    assert_eq!(duct["humid_hours"], 0.0);
+    assert_eq!(reply["files"], json!(["climate-parts.csv", "climate-deposits.csv", "climate.json"]));
+    // The deposit's place is in the design's millimetres: the domain's corner plus 10 mm.
+    let deposits = std::fs::read_to_string(out.join("climate-deposits.csv")).unwrap();
+    assert!(deposits.lines().nth(1).unwrap().starts_with("2.000,2.000,2.000,Duct,"), "{deposits}");
+    let _ = std::fs::remove_dir_all(&folder);
 }

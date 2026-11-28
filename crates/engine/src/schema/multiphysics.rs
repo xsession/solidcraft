@@ -593,6 +593,118 @@ pub struct ModelSet {
     /// Regions turning about an axis around bodies (replaces the list; [] for none).
     #[serde(default)]
     pub rotating: Option<Vec<solidcraft_multiphysics::model::ModelRotating>>,
+    /// Close the grid faces thin walls cross between fluid cells (lumped plates).
+    #[serde(default)]
+    pub close_thin_walls: Option<bool>,
+}
+
+/// `multiphysics.model.surroundings`: the air around an external study, or remove it.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelSurroundingsInput {
+    pub id: String,
+    pub expected_revision: u64,
+    /// m/s; 0 for still air.
+    #[serde(default)]
+    pub breeze_m_per_s: Option<f64>,
+    #[serde(default)]
+    pub breeze_from: Option<solidcraft_multiphysics::environment::BreezeFrom>,
+    #[serde(default)]
+    pub floor: Option<bool>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.dust`: dust in the air of a study, or remove it.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelDustInput {
+    pub id: String,
+    pub expected_revision: u64,
+    #[serde(default)]
+    pub concentration_mg_per_m3: Option<f64>,
+    #[serde(default)]
+    pub sizes: Option<Vec<solidcraft_multiphysics::environment::DustSize>>,
+    #[serde(default)]
+    pub density_kg_per_m3: Option<f64>,
+    #[serde(default)]
+    pub particles_per_size: Option<usize>,
+    #[serde(default)]
+    pub entry: Option<solidcraft_multiphysics::environment::DustEntry>,
+    /// The box a body of the design bounds, shrunk by `inset_mm` on every side: the inside of an
+    /// enclosure whose walls are that thick, as a `box` entry.
+    #[serde(default)]
+    pub inside_of: Option<String>,
+    #[serde(default)]
+    pub inset_mm: Option<f64>,
+    #[serde(default)]
+    pub max_time_s: Option<f64>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// A season for `multiphysics.model.climate seasons`.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClimateSeason {
+    pub name: String,
+    pub low_c: f64,
+    pub high_c: f64,
+    pub dew_point_c: f64,
+    pub dust_mg_per_m3: f64,
+}
+
+/// `multiphysics.model.climate`: the year of conditions a study works through, or remove it.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModelClimateInput {
+    pub id: String,
+    pub expected_revision: u64,
+    #[serde(default)]
+    pub conditions: Option<Vec<solidcraft_multiphysics::environment::ClimateCondition>>,
+    /// Seasons that make the conditions: each a night, morning, afternoon and evening.
+    #[serde(default)]
+    pub seasons: Option<Vec<ClimateSeason>>,
+    #[serde(default)]
+    pub humid_limit_pct: Option<f64>,
+    #[serde(default)]
+    pub remove: bool,
+}
+
+/// `multiphysics.model.climate_studies`'s reply.
+#[derive(Serialize, JsonSchema)]
+pub struct ClimateStudiesReply {
+    /// One per condition, in the climate's order.
+    pub studies: Vec<String>,
+    pub conditions: Vec<String>,
+}
+
+/// `multiphysics.result.climate`: the year added up from a study's condition studies.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClimateResultInput {
+    pub id: String,
+    /// Run folders on disk for conditions whose study has no kept or finished run in this
+    /// session: `{study, directory}` (cfd-solve's output folder).
+    #[serde(default)]
+    pub runs: Vec<ClimateRunFolder>,
+    /// A new directory for `climate-parts.csv`, `climate-deposits.csv` and `climate.json`.
+    #[serde(default)]
+    pub directory: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClimateRunFolder {
+    pub study: String,
+    pub directory: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct ClimateResultReply {
+    #[serde(flatten)]
+    pub summary: solidcraft_multiphysics::environment::ClimateSummary,
+    pub files: Vec<String>,
 }
 
 /// `multiphysics.model.fan`: a fan on a face of the model on the domain boundary, or remove it.

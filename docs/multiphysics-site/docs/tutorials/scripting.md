@@ -61,3 +61,5 @@ run("file.save_as", {"path": "board-in-duct.sc"})
 `solidcraft-cli mcp` serves the same commands to an AI agent over the Model Context Protocol,
 with the same rules. The agent can build the study, run it, read the component table and
 write the batch report; the commands are listed in [Commands](../reference/commands.md).
+
+Next: [climate, humidity and dust](climate-and-dust.md).

@@ -1443,3 +1443,272 @@ fn global_flow_goals_bound_the_field() {
     let units: Vec<&str> = goals["goals"].as_array().unwrap().iter().map(|g| g["unit"].as_str().unwrap()).collect();
     assert_eq!(units, ["m/s", "m/s", "Pa", "Pa", "Pa", "m3/s"]);
 }
+
+/// A closed box of still air, or a channel, with dust: the case JSON for the dust tests.
+fn dust_case(lengths: [f64; 3], cells: [usize; 3], walls: serde_json::Value, dust: serde_json::Value) -> Case {
+    serde_json::from_value(serde_json::json!({
+        "solver": "collocated_flow3d", "method": "piso",
+        "mesh": {"dimensions": cells, "lengths": {"x": lengths[0], "y": lengths[1], "z": lengths[2]}},
+        "config": {"dt": 0.01, "density": 1.2, "kinematic_viscosity": 1.5e-5},
+        "output": {"steps": 2, "output_interval": 2},
+        "velocity_boundaries": walls["velocity"],
+        "pressure_boundaries": walls["pressure"],
+        "dust": dust
+    }))
+    .unwrap()
+}
+
+/// Stokes settling speed with Cunningham's correction, worked out here on its own.
+fn settling_speed(d: f64, rho_p: f64, g: f64) -> f64 {
+    let mu = 1.2 * 1.5e-5;
+    let kn: f64 = 2.0 * 6.8e-8 / d;
+    let slip = 1.0 + kn * (1.257 + 0.4 * (-1.1 / kn).exp());
+    rho_p * d * d * slip / (18.0 * mu) * g * (1.0 - 1.2 / rho_p)
+}
+
+fn dust_report(dir: &std::path::Path) -> serde_json::Value {
+    serde_json::from_slice(&std::fs::read(dir.join("dust_deposition.json")).unwrap()).unwrap()
+}
+
+#[test]
+fn dust_settles_through_still_air_at_the_stokes_speed() {
+    // Particles spread through a closed box of still air fall straight to its floor; the one
+    // that starts highest takes the box's height over the settling speed.
+    let scratch = Scratch::new();
+    let walls: Vec<_> = ["left", "right", "bottom", "top", "front", "back"]
+        .iter()
+        .map(|p| serde_json::json!({"patch": p, "kind": "fixed_value"}))
+        .collect();
+    let height = 0.1;
+    let d = 20e-6;
+    let case = dust_case(
+        [0.04, height, 0.04],
+        [4, 10, 4],
+        serde_json::json!({"velocity": walls, "pressure": []}),
+        serde_json::json!({"classes": [{"diameter_m": d, "concentration_kg_per_m3": 1e-6}],
+            "gravity_m_per_s2": [0.0, -9.81, 0.0], "release": "volume", "brownian": false,
+            "particles_per_class": 500}),
+    );
+    let manifest = case.run(&scratch.0).unwrap();
+    assert!(manifest.capabilities.iter().any(|c| c == "dust_deposition_v1"));
+    let report = dust_report(&scratch.0);
+    let class = &report["classes"][0];
+    assert_eq!(class["deposited"], 500);
+    assert_eq!(class["targets"]["bottom"]["count"], 500);
+    let speed = settling_speed(d, 2650.0, 9.81);
+    let longest = class["longest_deposit_time_s"].as_f64().unwrap();
+    assert!((longest * speed / height - 1.0).abs() < 0.01, "{longest} s at {speed} m/s");
+    // The mass spread through the air all lands: 1 mg/m³ of a 0.04 × 0.1 × 0.04 m box.
+    let mass = report["deposited"].as_f64().unwrap();
+    assert!((mass / (1e-6 * 0.04 * height * 0.04) - 1.0).abs() < 1e-9);
+}
+
+#[test]
+fn dust_in_a_settling_chamber_lands_as_the_plug_flow_formula_says() {
+    // A laminar settling chamber with plug flow (Hinds, Aerosol Technology, §3.7): particles
+    // entering evenly over the inlet land on the floor in the share v_s·L/(U·H).
+    let scratch = Scratch::new();
+    let (length, height, speed) = (0.2, 0.02, 0.1);
+    let walls = serde_json::json!({
+        "velocity": [
+            {"patch": "left", "kind": "fixed_value", "value": {"x": speed, "y": 0.0, "z": 0.0}},
+            {"patch": "right", "kind": "zero_gradient"},
+            {"patch": "bottom", "kind": "slip"}, {"patch": "top", "kind": "slip"},
+            {"patch": "front", "kind": "slip"}, {"patch": "back", "kind": "slip"}],
+        "pressure": [{"patch": "right", "kind": "fixed_value", "value": 0.0}]
+    });
+    let d = 8e-6;
+    let case = dust_case(
+        [length, height, 0.02],
+        [20, 8, 2],
+        walls,
+        serde_json::json!({"classes": [{"diameter_m": d, "concentration_kg_per_m3": 1e-7}],
+            "gravity_m_per_s2": [0.0, -9.81, 0.0], "brownian": false, "particles_per_class": 4000}),
+    );
+    let mut case = case;
+    if let Case::CollocatedFlow3d(c) = &mut case {
+        c.initial_velocity = Vec3::new(speed, 0.0, 0.0);
+    }
+    case.run(&scratch.0).unwrap();
+    let report = dust_report(&scratch.0);
+    let class = &report["classes"][0];
+    let expected = settling_speed(d, 2650.0, 9.81) * length / (speed * height);
+    let landed = class["targets"]["bottom"]["count"].as_f64().unwrap() / 4000.0;
+    // Four thousand particles: one standard deviation of the share is under 0.008.
+    assert!((landed - expected).abs() < 0.025, "{landed} landed, {expected} expected");
+    assert_eq!(class["deposited"].as_u64().unwrap() + class["escaped"].as_u64().unwrap(), 4000);
+    // What enters is the concentration times the inflow, 0.1 m/s through 0.02 × 0.02 m.
+    let entering = report["entering"].as_f64().unwrap();
+    assert!((entering / (1e-7 * speed * height * 0.02) - 1.0).abs() < 1e-6, "{entering}");
+}
+
+#[test]
+fn thermophoresis_drives_dust_to_the_cold_wall() {
+    // Still air between a hot and a cold wall, no gravity: the dust drifts down the temperature
+    // gradient at Talbot's speed K·ν·|∇T|/T and lands on the cold wall only.
+    use cfd_solvers::case::conjugate::*;
+    let scratch = Scratch::new();
+    let walls: Vec<_> = ["left", "right", "bottom", "top", "front", "back"]
+        .iter()
+        .map(|p| serde_json::json!({"patch": p, "kind": "fixed_value"}))
+        .collect();
+    let gap = 0.01;
+    let d: f64 = 1e-6;
+    let mut case = dust_case(
+        [gap, 0.01, 0.01],
+        [20, 2, 2],
+        serde_json::json!({"velocity": walls, "pressure": []}),
+        serde_json::json!({"classes": [{"diameter_m": d}], "gravity_m_per_s2": [0.0, 0.0, 0.0],
+            "release": "volume", "brownian": false, "particles_per_class": 200, "max_time_s": 1e6}),
+    );
+    let (hot, cold) = (310.0, 290.0);
+    if let Case::CollocatedFlow3d(c) = &mut case {
+        c.thermal = Some(ConjugateHeat {
+            fluid: ThermalFluid { specific_heat_j_per_kg_k: 1005.0, conductivity_w_per_m_k: 0.026 },
+            inflow_temperature_k: 300.0,
+            solids: vec![],
+            boundaries: vec![
+                ThermalPatch { patch: "left".into(), condition: ThermalCondition::Temperature { temperature_k: hot } },
+                ThermalPatch { patch: "right".into(), condition: ThermalCondition::Temperature { temperature_k: cold } },
+            ],
+            buoyancy: None,
+            thermoelectric_coolers: vec![],
+            face_sources: vec![],
+            partial_cells: false,
+        });
+    }
+    case.run(&scratch.0).unwrap();
+    let report = dust_report(&scratch.0);
+    let class = &report["classes"][0];
+    assert_eq!(class["targets"]["right"]["count"], 200, "{class}");
+    // Talbot, Cheng, Schefer and Willis (1980), worked out here on its own.
+    let kn: f64 = 2.0 * 6.8e-8 / d;
+    let slip = 1.0 + kn * (1.257 + 0.4 * (-1.1 / kn).exp());
+    let ratio = 0.026 / 1.0;
+    let k = 2.0 * 1.17 * slip * (ratio + 2.18 * kn) / ((1.0 + 3.0 * 1.14 * kn) * (1.0 + 2.0 * ratio + 2.0 * 2.18 * kn));
+    let gradient = (hot - cold) / gap;
+    // The slowest particle crosses the whole gap, at T(x)/(K·ν·G) per metre.
+    let crossing = (hot + cold) / 2.0 * gap / (k * 1.5e-5 * gradient);
+    let longest = class["longest_deposit_time_s"].as_f64().unwrap();
+    assert!((longest / crossing - 1.0).abs() < 0.03, "{longest} s, {crossing} s expected");
+}
+
+#[test]
+fn hostile_dust_inputs_are_refused_before_solving() {
+    let scratch = Scratch::new();
+    let walls = serde_json::json!({"velocity": [], "pressure": []});
+    for dust in [
+        serde_json::json!({"classes": [], "gravity_m_per_s2": [0.0, -9.81, 0.0]}),
+        serde_json::json!({"classes": [{"diameter_m": -1e-6}], "gravity_m_per_s2": [0.0, -9.81, 0.0]}),
+        serde_json::json!({"classes": [{"diameter_m": 1e-6}], "gravity_m_per_s2": [0.0, -9.81, 0.0], "particles_per_class": 0}),
+        serde_json::json!({"classes": [{"diameter_m": 1e-6}], "gravity_m_per_s2": [0.0, -9.81, 0.0], "particles_per_class": 1_000_000}),
+        serde_json::json!({"classes": [{"diameter_m": 1e-6, "concentration_kg_per_m3": -1.0}], "gravity_m_per_s2": [0.0, -9.81, 0.0]}),
+        serde_json::json!({"classes": [{"diameter_m": 1e-6}], "gravity_m_per_s2": [0.0, -9.81, 0.0], "max_time_s": 0.0}),
+    ] {
+        let case = dust_case([0.1, 0.1, 0.1], [2, 2, 2], walls.clone(), dust.clone());
+        assert!(case.run(&scratch.0.join("x")).is_err(), "{dust}");
+        assert!(!scratch.0.join("x/manifest.json").exists());
+    }
+    assert!(serde_json::from_value::<Case>(serde_json::json!({"solver": "collocated_flow3d",
+        "dust": {"classes": [{"diameter_m": 1e-6}], "gravity_m_per_s2": [0.0, 0.0, 0.0], "unknown": 1}}))
+    .is_err());
+}
+
+#[test]
+fn dust_released_where_air_enters_a_box_counts_the_air_crossing_into_it() {
+    // The settling chamber again, with the dust counted where the air enters a box over its
+    // last three quarters: the inflow is the box's whole cross-section, and the share landing
+    // on the floor is the plug-flow formula over the length that remains.
+    let scratch = Scratch::new();
+    let (length, height, speed) = (0.2, 0.02, 0.1);
+    let walls = serde_json::json!({
+        "velocity": [
+            {"patch": "left", "kind": "fixed_value", "value": {"x": speed, "y": 0.0, "z": 0.0}},
+            {"patch": "right", "kind": "zero_gradient"},
+            {"patch": "bottom", "kind": "slip"}, {"patch": "top", "kind": "slip"},
+            {"patch": "front", "kind": "slip"}, {"patch": "back", "kind": "slip"}],
+        "pressure": [{"patch": "right", "kind": "fixed_value", "value": 0.0}]
+    });
+    let d = 8e-6;
+    let mut case = dust_case(
+        [length, height, 0.02],
+        [20, 8, 2],
+        walls,
+        serde_json::json!({"classes": [{"diameter_m": d, "concentration_kg_per_m3": 1e-7}],
+            "gravity_m_per_s2": [0.0, -9.81, 0.0], "brownian": false, "particles_per_class": 4000,
+            "release": "box", "release_box": {"min_m": [0.051, -1.0, -1.0], "max_m": [0.3, 1.0, 1.0]}}),
+    );
+    if let Case::CollocatedFlow3d(c) = &mut case {
+        c.initial_velocity = Vec3::new(speed, 0.0, 0.0);
+    }
+    case.run(&scratch.0).unwrap();
+    let report = dust_report(&scratch.0);
+    let entering = report["entering"].as_f64().unwrap();
+    assert!((entering / (1e-7 * speed * height * 0.02) - 1.0).abs() < 1e-6, "{entering}");
+    let expected = settling_speed(d, 2650.0, 9.81) * (length - 0.05) / (speed * height);
+    let landed = report["classes"][0]["targets"]["bottom"]["count"].as_f64().unwrap() / 4000.0;
+    assert!((landed - expected).abs() < 0.025, "{landed} landed, {expected} expected");
+    // A box needs its corners, and only a box release takes one.
+    let bad = serde_json::json!({"classes": [{"diameter_m": 1e-6}], "gravity_m_per_s2": [0.0, 0.0, 0.0], "release": "box"});
+    assert!(dust_case([0.1, 0.1, 0.1], [2, 2, 2], serde_json::json!({"velocity": [], "pressure": []}), bad)
+        .run(&scratch.0.join("y"))
+        .is_err());
+}
+
+/// A hollow box with walls `t` thick, as one closed surface (outer faces out, inner faces in).
+fn hollow_box(name: &str, lo: [f64; 3], hi: [f64; 3], t: f64) -> serde_json::Value {
+    let mut vertices: Vec<[f64; 3]> = Vec::new();
+    let mut triangles: Vec<[usize; 3]> = Vec::new();
+    for (lo, hi, inward) in [(lo, hi, false), (lo.map(|v| v + t), hi.map(|v| v - t), true)] {
+        let base = vertices.len();
+        for k in 0..8 {
+            vertices.push([if k & 1 == 0 { lo[0] } else { hi[0] }, if k & 2 == 0 { lo[1] } else { hi[1] }, if k & 4 == 0 { lo[2] } else { hi[2] }]);
+        }
+        // Each face as two triangles, wound outwards for the outer box.
+        for quad in [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]] {
+            let q = quad.map(|i| base + i);
+            let (a, b) = ([q[0], q[1], q[2]], [q[0], q[2], q[3]]);
+            if inward {
+                triangles.push([a[0], a[2], a[1]]);
+                triangles.push([b[0], b[2], b[1]]);
+            } else {
+                triangles.push(a);
+                triangles.push(b);
+            }
+        }
+    }
+    serde_json::json!({"name": name, "vertices": vertices, "triangles": triangles, "lumped": true})
+}
+
+#[test]
+fn thin_walls_seal_small_pockets_which_are_filled_and_refuse_large_ones() {
+    // A closed box with 0.2 mm walls in 1 mm cells holds no cell of its own: lumped, its walls
+    // are the grid faces it crosses. The air inside is sealed off: a small box's few cells are
+    // filled with the wall's solid and the run goes on; a large one is refused, by size and place.
+    let scratch = Scratch::new();
+    let walls: Vec<_> = ["left", "right", "bottom", "top", "front", "back"]
+        .iter()
+        .map(|p| serde_json::json!({"patch": p, "kind": "fixed_value"}))
+        .collect();
+    let case = |hollow: serde_json::Value| -> Case {
+        serde_json::from_value(serde_json::json!({
+            "solver": "collocated_flow3d", "method": "piso",
+            "mesh": {"dimensions": [20, 20, 20], "lengths": {"x": 0.02, "y": 0.02, "z": 0.02}},
+            "config": {"dt": 0.01, "density": 1.2, "kinematic_viscosity": 1.5e-5},
+            "output": {"steps": 1, "output_interval": 1},
+            "velocity_boundaries": walls, "bodies": [hollow]
+        }))
+        .unwrap()
+    };
+    // Inside 0.0052..0.0078 m: centres at 5.5, 6.5, 7.5 mm, 3 × 3 × 3 = 27 cells, 0.3 % of 8 000.
+    let small = case(hollow_box("Shell", [0.005; 3], [0.008; 3], 0.0002));
+    let manifest = small.run(&scratch.0.join("small")).unwrap();
+    assert_eq!(manifest.metrics["sealed_pocket_cells_filled"], 27.0);
+    let report: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.0.join("small/mesh_report.json")).unwrap()).unwrap();
+    assert_eq!(report["sealed_pockets_filled"][0]["filled_with"], "Shell");
+    assert_eq!(report["fluid_cells"], 8000 - 27);
+    // Inside 2.2..17.8 mm: centres 2.5 to 17.5 mm, 16³ = 4 096 cells, far over 1 %.
+    let large = case(hollow_box("Shell", [0.002; 3], [0.018; 3], 0.0002));
+    let error = large.run(&scratch.0.join("large")).unwrap_err().to_string();
+    assert!(error.contains("disconnected fluid regions (2)") && error.contains("4096 cells"), "{error}");
+}

@@ -80,7 +80,13 @@ fn a_chip_thinner_than_a_cell_is_lumped_with_partial_cells() {
     assert!(lumped.contains("needs thermal.partial_cells"), "{lumped}");
 
     let scratch = Scratch::new("partial");
-    let manifest = Case::CollocatedFlow3d(channel(true, true)).run(&scratch.0).unwrap();
+    // A goal on the lumped chip reads the cells it lies in, as its row in the component table
+    // does (it read no cells and gave NaN, which failed the run when the goals were written).
+    let mut case = channel(true, true);
+    case.goals = serde_json::from_value(json!([{"name": "chip_max", "kind": "solid_max_temperature", "target": "chip"},
+                                               {"name": "chip_mean", "kind": "solid_mean_temperature", "target": "chip"}])).unwrap();
+    case.goal_control = serde_json::from_value(json!({"window_steps": 10, "relative_tolerance": 1e-9, "stop_when_converged": false, "min_steps": 20})).unwrap();
+    let manifest = Case::CollocatedFlow3d(case).run(&scratch.0).unwrap();
     assert!(manifest.capabilities.iter().any(|c| c == "partial_cells_v1"));
     // The chip's watt is all there, and the air carries it out.
     assert!((manifest.metrics["thermal_total_power_w"] - 1.0).abs() < 1e-9, "{:?}", manifest.metrics);
@@ -93,6 +99,10 @@ fn a_chip_thinner_than_a_cell_is_lumped_with_partial_cells() {
     assert!(chip_max > 300.0 && chip_max < 400.0, "{chip}");
     assert!(chip_max >= board["max_temperature_k"].as_f64().unwrap() - 1e-9, "{chip} {board}");
     assert_eq!(chip["status"], "pass");
+    let goals: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.0.join("goals.json")).unwrap()).unwrap();
+    let goal = |name: &str| goals["goals"].as_array().unwrap().iter().find(|g| g["name"] == name).unwrap()["final_value"].as_f64().unwrap();
+    assert!((goal("chip_max") - chip_max).abs() < 1e-6, "{goals}");
+    assert!(goal("chip_mean").is_finite() && goal("chip_mean") > 300.0 && goal("chip_mean") <= chip_max + 1e-9, "{goals}");
 }
 
 fn patch_report(dir: &std::path::Path, name: &str) -> serde_json::Value {
